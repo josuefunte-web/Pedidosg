@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>O'Carro — Pedidos</title>
 <!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-app-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-database-compat.js"></script>
 <!-- Charts -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
@@ -220,14 +220,7 @@ select:focus,input:focus{border-color:var(--pri)}
 <script>
 /* ═══════════════ FIREBASE CONFIG ═══════════════ */
 const FB_URL = 'https://pedidos-835a1-default-rtdb.europe-west1.firebasedatabase.app';
-
 let fbApp, fbDb;
-try {
-  fbApp = firebase.initializeApp({ databaseURL: FB_URL });
-  fbDb  = firebase.database();
-} catch(e) {
-  console.warn('Firebase init error:', e);
-}
 
 /* ═══════════════ DEFAULT DATA ═══════════════ */
 const DEFAULT_USERS=[
@@ -972,6 +965,12 @@ function reject(id){
 
 /* ═══════════════ INIT ═══════════════ */
 window.addEventListener('DOMContentLoaded',()=>{
+  try {
+    fbApp = firebase.initializeApp({ databaseURL: FB_URL });
+    fbDb  = firebase.database();
+  } catch(e) {
+    console.warn('Firebase init error:', e);
+  }
   initFirebaseListeners();
   render();
 });
