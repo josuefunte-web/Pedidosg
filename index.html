@@ -841,19 +841,78 @@ async function runOCR(){
 }
 
 function parseOCRText(text){
-  const lines=text.split('\n').map(l=>l.trim()).filter(l=>l.length>5);
+  // Patterns to skip: headers, footers, totals, addresses, legal text
+  const SKIP=/base\s*impon|i\.v\.a|importe\s*(total|bruto)|telf[eé]?f?|fax\.?:|www\.|n\.i\.f|c\.i\.f|f\.pedido|f\.entrega|referencia\s*del|preparado|firma|ruta\s*\d|caixe|informaci[oó]n|responsable|alergen|legitimaci|finalidad|mercabarna|import.export|direcci[oó]n|albar[aá]n\s*n|art\.\s*ref|mercancia|n\.\s*cient|kg\.\s*\/?\s*ca|08[0-9]{3}|cliente|c\.i\.f|nif:|10,00\s*%|%\s*de\s*r|sidoro|cami\s*de|palamos|girona\s*\)|barcelona\s*\)|llogitud|francesc|longitud/i;
+
+  const lines=text.split('\n').map(l=>l.trim()).filter(l=>l.length>3);
   const items=[];
+
   lines.forEach(line=>{
-    const prices=[...line.matchAll(/(\d+[.,]\d{2})/g)].map(m=>parseFloat(m[1].replace(',','.')));
-    if(!prices.length)return;
-    const qm=line.match(/(\d+[.,]?\d*)\s*(kg|kgs|un|uds|l|lts|caja)/i);
-    const qty=qm?parseFloat(qm[1].replace(',','.')):1;
-    const unit=qm?(qm[2].toLowerCase().startsWith('k')?'KG':qm[2].toLowerCase().startsWith('u')?'UN':'KG'):'UN';
-    const price=prices[prices.length-1];
-    const name=line.replace(/\d+[.,]\d+/g,'').replace(qm?qm[0]:'','').replace(/\s+/g,' ').trim().slice(0,60);
-    const codeMatch=line.match(/\b(\d{4,8})\b/);
-    if(name.length>2&&price>0) items.push({code:codeMatch?codeMatch[1]:'',name,unit,qty,price});
+    if(SKIP.test(line)) return;
+
+    // Extract all decimal numbers from line
+    const nums=[...line.matchAll(/(\d+[,\.]\d{1,2})/g)].map(m=>parseFloat(m[1].replace(',','.')));
+    if(!nums.length) return;
+
+    // Look for article code (3-5 digit number at start of line or after pipe)
+    const codeMatch=line.match(/(?:^|\|)\s*(\d{3,5})\b/);
+    const code=codeMatch?codeMatch[1]:'';
+
+    // Remove pipe chars, leading code, and scientific names (2+ consecutive ALL_CAPS words ≥4 chars each)
+    let name=line
+      .replace(/\|/g,' ')
+      .replace(/^\s*\d{3,5}\s*/,'')
+      .replace(/\b([A-ZÁÉÍÓÚ]{4,})(\s+[A-ZÁÉÍÓÚ]{3,}){1,}\b/g,'')
+      .replace(/\d+[,\.]\d+/g,'')
+      .replace(/\s+/g,' ')
+      .trim();
+
+    // Require meaningful text (at least 3 alpha chars)
+    if(name.replace(/[^a-zA-ZáéíóúñÁÉÍÓÚÑ]/g,'').length < 3) return;
+
+    // Determine qty and unit_price using qty*price=total relationship
+    let qty=1, price=0, found=false;
+    if(nums.length>=3){
+      // Try all triplets: a*b≈c or a*c≈b or b*c≈a
+      outer: for(let i=0;i<nums.length;i++){
+        for(let j=i+1;j<nums.length;j++){
+          const prod=nums[i]*nums[j];
+          for(let k=0;k<nums.length;k++){
+            if(k!==i&&k!==j&&Math.abs(nums[k]-prod)/Math.max(nums[k],0.01)<0.06){
+              // nums[i]*nums[j]≈nums[k]: smallest of i,j is qty, other is price
+              qty=Math.min(nums[i],nums[j]);
+              price=Math.max(nums[i],nums[j]);
+              // If qty looks like a price (>50) swap
+              if(qty>50&&price<qty){[qty,price]=[price,qty];}
+              found=true;
+              break outer;
+            }
+          }
+        }
+      }
+    }
+    if(!found){
+      if(nums.length>=2){ qty=nums[0]; price=nums[1]; }
+      else { price=nums[0]; qty=1; }
+    }
+
+    // Sanity: skip totals/taxes (importe bruto etc)
+    if(price<=0||price>5000||qty<=0||qty>2000) return;
+    // Skip if name contains total-like words
+    if(/importe|total|bruto|iva|i\.v\.a/i.test(name)) return;
+
+    // Unit: decimal qty = KG, otherwise check line or default UN
+    const unit=qty%1!==0?'KG':/\bkg\b|\bkgs\b|\bkilo/i.test(line)?'KG':'UN';
+
+    items.push({
+      code,
+      name:name.slice(0,60),
+      unit,
+      qty:Math.round(qty*100)/100,
+      price:Math.round(price*100)/100
+    });
   });
+
   return items.slice(0,50);
 }
 
