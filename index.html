@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>O'Carro — Pedidos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{
+  --pri:#1a1a2e;--acc:#e94560;--grn:#25D366;--grnd:#1da851;
+  --bg:#f0f2f5;--card:#fff;--brd:#e0e0e0;
+  --txt:#222;--mut:#888;--r:12px;--sh:0 2px 14px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+
+/* HEADER */
+.hdr{background:var(--pri);color:#fff;height:56px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:90;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.logo{font-size:17px;font-weight:800;letter-spacing:.3px;cursor:pointer}
+.logo span{color:var(--acc)}
+.hdr-r{display:flex;align-items:center;gap:8px}
+.hbtn{background:rgba(255,255,255,.1);border:none;color:#fff;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:.2s}
+.hbtn:hover{background:rgba(255,255,255,.22)}
+.hbtn.act{background:var(--acc)}
+.session-info{font-size:12px;opacity:.7;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* MAIN */
+.main{max-width:860px;margin:0 auto;padding:18px 14px 90px}
+
+/* CARD */
+.card{background:var(--card);border-radius:var(--r);padding:18px;box-shadow:var(--sh);margin-bottom:14px}
+.card-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin-bottom:14px}
+
+/* TABS */
+.tabs{display:flex;gap:3px;background:var(--bg);padding:4px;border-radius:10px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab{flex:1;padding:8px 10px;border:none;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;background:transparent;color:var(--mut);white-space:nowrap;min-width:fit-content;transition:.2s}
+.tab.act{background:#fff;color:var(--pri);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:#fff;border-radius:10px;padding:14px 10px;text-align:center;border:1.5px solid var(--brd)}
+.sv{font-size:24px;font-weight:800;color:var(--pri)}
+.sl{font-size:10px;color:var(--mut);margin-top:3px;text-transform:uppercase;letter-spacing:.3px}
+
+/* BUTTONS */
+.btn{padding:9px 15px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:.2s;white-space:nowrap}
+.btn-pri{background:var(--pri);color:#fff}.btn-pri:hover{background:#2d2d4e}
+.btn-acc{background:var(--acc);color:#fff}.btn-acc:hover{opacity:.9}
+.btn-ok{background:#dcfce7;color:#16a34a}.btn-ok:hover{background:#bbf7d0}
+.btn-no{background:#fee2e2;color:#dc2626}.btn-no:hover{background:#fecaca}
+.btn-wa{background:var(--grn);color:#fff}.btn-wa:hover{background:var(--grnd)}
+.btn-ghost{background:transparent;border:1.5px solid var(--brd);color:var(--txt)}.btn-ghost:hover{background:var(--bg)}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:7px}
+.btn-xs{padding:3px 8px;font-size:11px;border-radius:6px}
+.btn-ic{background:rgba(255,255,255,.08);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:.2s}.btn-ic:hover{background:rgba(255,255,255,.2)}
+
+/* ORDER CARD */
+.oc{border:1.5px solid var(--brd);border-radius:10px;padding:14px;margin-bottom:10px}
+.oc-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.oc-rest{font-size:15px;font-weight:700;color:var(--pri)}
+.oc-sub{font-size:12px;color:var(--mut);margin-top:2px}
+.oc-acts{display:flex;gap:6px;flex-wrap:wrap}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+.b-p{background:#fef3c7;color:#d97706}.b-a{background:#dcfce7;color:#16a34a}.b-r{background:#fee2e2;color:#dc2626}
+.b-free{background:#dbeafe;color:#1d4ed8}
+.pl{font-size:13px;border-top:1px solid var(--brd);padding-top:8px}
+.pr{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #f0f0f0}
+.pr:last-child{border:none}
+.pn{flex:1;color:var(--txt)}.pq{font-weight:700;color:var(--pri);margin-left:10px}.pp{color:var(--mut);margin-left:8px;min-width:72px;text-align:right}
+.ptot{display:flex;justify-content:flex-end;margin-top:8px;padding-top:7px;border-top:1.5px solid var(--brd);font-weight:800;font-size:15px;color:var(--pri)}
+
+/* FORM */
+.fg{margin-bottom:13px}
+label{display:block;font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+select,input[type=text],input[type=tel],input[type=number],input[type=password]{width:100%;padding:9px 12px;border:1.5px solid var(--brd);border-radius:8px;font-size:14px;background:#fff;color:var(--txt);outline:none;transition:border-color .2s}
+select:focus,input:focus{border-color:var(--pri)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1.5px solid var(--brd);border-radius:8px;background:#fff}
+.toggle-label{font-size:13px;font-weight:600}
+.toggle-sub{font-size:11px;color:var(--mut);margin-top:2px}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#ccc;border-radius:20px;cursor:pointer;transition:.3s}
+.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle input:checked+.toggle-slider{background:var(--pri)}
+.toggle input:checked+.toggle-slider:before{transform:translateX(20px)}
+
+/* PRODUCT CATALOG */
+.sup-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.stab{padding:7px 13px;border-radius:20px;border:1.5px solid var(--brd);background:#fff;font-size:13px;cursor:pointer;font-weight:600;transition:.2s}
+.stab.act{background:var(--pri);color:#fff;border-color:var(--pri)}
+.pgrid{display:grid;gap:7px}
+.pi{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;border:1.5px solid var(--brd);border-radius:8px;background:#fff;gap:10px;transition:border-color .2s}
+.pi.ic{border-color:var(--pri);background:#f5f5ff}
+.pi-i{flex:1;min-width:0}.pi-n{font-size:14px;font-weight:500}.pi-p{font-size:12px;color:var(--mut);margin-top:2px}
+.qc{display:flex;align-items:center;gap:8px}
+.qb{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--brd);background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--pri);transition:.2s;line-height:1}
+.qb:hover{background:var(--pri);color:#fff;border-color:var(--pri)}
+.qd{min-width:28px;text-align:center;font-weight:800;font-size:15px}
+
+/* CART BAR */
+.cbar{position:fixed;bottom:0;left:0;right:0;background:var(--pri);color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;transform:translateY(100%);transition:transform .3s;z-index:200;box-shadow:0 -4px 20px rgba(0,0,0,.2)}
+.cbar.up{transform:translateY(0)}
+.cb-v{font-weight:700;font-size:16px}.cb-s{opacity:.7;font-size:12px;margin-top:1px}
+
+/* CONSOLIDATED */
+.cc{border:1.5px solid #d1fae5;background:#f0fdf4;border-radius:10px;padding:14px;margin-bottom:10px}
+.cc-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.cc-name{font-size:15px;font-weight:800;color:#166534}
+
+/* CHART */
+.ch-wrap{position:relative;height:260px}
+
+/* SECTION HEADER */
+.sh{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 20px;color:var(--mut)}
+.ei{font-size:44px;margin-bottom:10px}.et{font-size:14px}
+
+/* TOAST */
+.toast{position:fixed;top:62px;right:14px;background:#222;color:#fff;padding:10px 15px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;display:none;box-shadow:0 4px 16px rgba(0,0,0,.2);animation:tin .3s ease}
+@keyframes tin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
+
+/* PIN MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px}
+.pin-box{background:#fff;border-radius:18px;padding:28px 24px;width:100%;max-width:320px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.pin-title{font-size:17px;font-weight:800;color:var(--pri);margin-bottom:4px}
+.pin-sub{font-size:13px;color:var(--mut);margin-bottom:20px}
+.pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:20px}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--brd);transition:.2s}
+.dot.fill{background:var(--pri);border-color:var(--pri)}
+.pin-err{color:#dc2626;font-size:13px;margin-bottom:12px;font-weight:600}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.nk{background:var(--bg);border:none;border-radius:12px;height:52px;font-size:20px;font-weight:700;cursor:pointer;color:var(--pri);transition:.15s}
+.nk:hover{background:#e0e2e8}
+.nk:active{transform:scale(.93)}
+.nk.del{font-size:18px}.nk.ok{background:var(--pri);color:#fff}
+.nk.ok:hover{background:#2d2d4e}
+
+/* LOGIN SCREEN */
+.login-wrap{max-width:860px;margin:0 auto;padding:24px 14px}
+.login-title{text-align:center;font-size:22px;font-weight:800;color:var(--pri);margin-bottom:4px}
+.login-sub{text-align:center;font-size:14px;color:var(--mut);margin-bottom:24px}
+.rest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:20px}
+.rest-card{background:#fff;border-radius:var(--r);padding:18px 14px;cursor:pointer;border:2px solid var(--brd);transition:.2s;text-align:center;box-shadow:var(--sh)}
+.rest-card:hover{border-color:var(--pri);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12)}
+.rest-emoji{font-size:28px;margin-bottom:8px}
+.rest-name{font-size:13px;font-weight:700;color:var(--pri);line-height:1.3}
+.admin-row{display:flex;justify-content:center;margin-top:10px}
+.admin-btn{background:transparent;border:2px solid var(--pri);color:var(--pri);padding:10px 24px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;transition:.2s}
+.admin-btn:hover{background:var(--pri);color:#fff}
+
+/* USER MANAGEMENT */
+.user-card{border:1.5px solid var(--brd);border-radius:10px;padding:14px;margin-bottom:10px;background:#fff}
+.uc-hd{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.uc-name{font-size:15px;font-weight:700;color:var(--pri)}
+.uc-info{font-size:12px;color:var(--mut);margin-top:2px}
+.uc-acts{display:flex;gap:6px}
+.uc-body{margin-top:12px;padding-top:12px;border-top:1px solid var(--brd)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* SUPPLIER MANAGEMENT */
+.sup-card{border:1.5px solid var(--brd);border-radius:10px;padding:14px;margin-bottom:10px;background:#fff}
+.sc-hd{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.sc-name{font-size:15px;font-weight:700;color:var(--pri)}
+.sc-info{font-size:12px;color:var(--mut);margin-top:2px}
+.sc-acts{display:flex;gap:6px}
+.sc-body{margin-top:12px;padding-top:12px;border-top:1px solid var(--brd)}
+.prod-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid var(--brd);border-radius:7px;margin-bottom:6px;background:var(--bg)}
+.prod-info{flex:1}.prod-name-t{font-size:13px;font-weight:600}.prod-meta{font-size:11px;color:var(--mut)}
+.three-col{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
+
+/* INFO BANNER */
+.banner{background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:11px 14px;margin-bottom:12px;font-size:13px;color:#92400e;display:flex;gap:8px;align-items:flex-start;line-height:1.4}
+.banner.blue{background:#eff6ff;border-color:#93c5fd;color:#1e40af}
+
+/* WA SVG */
+.wa-ic{width:14px;height:14px;fill:currentColor;flex-shrink:0;margin-top:1px}
+
+/* responsive */
+@media(max-width:480px){
+  .two-col,.three-col{grid-template-columns:1fr}
+  .hdr .session-info{display:none}
+  .btn-sm{padding:5px 8px;font-size:11px}
+}
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- PIN MODAL -->
+<div class="overlay" id="pin-ov" style="display:none" onclick="if(event.target===this)closePIN()">
+  <div class="pin-box">
+    <div class="pin-title" id="pin-title">Introduce PIN</div>
+    <div class="pin-sub" id="pin-sub"></div>
+    <div class="pin-dots" id="pin-dots">
+      <div class="dot" id="d0"></div><div class="dot" id="d1"></div>
+      <div class="dot" id="d2"></div><div class="dot" id="d3"></div>
+    </div>
+    <div class="pin-err" id="pin-err" style="display:none">PIN incorrecto</div>
+    <div class="numpad">
+      <button class="nk" onclick="addPIN('1')">1</button>
+      <button class="nk" onclick="addPIN('2')">2</button>
+      <button class="nk" onclick="addPIN('3')">3</button>
+      <button class="nk" onclick="addPIN('4')">4</button>
+      <button class="nk" onclick="addPIN('5')">5</button>
+      <button class="nk" onclick="addPIN('6')">6</button>
+      <button class="nk" onclick="addPIN('7')">7</button>
+      <button class="nk" onclick="addPIN('8')">8</button>
+      <button class="nk" onclick="addPIN('9')">9</button>
+      <button class="nk del" onclick="delPIN()">⌫</button>
+      <button class="nk" onclick="addPIN('0')">0</button>
+      <button class="nk ok" onclick="confirmPIN()">✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="hdr" id="hdr" style="display:none">
+  <div class="logo" onclick="handleLogoClick()">O'<span>Carro</span> Pedidos</div>
+  <div class="hdr-r">
+    <span class="session-info" id="ses-info"></span>
+    <button class="hbtn" id="btn-np" style="display:none" onclick="goOrder()">+ Pedido</button>
+    <button class="hbtn act" id="btn-adm" style="display:none" onclick="goAdmin()">📋</button>
+    <button class="hbtn" id="btn-cfg" style="display:none" onclick="goAdmin();setTab('suppliers')">⚙️</button>
+    <button class="hbtn" onclick="logout()" title="Cerrar sesión">↩</button>
+  </div>
+</header>
+
+<div id="app"></div>
+
+<script>
+/* ═══════════════════════════════════════════════
+   DEFAULT DATA
+═══════════════════════════════════════════════ */
+const DEFAULT_USERS = [
+  {id:'u1', name:"S. XXI · Barra",   restaurant:"O'Carro S. XXI · Barra",  pin:'1001', needsApproval:true},
+  {id:'u2', name:"S. XXI · Sala",    restaurant:"O'Carro S. XXI · Sala",   pin:'1002', needsApproval:true},
+  {id:'u3', name:"Main · Local 1",   restaurant:"O'Carro Main · Local 1",  pin:'1003', needsApproval:true},
+  {id:'u4', name:"Gourmet",          restaurant:"O'Carro Gourmet",         pin:'1004', needsApproval:true},
+  {id:'u5', name:"Express",          restaurant:"O'Carro Express",         pin:'1005', needsApproval:true},
+  {id:'u6', name:"Terrat",           restaurant:"O'Carro Terrat",          pin:'1006', needsApproval:true},
+  {id:'u7', name:"Central",          restaurant:"O'Carro Central",         pin:'1007', needsApproval:true},
+  {id:'u8', name:"Norte",            restaurant:"O'Carro Norte",           pin:'1008', needsApproval:true},
+  {id:'u9', name:"Sur",              restaurant:"O'Carro Sur",             pin:'1009', needsApproval:true},
+  {id:'u10',name:"Marina",           restaurant:"O'Carro Marina",          pin:'1010', needsApproval:true},
+  {id:'u11',name:"Rambla",           restaurant:"O'Carro Rambla",          pin:'1011', needsApproval:true},
+  {id:'u12',name:"Eixample",         restaurant:"O'Carro Eixample",        pin:'1012', needsApproval:true},
+  {id:'u13',name:"Sarrià",           restaurant:"O'Carro Sarrià",          pin:'1013', needsApproval:true},
+];
+
+const DEFAULT_SUPPLIERS = {
+  bencar:{id:'bencar',name:'Bencar',emoji:'🥩',phone:'',products:[
+    {id:'b1',name:'Entrecot de ternera',unit:'KG',price:28.50},
+    {id:'b2',name:'Chuletón de buey',unit:'KG',price:45.00},
+    {id:'b3',name:'Solomillo de ternera',unit:'KG',price:38.90},
+    {id:'b4',name:'Costilla de cerdo',unit:'KG',price:6.80},
+    {id:'b5',name:'Panceta ibérica',unit:'KG',price:12.50},
+    {id:'b6',name:'Pollo entero',unit:'UN',price:8.20},
+    {id:'b7',name:'Pechuga de pollo',unit:'KG',price:7.90},
+    {id:'b8',name:'Chorizo fresco',unit:'KG',price:9.40},
+    {id:'b9',name:'Morcilla',unit:'KG',price:8.70},
+    {id:'b10',name:'Papada de cerdo',unit:'KG',price:11.20},
+    {id:'b11',name:'Muslo de pollo',unit:'KG',price:4.50},
+    {id:'b12',name:'Aguja de ternera',unit:'KG',price:18.30},
+    {id:'b13',name:'Falda de ternera',unit:'KG',price:14.80},
+    {id:'b15',name:'Carrillera de cerdo',unit:'KG',price:12.90},
+  ]},
+  g1012:{id:'g1012',name:'1012 Gourmet',emoji:'🌟',phone:'',products:[
+    {id:'g1',name:'Foie gras de pato fresco',unit:'KG',price:85.00},
+    {id:'g2',name:'Trufa negra melanosporum',unit:'KG',price:450.00},
+    {id:'g3',name:'Jamón ibérico 5J',unit:'KG',price:95.00},
+    {id:'g4',name:'Langostinos tigre',unit:'KG',price:38.00},
+    {id:'g5',name:'Centollo cocido',unit:'UN',price:45.00},
+    {id:'g6',name:'Caviar Beluga 50g',unit:'UN',price:210.00},
+    {id:'g7',name:'Queso Parmigiano 24M',unit:'KG',price:28.50},
+    {id:'g8',name:'Aceite trufa blanca 250ml',unit:'UN',price:32.00},
+    {id:'g9',name:'Sal Maldon 500g',unit:'UN',price:8.50},
+    {id:'g10',name:'Vinagre Módena 15 años',unit:'UN',price:45.00},
+  ]},
+  c1012:{id:'c1012',name:'1012 Carne',emoji:'🐄',phone:'',products:[
+    {id:'c1',name:'Chuletón Buey DO Galicia',unit:'KG',price:62.00},
+    {id:'c2',name:'Solomillo Black Angus',unit:'KG',price:52.00},
+    {id:'c3',name:'Entrecot Wagyu A4',unit:'KG',price:120.00},
+    {id:'c4',name:'Cordero lechal entero',unit:'KG',price:22.00},
+    {id:'c5',name:'Cochinillo ibérico',unit:'UN',price:65.00},
+    {id:'c6',name:'Carrillera de ternera',unit:'KG',price:18.50},
+    {id:'c7',name:'Secreto ibérico',unit:'KG',price:16.90},
+  ]},
+  ismael:{id:'ismael',name:'Ismael',emoji:'🛒',phone:'',products:[
+    {id:'i1',name:'Entrecot de ternera',unit:'KG',price:26.50},
+    {id:'i2',name:'Solomillo de ternera',unit:'KG',price:36.00},
+    {id:'i3',name:'Pollo entero',unit:'UN',price:7.80},
+    {id:'i4',name:'Costilla de cerdo',unit:'KG',price:6.20},
+    {id:'i5',name:'Papada de cerdo',unit:'KG',price:17.50},
+    {id:'i6',name:'Pechuga de pollo',unit:'KG',price:7.40},
+    {id:'i7',name:'Crema de sobrasada',unit:'KG',price:12.00},
+  ]},
+};
+
+/* ═══════════════════════════════════════════════
+   STORAGE
+═══════════════════════════════════════════════ */
+let orders    = JSON.parse(localStorage.getItem('oc_orders')    || '[]');
+let cfg       = JSON.parse(localStorage.getItem('oc_cfg')       || JSON.stringify({adminPIN:'0000',adminName:'Josué',adminPhone:'',users:DEFAULT_USERS}));
+let suppliers = JSON.parse(localStorage.getItem('oc_suppliers') || JSON.stringify(DEFAULT_SUPPLIERS));
+
+if(!cfg.users) cfg.users = DEFAULT_USERS;
+
+function saveOrders(){ localStorage.setItem('oc_orders', JSON.stringify(orders)); }
+function saveCfg()   { localStorage.setItem('oc_cfg',    JSON.stringify(cfg)); }
+function saveSups()  { localStorage.setItem('oc_suppliers', JSON.stringify(suppliers)); }
+
+/* ═══════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════ */
+let S = {
+  view: 'login',  // 'login' | 'order' | 'admin'
+  adminTab: 'pending',
+  session: null,  // { userId, name, restaurant, isAdmin, needsApproval }
+  // order state
+  supId: Object.keys(DEFAULT_SUPPLIERS)[0],
+  cart: {},
+  // admin editing
+  editUserId: null,   // null | 'new' | id
+  editSupId:  null,   // null | 'new' | id
+  openSupId:  null,   // expanded supplier for product mgmt
+  // PIN modal
+  pinTarget: null,    // { type:'user'|'admin', userId }
+  pinBuf: '',
+};
+
+let chartInst = null;
+
+/* ═══════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════ */
+const WA = `<svg class="wa-ic" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
+
+function fmt(n){ return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+function fmtD(iso){ return new Date(iso).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
+function total(o){ return o.items.reduce((s,it)=>s+it.qty*it.price,0); }
+function supList(){ return Object.values(suppliers); }
+
+function toast(msg,col='#222'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.background=col;t.style.display='block';
+  clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3200);
+}
+
+function waURL(phone, text){ return `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`; }
+
+function msgAdmin(o){
+  const sup=suppliers[o.supId];
+  const lines=o.items.map(it=>`• ${it.name}: ${it.qty} ${it.unit}`).join('\n');
+  return `📋 *SOLICITUD PEDIDO — O'Carro*\n🏪 ${o.restaurant}\n🏭 Proveedor: ${sup?sup.emoji+' '+sup.name:'?'}\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n\n${lines}\n\n*Total: ${fmt(total(o))}*\n\n_App O'Carro Pedidos_`;
+}
+
+function msgSupplier(o){
+  const lines=o.items.map(it=>`• ${it.name} (${it.unit}): ${it.qty}  →  ${fmt(it.qty*it.price)}`).join('\n');
+  const rest=o.restaurant.includes('Consolidado')?o.restaurant:`🏪 ${o.restaurant}`;
+  return `🛒 *PEDIDO O'CARRO*\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n${rest}\n\n*Productos:*\n${lines}\n\n*TOTAL: ${fmt(total(o))}*\n\n_${cfg.adminName} — Jefe de Compras_`;
+}
+
+/* ═══════════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════════ */
+function showHeader(isAdmin){
+  const hdr=document.getElementById('hdr');
+  hdr.style.display='flex';
+  document.getElementById('ses-info').textContent = S.session ? (S.session.isAdmin ? '⚙️ '+cfg.adminName : S.session.restaurant) : '';
+  document.getElementById('btn-np').style.display  = !isAdmin ? '' : 'none';
+  document.getElementById('btn-adm').style.display = isAdmin ? '' : 'none';
+  document.getElementById('btn-cfg').style.display = isAdmin ? '' : 'none';
+  setActive(isAdmin ? 'adm' : 'np');
+}
+
+function setActive(key){
+  ['np','adm','cfg'].forEach(k=>{
+    const el=document.getElementById('btn-'+k);
+    if(el) el.classList.toggle('act', k===key);
+  });
+}
+
+function handleLogoClick(){
+  if(S.session && S.session.isAdmin){ goAdmin(); } else if(S.session){ goOrder(); }
+}
+
+function goLogin(){
+  S.view='login'; S.session=null;
+  document.getElementById('hdr').style.display='none';
+  render();
+}
+
+function logout(){
+  if(!confirm('¿Cerrar sesión?')) return;
+  S.view='login'; S.session=null;
+  document.getElementById('hdr').style.display='none';
+  render();
+}
+
+function goOrder(){
+  S.view='order'; S.cart={};
+  const sups=supList(); if(sups.length) S.supId=sups[0].id;
+  showHeader(false); setActive('np'); render();
+}
+
+function goAdmin(){
+  S.view='admin';
+  showHeader(true); setActive('adm'); render();
+}
+
+function setTab(t){
+  S.adminTab=t; setActive('adm');
+  document.getElementById('btn-adm').classList.add('act');
+  render();
+  if(t==='spending') setTimeout(renderChart,50);
+}
+
+/* ═══════════════════════════════════════════════
+   PIN MODAL
+═══════════════════════════════════════════════ */
+function openPIN(type, userId){
+  S.pinTarget={type,userId};
+  S.pinBuf='';
+  const u = type==='user' ? cfg.users.find(u=>u.id===userId) : null;
+  document.getElementById('pin-title').textContent = type==='admin' ? 'Acceso administrador' : (u?u.restaurant:'PIN');
+  document.getElementById('pin-sub').textContent   = type==='admin' ? 'Introduce el PIN de administrador' : 'Introduce tu PIN';
+  document.getElementById('pin-err').style.display='none';
+  updateDots();
+  document.getElementById('pin-ov').style.display='flex';
+}
+
+function closePIN(){ document.getElementById('pin-ov').style.display='none'; S.pinBuf=''; }
+
+function addPIN(d){
+  if(S.pinBuf.length>=4) return;
+  S.pinBuf+=d;
+  updateDots();
+  if(S.pinBuf.length===4) setTimeout(confirmPIN,120);
+}
+
+function delPIN(){ S.pinBuf=S.pinBuf.slice(0,-1); updateDots(); }
+
+function updateDots(){
+  for(let i=0;i<4;i++){
+    document.getElementById('d'+i).className='dot'+(i<S.pinBuf.length?' fill':'');
+  }
+  document.getElementById('pin-err').style.display='none';
+}
+
+function confirmPIN(){
+  const {type, userId} = S.pinTarget;
+  if(type==='admin'){
+    if(S.pinBuf===cfg.adminPIN){
+      closePIN();
+      S.session={isAdmin:true, name:cfg.adminName};
+      goAdmin();
+    } else { wrong(); }
+  } else {
+    const u=cfg.users.find(u=>u.id===userId);
+    if(u && S.pinBuf===u.pin){
+      closePIN();
+      S.session={userId:u.id, name:u.name, restaurant:u.restaurant, isAdmin:false, needsApproval:u.needsApproval};
+      goOrder();
+    } else { wrong(); }
+  }
+}
+
+function wrong(){
+  S.pinBuf='';
+  updateDots();
+  const e=document.getElementById('pin-err');
+  e.style.display='block';
+  setTimeout(()=>e.style.display='none',2000);
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN RENDER
+═══════════════════════════════════════════════ */
+function render(){
+  const app=document.getElementById('app');
+  if(S.view==='login')  app.innerHTML=vLogin();
+  else if(S.view==='order') app.innerHTML=vOrder();
+  else if(S.view==='admin') app.innerHTML=vAdmin();
+}
+
+/* ═══════════════════════════════════════════════
+   LOGIN VIEW
+═══════════════════════════════════════════════ */
+const EMOJIS=['🏠','🌿','⭐','🍽️','🏃','🌅','🎯','🧭','🌊','⚓','🌆','🏙️','🌃'];
+function vLogin(){
+  const cards = cfg.users.map((u,i)=>`
+    <div class="rest-card" onclick="openPIN('user','${u.id}')">
+      <div class="rest-emoji">${EMOJIS[i%EMOJIS.length]}</div>
+      <div class="rest-name">${u.restaurant}</div>
+    </div>`).join('');
+
+  return `<div class="login-wrap">
+    <div class="login-title">O'<span style="color:var(--acc)">Carro</span> Pedidos</div>
+    <div class="login-sub">Selecciona tu restaurante</div>
+    <div class="rest-grid">${cards}</div>
+    <div class="admin-row">
+      <button class="admin-btn" onclick="openPIN('admin')">⚙️ Administrador</button>
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════
+   ORDER VIEW
+═══════════════════════════════════════════════ */
+function vOrder(){
+  const sups=supList();
+  if(!sups.length) return `<div class="main"><div class="empty"><div class="ei">🏭</div><div class="et">No hay proveedores configurados.<br>El administrador debe añadirlos.</div></div></div>`;
+
+  if(!suppliers[S.supId]) S.supId=sups[0].id;
+  const sup=suppliers[S.supId];
+  const cnt=Object.values(S.cart).reduce((s,v)=>s+v,0);
+  const tot=sup.products.reduce((s,p)=>s+(S.cart[p.id]||0)*p.price,0);
+
+  const stabs=sups.map(s=>`<button class="stab ${S.supId===s.id?'act':''}" onclick="setSup('${s.id}')">${s.emoji} ${s.name}</button>`).join('');
+
+  const note=S.session.needsApproval
+    ? `<div class="banner">📋 Tu pedido irá a <strong>${cfg.adminName}</strong> para aprobación antes de enviarse al proveedor.</div>`
+    : `<div class="banner blue">⚡ Tus pedidos se aprueban automáticamente y van directo al proveedor.</div>`;
+
+  const prods=sup.products.map(p=>{
+    const q=S.cart[p.id]||0;
+    return `<div class="pi ${q>0?'ic':''}" id="pi-${p.id}">
+      <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${fmt(p.price)} / ${p.unit}</div></div>
+      <div class="qc">
+        <button class="qb" onclick="chgQ('${p.id}',-1)">−</button>
+        <div class="qd" id="qd-${p.id}">${q}</div>
+        <button class="qb" onclick="chgQ('${p.id}',1)">+</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  if(!sup.products.length){
+    return `<div class="main">${note}<div class="sup-tabs">${stabs}</div>
+      <div class="empty"><div class="ei">📦</div><div class="et">Este proveedor no tiene productos.</div></div></div>`;
+  }
+
+  return `<div class="main">
+    ${note}
+    <div class="sh">Proveedor</div>
+    <div class="sup-tabs">${stabs}</div>
+    <div class="sh">Productos — ${sup.emoji} ${sup.name}</div>
+    <div class="pgrid">${prods}</div>
+  </div>
+  <div class="cbar ${cnt>0?'up':''}" id="cbar">
+    <div><div class="cb-v" id="cb-v">${cnt} artículos</div><div class="cb-s" id="cb-s">${fmt(tot)}</div></div>
+    <button class="btn btn-acc" id="cb-btn" onclick="submitOrder()">📤 Enviar pedido</button>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════
+   ADMIN VIEW
+═══════════════════════════════════════════════ */
+function vAdmin(){
+  const pend=orders.filter(o=>o.status==='pending');
+  const appr=orders.filter(o=>o.status==='approved');
+  const totP=pend.reduce((s,o)=>s+total(o),0);
+  const totA=appr.reduce((s,o)=>s+total(o),0);
+
+  const stats=`<div class="stats">
+    <div class="stat"><div class="sv">${pend.length}</div><div class="sl">Pendientes</div></div>
+    <div class="stat"><div class="sv" style="color:var(--acc);font-size:20px">${fmt(totP)}</div><div class="sl">Por aprobar</div></div>
+    <div class="stat"><div class="sv" style="color:#16a34a">${appr.length}</div><div class="sl">Aprobados</div></div>
+    <div class="stat"><div class="sv" style="color:#16a34a;font-size:20px">${fmt(totA)}</div><div class="sl">Gasto</div></div>
+  </div>`;
+
+  const tabs=[
+    {id:'pending',   lbl:`⏳ Pendientes (${pend.length})`},
+    {id:'approved',  lbl:`✅ Aprobados`},
+    {id:'consolidated',lbl:`📦 Consolidado`},
+    {id:'spending',  lbl:`📊 Gasto`},
+    {id:'users',     lbl:`👥 Usuarios`},
+    {id:'suppliers', lbl:`🏭 Proveedores`},
+    {id:'settings',  lbl:`⚙️ Config`},
+  ].map(t=>`<button class="tab ${S.adminTab===t.id?'act':''}" onclick="setTab('${t.id}')">${t.lbl}</button>`).join('');
+
+  let content='';
+  if(S.adminTab==='pending')      content=vPending();
+  else if(S.adminTab==='approved')     content=vApproved();
+  else if(S.adminTab==='consolidated') content=vConsolidated();
+  else if(S.adminTab==='spending')     content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
+  else if(S.adminTab==='users')        content=vUsers();
+  else if(S.adminTab==='suppliers')    content=vSuppliers();
+  else if(S.adminTab==='settings')     content=vSettings();
+
+  return `<div class="main">${stats}<div class="tabs">${tabs}</div><div id="tc">${content}</div></div>`;
+}
+
+/* ── PENDING TAB ── */
+function vPending(){
+  const pend=orders.filter(o=>o.status==='pending');
+  if(!pend.length) return `<div class="empty"><div class="ei">🎉</div><div class="et">Sin pedidos pendientes</div></div>`;
+  return pend.map(o=>orderCard(o,true)).join('');
+}
+
+/* ── APPROVED TAB ── */
+function vApproved(){
+  const appr=orders.filter(o=>o.status==='approved');
+  if(!appr.length) return `<div class="empty"><div class="ei">📋</div><div class="et">Sin pedidos aprobados todavía</div></div>`;
+  return appr.map(o=>orderCard(o,false)).join('');
+}
+
+function orderCard(o, showActions){
+  const sup=suppliers[o.supId]||{name:'?',emoji:'?'};
+  const tot=total(o);
+  const bcls={pending:'b-p',approved:'b-a',rejected:'b-r'}[o.status];
+  const blbl={pending:'Pendiente',approved:'Aprobado',rejected:'Rechazado'}[o.status];
+  const autoLabel=o.autoApproved?` <span class="badge b-free">Auto</span>`:'';
+
+  const rows=o.items.map(it=>`<div class="pr"><span class="pn">${it.name}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
+
+  const phone=sup.phone||'';
+  const waHref=phone?waURL(phone,msgSupplier(o)):'#';
+  const waDis=phone?'':' title="Configura número en Proveedores" style="opacity:.5;cursor:not-allowed"';
+
+  let acts='';
+  if(showActions && o.status==='pending'){
+    acts=`<div class="oc-acts">
+      <button class="btn btn-ok btn-sm" onclick="approve('${o.id}')">✅ Aprobar</button>
+      <button class="btn btn-no btn-sm" onclick="reject('${o.id}')">✗ Rechazar</button>
+    </div>`;
+  } else if(o.status==='approved'){
+    acts=`<div class="oc-acts">
+      <a href="${waHref}" target="_blank" class="btn btn-wa btn-sm"${waDis}>${WA} ${sup.name}</a>
+    </div>`;
+  }
+
+  return `<div class="oc">
+    <div class="oc-hd">
+      <div>
+        <div class="oc-rest">${o.restaurant}${autoLabel}</div>
+        <div class="oc-sub">${sup.emoji} ${sup.name} · ${fmtD(o.createdAt)} · <span class="badge ${bcls}">${blbl}</span></div>
+      </div>${acts}
+    </div>
+    <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
+  </div>`;
+}
+
+/* ── CONSOLIDATED TAB ── */
+function vConsolidated(){
+  const pend=orders.filter(o=>o.status==='pending');
+  if(!pend.length) return `<div class="empty"><div class="ei">📦</div><div class="et">No hay pedidos pendientes para consolidar</div></div>`;
+
+  const bySup={};
+  pend.forEach(o=>{
+    if(!bySup[o.supId]) bySup[o.supId]={};
+    o.items.forEach(it=>{
+      if(!bySup[o.supId][it.id]) bySup[o.supId][it.id]={...it,qty:0,rests:[]};
+      bySup[o.supId][it.id].qty+=it.qty;
+      bySup[o.supId][it.id].rests.push(o.restaurant.replace("O'Carro ",""));
+    });
+  });
+
+  return Object.entries(bySup).map(([sid,items])=>{
+    const sup=suppliers[sid]||{name:sid,emoji:'📦',phone:''};
+    const arr=Object.values(items);
+    const tot=arr.reduce((s,it)=>s+it.qty*it.price,0);
+    const phone=sup.phone||'';
+    const co={id:'c',supId:sid,restaurant:`Consolidado (${new Set(pend.filter(o=>o.supId===sid).map(o=>o.restaurant)).size} rest.)`,items:arr,createdAt:new Date().toISOString(),status:'approved'};
+    const waHref=phone?waURL(phone,msgSupplier(co)):'#';
+    const waDis=phone?'':' title="Configura número en Proveedores" style="opacity:.5;cursor:not-allowed"';
+    const rows=arr.map(it=>`<div class="pr"><span class="pn">${it.name} <small style="color:var(--mut)">(${[...new Set(it.rests)].length}r)</small></span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
+    return `<div class="cc">
+      <div class="cc-hd"><div class="cc-name">${sup.emoji} ${sup.name}</div>
+        <a href="${waHref}" target="_blank" class="btn btn-wa btn-sm"${waDis}>${WA} Enviar consolidado</a>
+      </div>
+      <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
+    </div>`;
+  }).join('');
+}
+
+/* ── SPENDING / CHART ── */
+function renderChart(){
+  const ctx=document.getElementById('chart');
+  if(!ctx) return;
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  const byR={};
+  orders.filter(o=>o.status==='approved').forEach(o=>{
+    const k=o.restaurant.replace("O'Carro ","");
+    byR[k]=(byR[k]||0)+total(o);
+  });
+  const ent=Object.entries(byR).filter(([,v])=>v>0).sort(([,a],[,b])=>b-a);
+  if(!ent.length){
+    const p=ctx.parentNode;
+    p.innerHTML=`<div class="empty" style="height:260px;display:flex;flex-direction:column;justify-content:center"><div class="ei">📊</div><div class="et">Aprueba pedidos para ver el gasto</div></div>`;
+    return;
+  }
+  chartInst=new Chart(ctx,{
+    type:'bar',
+    data:{labels:ent.map(([k])=>k),datasets:[{data:ent.map(([,v])=>v),backgroundColor:'#1a1a2e',borderRadius:6,hoverBackgroundColor:'#e94560'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
+      scales:{y:{ticks:{callback:v=>v.toLocaleString('es-ES',{maximumFractionDigits:0})+' €'},grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}
+  });
+}
+
+/* ── USERS TAB ── */
+function vUsers(){
+  const isNew = S.editUserId==='new';
+  const newForm = isNew ? userForm(null) : `<button class="btn btn-pri btn-sm" onclick="S.editUserId='new';render()" style="margin-bottom:14px">+ Añadir usuario</button>`;
+
+  const list=cfg.users.map(u=>{
+    const editing=S.editUserId===u.id;
+    return `<div class="user-card">
+      <div class="uc-hd">
+        <div>
+          <div class="uc-name">${u.restaurant}</div>
+          <div class="uc-info">PIN: ${u.pin} · ${u.needsApproval?'Requiere aprobación':'Auto-aprobado'}</div>
+        </div>
+        <div class="uc-acts">
+          <button class="btn btn-ghost btn-sm" onclick="S.editUserId=S.editUserId==='${u.id}'?null:'${u.id}';render()">${editing?'✕':'✏️'}</button>
+          <button class="btn btn-no btn-sm" onclick="delUser('${u.id}')">🗑️</button>
+        </div>
+      </div>
+      ${editing?`<div class="uc-body">${userForm(u)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  return newForm + list;
+}
+
+function userForm(u){
+  const id=u?u.id:'new';
+  const isNew=!u;
+  return `<div class="two-col">
+    <div class="fg"><label>Nombre restaurante</label>
+      <input type="text" id="uf-rest-${id}" value="${u?u.restaurant:''}" placeholder="O'Carro Gourmet"/>
+    </div>
+    <div class="fg"><label>Nombre corto</label>
+      <input type="text" id="uf-name-${id}" value="${u?u.name:''}" placeholder="Gourmet"/>
+    </div>
+    <div class="fg"><label>PIN (4 dígitos)</label>
+      <input type="text" id="uf-pin-${id}" value="${u?u.pin:''}" maxlength="4" placeholder="1234"/>
+    </div>
+    <div class="fg"><label>Confirmación de pedido</label>
+      <select id="uf-appr-${id}">
+        <option value="1" ${u&&u.needsApproval?'selected':''}>Requiere aprobación</option>
+        <option value="0" ${u&&!u.needsApproval?'selected':''}>Auto-aprobado</option>
+      </select>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-pri btn-sm" onclick="saveUser('${id}')">${isNew?'✓ Crear':'✓ Guardar'}</button>
+    <button class="btn btn-ghost btn-sm" onclick="S.editUserId=null;render()">Cancelar</button>
+  </div>`;
+}
+
+function saveUser(id){
+  const rest=document.getElementById('uf-rest-'+id)?.value.trim();
+  const name=document.getElementById('uf-name-'+id)?.value.trim();
+  const pin =document.getElementById('uf-pin-'+id)?.value.trim();
+  const appr=document.getElementById('uf-appr-'+id)?.value;
+
+  if(!rest||!pin||pin.length<4||!/^\d+$/.test(pin)){ toast('Rellena nombre y PIN de 4 dígitos','#dc2626'); return; }
+
+  if(id==='new'){
+    cfg.users.push({id:'u'+uid(),name:name||rest,restaurant:rest,pin,needsApproval:appr==='1'});
+  } else {
+    const u=cfg.users.find(u=>u.id===id);
+    if(u){ u.name=name||rest; u.restaurant=rest; u.pin=pin; u.needsApproval=appr==='1'; }
+  }
+  saveCfg(); S.editUserId=null; render();
+  toast('Usuario guardado','#16a34a');
+}
+
+function delUser(id){
+  if(!confirm('¿Eliminar este usuario?')) return;
+  cfg.users=cfg.users.filter(u=>u.id!==id);
+  saveCfg(); render();
+  toast('Usuario eliminado');
+}
+
+/* ── SUPPLIERS TAB ── */
+function vSuppliers(){
+  const isNew=S.editSupId==='new';
+  const newForm=isNew?supForm(null):`<button class="btn btn-pri btn-sm" onclick="S.editSupId='new';render()" style="margin-bottom:14px">+ Añadir proveedor</button>`;
+
+  const list=supList().map(sup=>{
+    const editing=S.editSupId===sup.id;
+    const open=S.openSupId===sup.id;
+    const prodCount=sup.products.length;
+    return `<div class="sup-card">
+      <div class="sc-hd">
+        <div>
+          <div class="sc-name">${sup.emoji} ${sup.name}</div>
+          <div class="sc-info">${prodCount} productos · ${sup.phone?sup.phone:'Sin número WhatsApp'}</div>
+        </div>
+        <div class="sc-acts">
+          <button class="btn btn-ghost btn-sm" onclick="S.openSupId=S.openSupId==='${sup.id}'?null:'${sup.id}';S.editSupId=null;render()">${open?'▲ Cerrar':'📦 Productos'}</button>
+          <button class="btn btn-ghost btn-sm" onclick="S.editSupId=S.editSupId==='${sup.id}'?null:'${sup.id}';S.openSupId=null;render()">${editing?'✕':'✏️'}</button>
+          <button class="btn btn-no btn-sm" onclick="delSup('${sup.id}')">🗑️</button>
+        </div>
+      </div>
+      ${editing?`<div class="sc-body">${supForm(sup)}</div>`:''}
+      ${open?`<div class="sc-body">${prodManager(sup)}</div>`:''}
+    </div>`;
+  }).join('');
+
+  return newForm+list;
+}
+
+function supForm(sup){
+  const id=sup?sup.id:'new';
+  const isNew=!sup;
+  return `<div class="two-col">
+    <div class="fg"><label>Nombre proveedor</label>
+      <input type="text" id="sf-name-${id}" value="${sup?sup.name:''}" placeholder="Bencar"/>
+    </div>
+    <div class="fg"><label>Emoji / icono</label>
+      <input type="text" id="sf-emoji-${id}" value="${sup?sup.emoji:'🏭'}" maxlength="4" placeholder="🏭"/>
+    </div>
+    <div class="fg" style="grid-column:1/-1"><label>WhatsApp (sin +, sin espacios)</label>
+      <input type="tel" id="sf-phone-${id}" value="${sup?sup.phone:''}" placeholder="34612345678"/>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-pri btn-sm" onclick="saveSup('${id}')">${isNew?'✓ Crear':'✓ Guardar'}</button>
+    <button class="btn btn-ghost btn-sm" onclick="S.editSupId=null;render()">Cancelar</button>
+  </div>`;
+}
+
+function saveSup(id){
+  const name  =document.getElementById('sf-name-'+id)?.value.trim();
+  const emoji =document.getElementById('sf-emoji-'+id)?.value.trim()||'🏭';
+  const phone =document.getElementById('sf-phone-'+id)?.value.trim().replace(/\D/g,'');
+  if(!name){ toast('Introduce el nombre del proveedor','#dc2626'); return; }
+  if(id==='new'){
+    const newId='s'+uid();
+    suppliers[newId]={id:newId,name,emoji,phone,products:[]};
+  } else {
+    if(!suppliers[id]) return;
+    suppliers[id].name=name; suppliers[id].emoji=emoji; suppliers[id].phone=phone;
+  }
+  saveSups(); S.editSupId=null; render();
+  toast('Proveedor guardado','#16a34a');
+}
+
+function delSup(id){
+  if(!confirm('¿Eliminar este proveedor y todos sus productos?')) return;
+  delete suppliers[id];
+  saveSups(); render();
+  toast('Proveedor eliminado');
+}
+
+/* ── PRODUCT MANAGER ── */
+function prodManager(sup){
+  const prods=sup.products.map(p=>`
+    <div class="prod-row">
+      <div class="prod-info">
+        <div class="prod-name-t">${p.name}</div>
+        <div class="prod-meta">${fmt(p.price)} / ${p.unit}</div>
+      </div>
+      <button class="btn btn-no btn-xs" onclick="delProd('${sup.id}','${p.id}')">✕</button>
+    </div>`).join('');
+
+  return `
+    ${sup.products.length===0?`<div style="color:var(--mut);font-size:13px;margin-bottom:12px;text-align:center">Sin productos. Añade el primero.</div>`:''}
+    ${prods}
+    <div class="sh" style="margin-top:14px">Añadir producto</div>
+    <div class="three-col">
+      <div class="fg"><label>Nombre</label>
+        <input type="text" id="pf-name-${sup.id}" placeholder="Entrecot de ternera"/>
+      </div>
+      <div class="fg"><label>Unidad</label>
+        <select id="pf-unit-${sup.id}"><option>KG</option><option>UN</option><option>L</option><option>Caja</option></select>
+      </div>
+      <div class="fg"><label>Precio (€)</label>
+        <input type="number" id="pf-price-${sup.id}" placeholder="12.50" step="0.01" min="0"/>
+      </div>
+    </div>
+    <button class="btn btn-ok btn-sm" onclick="addProd('${sup.id}')">+ Añadir producto</button>`;
+}
+
+function addProd(supId){
+  const name =document.getElementById('pf-name-'+supId)?.value.trim();
+  const unit =document.getElementById('pf-unit-'+supId)?.value;
+  const price=parseFloat(document.getElementById('pf-price-'+supId)?.value);
+  if(!name||isNaN(price)||price<0){ toast('Nombre y precio son obligatorios','#dc2626'); return; }
+  if(!suppliers[supId]) return;
+  suppliers[supId].products.push({id:'p'+uid(),name,unit:unit||'KG',price});
+  saveSups(); render();
+  toast('Producto añadido','#16a34a');
+}
+
+function delProd(supId,prodId){
+  if(!suppliers[supId]) return;
+  suppliers[supId].products=suppliers[supId].products.filter(p=>p.id!==prodId);
+  saveSups(); render();
+}
+
+/* ── SETTINGS TAB ── */
+function vSettings(){
+  return `<div class="card">
+    <div class="card-t">Administrador</div>
+    <div class="fg"><label>Nombre</label>
+      <input type="text" value="${cfg.adminName}" onchange="cfg.adminName=this.value;saveCfg()"/>
+    </div>
+    <div class="fg"><label>PIN administrador</label>
+      <input type="password" value="${cfg.adminPIN}" maxlength="4" onchange="cfg.adminPIN=this.value;saveCfg()" placeholder="4 dígitos"/>
+    </div>
+    <div class="fg"><label>WhatsApp (notificaciones de pedidos)</label>
+      <input type="tel" value="${cfg.adminPhone||''}" placeholder="34612345678 (sin + ni espacios)" onchange="cfg.adminPhone=this.value.replace(/\\D/g,'');saveCfg()"/>
+    </div>
+    <div class="card-t" style="margin-top:20px">Datos</div>
+    <button class="btn btn-no btn-sm" onclick="if(confirm('¿Borrar TODOS los pedidos?')){orders=[];saveOrders();render();toast('Pedidos eliminados','#dc2626')}">🗑️ Borrar todos los pedidos</button>
+    &nbsp;
+    <button class="btn btn-no btn-sm" onclick="if(confirm('¿Restaurar datos de fábrica? Se perderán usuarios y proveedores personalizados.')){localStorage.clear();location.reload()}">⚠️ Restaurar de fábrica</button>
+    <div style="margin-top:18px;padding:12px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--mut)">
+      <strong>💡 Cómo publicar esta web (gratis):</strong><br>
+      1. Ve a <strong>netlify.com/drop</strong><br>
+      2. Arrastra este archivo HTML<br>
+      3. Obtienes una URL como <em>ocarro-pedidos.netlify.app</em><br>
+      4. Compártela con los restaurantes
+    </div>
+  </div>`;
+}
+
+/* ═══════════════════════════════════════════════
+   ORDER ACTIONS
+═══════════════════════════════════════════════ */
+function setSup(id){ S.supId=id; S.cart={}; render(); }
+
+function chgQ(id,d){
+  const q=S.cart[id]||0, nq=Math.max(0,q+d);
+  if(nq===0) delete S.cart[id]; else S.cart[id]=nq;
+
+  const el=document.getElementById('qd-'+id); if(el) el.textContent=nq;
+  const pi=document.getElementById('pi-'+id); if(pi) pi.className='pi'+(nq>0?' ic':'');
+
+  const sup=suppliers[S.supId];
+  const cnt=Object.values(S.cart).reduce((s,v)=>s+v,0);
+  const tot=(sup?sup.products:[]).reduce((s,p)=>s+(S.cart[p.id]||0)*p.price,0);
+  const bar=document.getElementById('cbar'); if(bar) bar.className='cbar'+(cnt>0?' up':'');
+  const cv=document.getElementById('cb-v'); if(cv) cv.textContent=`${cnt} artículos`;
+  const cs=document.getElementById('cb-s'); if(cs) cs.textContent=fmt(tot);
+}
+
+function submitOrder(){
+  if(!S.session){ toast('No hay sesión activa','#dc2626'); return; }
+  const sup=suppliers[S.supId];
+  if(!sup){ toast('Proveedor no disponible','#dc2626'); return; }
+  const cartKeys=Object.keys(S.cart);
+  if(!cartKeys.length){ toast('Añade productos al pedido','#dc2626'); return; }
+
+  const items=sup.products.filter(p=>S.cart[p.id]).map(p=>({...p,qty:S.cart[p.id]}));
+  const needApproval=S.session.needsApproval;
+
+  const o={
+    id:uid(),
+    restaurant:S.session.restaurant,
+    supId:S.supId,
+    items,
+    status:needApproval?'pending':'approved',
+    autoApproved:!needApproval,
+    createdAt:new Date().toISOString()
+  };
+  orders.unshift(o);
+  saveOrders();
+  S.cart={};
+
+  if(needApproval){
+    // Notify admin via WhatsApp
+    const adminNum=(cfg.adminPhone||'').replace(/\D/g,'');
+    if(adminNum.length>7) setTimeout(()=>window.open(waURL(adminNum,msgAdmin(o)),'_blank'),200);
+    toast('✅ Pedido enviado — espera aprobación','#d97706');
+  } else {
+    // Auto-approved → send directly to supplier
+    const phone=(sup.phone||'').replace(/\D/g,'');
+    if(phone.length>7) setTimeout(()=>window.open(waURL(phone,msgSupplier(o)),'_blank'),200);
+    toast('⚡ Pedido enviado al proveedor','#16a34a');
+  }
+  render();
+}
+
+function approve(id){
+  const o=orders.find(o=>o.id===id); if(!o) return;
+  o.status='approved'; saveOrders(); render();
+  toast('✅ Pedido aprobado','#16a34a');
+}
+
+function reject(id){
+  const o=orders.find(o=>o.id===id); if(!o) return;
+  o.status='rejected'; saveOrders(); render();
+  toast('Pedido rechazado','#dc2626');
+}
+
+/* ═══════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded',()=>{
+  // Seed demo orders if empty
+  if(!orders.length){
+    const n=Date.now();
+    orders=[
+      {id:'d1',restaurant:"O'Carro Gourmet",supId:'bencar',status:'pending',autoApproved:false,
+       createdAt:new Date(n-7200000).toISOString(),
+       items:[{id:'b1',name:'Entrecot de ternera',unit:'KG',price:28.50,qty:8},{id:'b3',name:'Solomillo de ternera',unit:'KG',price:38.90,qty:3}]},
+      {id:'d2',restaurant:"O'Carro Norte",supId:'g1012',status:'pending',autoApproved:false,
+       createdAt:new Date(n-3600000).toISOString(),
+       items:[{id:'g1',name:'Foie gras de pato fresco',unit:'KG',price:85.00,qty:1},{id:'g3',name:'Jamón ibérico 5J',unit:'KG',price:95.00,qty:2}]},
+      {id:'d3',restaurant:"O'Carro Eixample",supId:'bencar',status:'approved',autoApproved:false,
+       createdAt:new Date(n-18000000).toISOString(),
+       items:[{id:'b2',name:'Chuletón de buey',unit:'KG',price:45.00,qty:5},{id:'b15',name:'Carrillera de cerdo',unit:'KG',price:12.90,qty:8}]},
+    ];
+    saveOrders();
+  }
+  render();
+});
+</script>
+</body>
+</html>
