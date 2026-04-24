@@ -224,19 +224,18 @@ let fbApp, fbDb;
 
 /* ═══════════════ DEFAULT DATA ═══════════════ */
 const DEFAULT_USERS=[
-  {id:'u1', name:"S. XXI · Barra",  restaurant:"O'Carro S. XXI · Barra", pin:'1001',needsApproval:true},
-  {id:'u2', name:"S. XXI · Sala",   restaurant:"O'Carro S. XXI · Sala",  pin:'1002',needsApproval:true},
-  {id:'u3', name:"Main · Local 1",  restaurant:"O'Carro Main · Local 1", pin:'1003',needsApproval:true},
-  {id:'u4', name:"Gourmet",         restaurant:"O'Carro Gourmet",        pin:'1004',needsApproval:true},
-  {id:'u5', name:"Express",         restaurant:"O'Carro Express",        pin:'1005',needsApproval:true},
-  {id:'u6', name:"Terrat",          restaurant:"O'Carro Terrat",         pin:'1006',needsApproval:true},
-  {id:'u7', name:"Central",         restaurant:"O'Carro Central",        pin:'1007',needsApproval:true},
-  {id:'u8', name:"Norte",           restaurant:"O'Carro Norte",          pin:'1008',needsApproval:true},
-  {id:'u9', name:"Sur",             restaurant:"O'Carro Sur",            pin:'1009',needsApproval:true},
-  {id:'u10',name:"Marina",          restaurant:"O'Carro Marina",         pin:'1010',needsApproval:true},
-  {id:'u11',name:"Rambla",          restaurant:"O'Carro Rambla",         pin:'1011',needsApproval:true},
-  {id:'u12',name:"Eixample",        restaurant:"O'Carro Eixample",       pin:'1012',needsApproval:true},
-  {id:'u13',name:"Sarrià",          restaurant:"O'Carro Sarrià",         pin:'1013',needsApproval:true},
+  {id:'u1', name:"El Pinos",           restaurant:"El Pinos",           pin:'4837',needsApproval:true},
+  {id:'u2', name:"O'carro Meson",      restaurant:"O'carro Meson",      pin:'7291',needsApproval:true},
+  {id:'u3', name:"O'carro XXI",        restaurant:"O'carro XXI",        pin:'3658',needsApproval:true},
+  {id:'u4', name:"La Flecha",          restaurant:"La Flecha",          pin:'9042',needsApproval:true},
+  {id:'u5', name:"Amaru",              restaurant:"Amaru",              pin:'6174',needsApproval:true},
+  {id:'u6', name:"La Violeta",         restaurant:"La Violeta",         pin:'2895',needsApproval:true},
+  {id:'u7', name:"Els Arcs",           restaurant:"Els Arcs",           pin:'5463',needsApproval:true},
+  {id:'u8', name:"El Feliu",           restaurant:"El Feliu",           pin:'8720',needsApproval:true},
+  {id:'u9', name:"Pepet",              restaurant:"Pepet",              pin:'1934',needsApproval:true},
+  {id:'u10',name:"Petit Bar",          restaurant:"Petit Bar",          pin:'7356',needsApproval:true},
+  {id:'u11',name:"La Fabrica Del Gel", restaurant:"La Fabrica Del Gel", pin:'4089',needsApproval:true},
+  {id:'u12',name:"El Floc",            restaurant:"El Floc",            pin:'6517',needsApproval:true},
 ];
 const DEFAULT_SUPS={
   bencar:{id:'bencar',name:'Bencar',emoji:'🥩',phone:'',products:[
@@ -316,6 +315,7 @@ function initFirebaseListeners(){
     const val = snap.val();
     orders = val ? Object.values(val).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)) : [];
     if(S.view==='admin') renderAdminContent();
+    if(S.view==='order' && S.orderTab==='history') render();
   });
 
   // Suppliers — real-time sync
@@ -371,7 +371,9 @@ let S={
   session:null,
   supId:Object.keys(DEFAULT_SUPS)[0],
   cart:{},
+  orderTab:'new',
   editUserId:null, editSupId:null, openSupId:null,
+  editOrderId:null, editItems:[],
   pinTarget:null, pinBuf:'',
   albView:'list', albItems:[], albRestaurant:'', albSupId:'', albDate:new Date().toISOString().split('T')[0], albPhoto:null,
 };
@@ -465,7 +467,7 @@ function showHdr(isAdmin){
 }
 function handleLogo(){ if(S.session){S.session.isAdmin?goAdmin():goOrder();} }
 function logout(){ if(!confirm('¿Cerrar sesión?'))return;S.session=null;S.view='login';document.getElementById('hdr').style.display='none';render(); }
-function goOrder(){ S.view='order';S.cart={};const sl=supList();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
+function goOrder(){ S.view='order';S.cart={};S.orderTab='new';const sl=supList();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
 function goAdmin(){ S.view='admin';showHdr(true);render(); }
 function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albDate=new Date().toISOString().split('T')[0];showHdr(false);render(); }
 function setTab(t){ S.adminTab=t;render();if(t==='spending')setTimeout(renderChart,50); }
@@ -520,8 +522,20 @@ function vLogin(){
 
 /* ═══════════════ ORDER VIEW ═══════════════ */
 function vOrder(){
+  const myPending=orders.filter(o=>o.restaurant===S.session.restaurant&&o.status==='pending').length;
+  const myApproved=orders.filter(o=>o.restaurant===S.session.restaurant&&o.status==='approved').length;
+  const histBadge=myPending?` <span style="background:var(--acc);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px">${myPending}</span>`:'';
+  const tabsHtml=`<div class="tabs" style="margin-bottom:16px">
+    <button class="tab ${S.orderTab!=='history'?'act':''}" onclick="S.orderTab='new';render()">🛒 Hacer pedido</button>
+    <button class="tab ${S.orderTab==='history'?'act':''}" onclick="S.orderTab='history';render()">📋 Mis pedidos${histBadge}</button>
+  </div>`;
+
+  if(S.orderTab==='history'){
+    return `<div class="main">${tabsHtml}${vMyOrders()}</div>`;
+  }
+
   const sups=supList();
-  if(!sups.length) return `<div class="main"><div class="empty"><div class="ei">🏭</div><div class="et">No hay proveedores configurados.</div></div></div>`;
+  if(!sups.length) return `<div class="main">${tabsHtml}<div class="empty"><div class="ei">🏭</div><div class="et">No hay proveedores configurados.</div></div></div>`;
   if(!suppliers[S.supId]) S.supId=sups[0].id;
   const sup=suppliers[S.supId];
   const cnt=Object.values(S.cart).reduce((s,v)=>s+v,0);
@@ -542,7 +556,7 @@ function vOrder(){
     </div>`;
   }).join('');
   return `<div class="main">
-    ${note}
+    ${tabsHtml}${note}
     <div class="sh">Proveedor</div>
     <div class="sup-tabs">${stabs}</div>
     <div class="sh">Productos — ${sup.emoji} ${sup.name}</div>
@@ -552,6 +566,35 @@ function vOrder(){
     <div><div class="cb-v" id="cb-v">${cnt} artículos</div><div class="cb-s" id="cb-s">${fmt(tot)}</div></div>
     <button class="btn btn-acc" onclick="submitOrder()">📤 Enviar pedido</button>
   </div>`;
+}
+
+function vMyOrders(){
+  const mine=orders.filter(o=>o.restaurant===S.session.restaurant)
+    .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  if(!mine.length) return `<div class="empty"><div class="ei">📋</div><div class="et">Aún no has hecho ningún pedido</div></div>`;
+  return mine.map(o=>{
+    const sup=suppliers[o.supId]||{name:'?',emoji:'?'};
+    const tot=total(o);
+    const sMap={
+      pending: {cls:'b-p', lbl:'⏳ Pendiente de aprobación'},
+      approved:{cls:'b-a', lbl:'✅ Aprobado'},
+      rejected:{cls:'b-r', lbl:'✗ Rechazado'}
+    };
+    const s=sMap[o.status]||{cls:'b-p',lbl:o.status};
+    const modTag=o.modifiedByAdmin?`<span class="badge b-f" style="margin-left:6px">✏️ Modificado</span>`:'';
+    const rows=o.items.map(it=>`<div class="pr"><span class="pn">${it.name}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
+    const rejNote=o.status==='rejected'&&o.rejectReason?`<div class="banner red" style="margin-top:8px">💬 ${o.rejectReason}</div>`:'';
+    return `<div class="oc">
+      <div class="oc-hd">
+        <div>
+          <div class="oc-rest">${sup.emoji} ${sup.name}${modTag}</div>
+          <div class="oc-sub">${fmtD(o.createdAt)} · <span class="badge ${s.cls}">${s.lbl}</span></div>
+        </div>
+      </div>
+      <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
+      ${rejNote}
+    </div>`;
+  }).join('');
 }
 
 /* ═══════════════ ADMIN VIEW ═══════════════ */
@@ -601,29 +644,55 @@ function vAdmin(){
 
 function orderCard(o,showActions){
   const sup=suppliers[o.supId]||{name:'?',emoji:'?',phone:''};
-  const tot=total(o);
+  const isEditing=S.editOrderId===o.id;
+  const editItems=isEditing?S.editItems:o.items;
+  const tot=editItems.reduce((s,it)=>s+it.qty*it.price,0);
   const bc={pending:'b-p',approved:'b-a',rejected:'b-r'}[o.status];
   const bl={pending:'Pendiente',approved:'Aprobado',rejected:'Rechazado'}[o.status];
-  const rows=o.items.map(it=>`<div class="pr"><span class="pn">${it.name}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
-  const waMsg=msgSupplier(o);
+  const modTag=o.modifiedByAdmin?` <span class="badge b-f">✏️ Modificado</span>`:'';
+  let itemsHtml='';
+  if(isEditing){
+    itemsHtml=S.editItems.map((it,i)=>`
+      <div class="pr" style="align-items:center;flex-wrap:nowrap">
+        <span class="pn" style="flex:1">${it.name}</span>
+        <div class="qc" style="margin-left:8px">
+          <button class="qb" onclick="editItemQty(${i},-1)">−</button>
+          <span class="qd" id="eiq-${i}" style="min-width:32px;text-align:center">${it.qty}</span>
+          <button class="qb" onclick="editItemQty(${i},1)">+</button>
+        </div>
+        <span class="pp" id="eip-${i}" style="margin-left:8px">${fmt(it.qty*it.price)}</span>
+      </div>`).join('');
+  } else {
+    itemsHtml=o.items.map(it=>`<div class="pr"><span class="pn">${it.name}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
+  }
   let acts='';
   if(showActions&&o.status==='pending'){
-    acts=`<div class="oc-acts">
-      <button class="btn btn-ok btn-sm" onclick="approve('${o.id}')">✅ Aprobar</button>
-      <button class="btn btn-no btn-sm" onclick="reject('${o.id}')">✗ Rechazar</button>
-    </div>`;
+    if(isEditing){
+      acts=`<div class="oc-acts" style="flex-wrap:wrap">
+        <button class="btn btn-ok btn-sm" onclick="approveWithEdits('${o.id}')">✅ Aprobar</button>
+        <button class="btn btn-ghost btn-sm" onclick="S.editOrderId=null;S.editItems=[];renderAdminContent()">✕ Cancelar</button>
+      </div>`;
+    } else {
+      acts=`<div class="oc-acts">
+        <button class="btn btn-ok btn-sm" onclick="approve('${o.id}')">✅ Aprobar</button>
+        <button class="btn btn-blue btn-sm" onclick="startEditOrder('${o.id}')">✏️ Modificar</button>
+        <button class="btn btn-no btn-sm" onclick="rejectWithReason('${o.id}')">✗ Rechazar</button>
+      </div>`;
+    }
   } else if(o.status==='approved'){
     acts=`<div class="oc-acts">
       <button class="btn btn-wa btn-sm" onclick="showWA('${sup.phone||''}',msgSupplier(orders.find(x=>x.id==='${o.id}')),'Envía el pedido aprobado al proveedor')">${WA_SVG} ${sup.name}</button>
     </div>`;
   }
-  return `<div class="oc">
+  const totLabel=isEditing?`<div class="ptot" id="edit-tot">Total: ${fmt(tot)}</div>`:`<div class="ptot">Total: ${fmt(tot)}</div>`;
+  return `<div class="oc" ${isEditing?'style="border-color:var(--pri);box-shadow:0 0 0 2px rgba(26,26,46,.15)"':''}>
     <div class="oc-hd">
-      <div><div class="oc-rest">${o.restaurant}${o.autoApproved?` <span class="badge b-f">Auto</span>`:''}</div>
+      <div><div class="oc-rest">${o.restaurant}${o.autoApproved?` <span class="badge b-f">Auto</span>`:''}${modTag}</div>
       <div class="oc-sub">${sup.emoji} ${sup.name} · ${fmtD(o.createdAt)} · <span class="badge ${bc}">${bl}</span></div></div>
       ${acts}
     </div>
-    <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
+    ${isEditing?`<div class="banner blue" style="margin-bottom:10px">✏️ Modifica las cantidades y pulsa <strong>Aprobar</strong></div>`:''}
+    <div class="pl">${itemsHtml}${totLabel}</div>
   </div>`;
 }
 
@@ -957,10 +1026,37 @@ function approve(id){
   if(!fbDb){ const o=orders.find(o=>o.id===id);if(o)o.status='approved'; render(); }
   toast('✅ Pedido aprobado','#16a34a');
 }
-function reject(id){
-  updateOrder(id,{status:'rejected'});
-  if(!fbDb){ const o=orders.find(o=>o.id===id);if(o)o.status='rejected'; render(); }
+function rejectWithReason(id){
+  const reason=prompt('Motivo del rechazo (opcional):');
+  if(reason===null) return; // cancelled
+  updateOrder(id,{status:'rejected',rejectReason:reason||''});
+  if(!fbDb){ const o=orders.find(o=>o.id===id);if(o){o.status='rejected';o.rejectReason=reason||'';} render(); }
   toast('Pedido rechazado','#dc2626');
+}
+function startEditOrder(id){
+  const o=orders.find(x=>x.id===id);
+  if(!o) return;
+  S.editOrderId=id;
+  S.editItems=o.items.map(it=>({...it}));
+  renderAdminContent();
+}
+function editItemQty(idx,delta){
+  S.editItems[idx].qty=Math.max(0,(S.editItems[idx].qty||0)+delta);
+  const el=document.getElementById('eiq-'+idx);
+  if(el) el.textContent=S.editItems[idx].qty;
+  const ep=document.getElementById('eip-'+idx);
+  if(ep) ep.textContent=fmt(S.editItems[idx].qty*S.editItems[idx].price);
+  const newTot=S.editItems.reduce((s,it)=>s+it.qty*it.price,0);
+  const te=document.getElementById('edit-tot');
+  if(te) te.textContent='Total: '+fmt(newTot);
+}
+function approveWithEdits(id){
+  const items=S.editItems.filter(it=>it.qty>0);
+  if(!items.length){toast('El pedido no puede estar vacío','#dc2626');return;}
+  updateOrder(id,{status:'approved',items,modifiedByAdmin:true});
+  if(!fbDb){ const o=orders.find(x=>x.id===id);if(o){o.status='approved';o.items=items;o.modifiedByAdmin=true;} }
+  S.editOrderId=null;S.editItems=[];
+  toast('✅ Pedido modificado y aprobado','#16a34a');
 }
 
 /* ═══════════════ INIT ═══════════════ */
