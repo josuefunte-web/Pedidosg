@@ -13,36 +13,24 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
-
-/* HEADER */
 .hdr{background:var(--pri);color:#fff;height:56px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:90;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .logo{font-size:17px;font-weight:800;letter-spacing:.3px;cursor:pointer}
 .logo span{color:var(--acc)}
-.hdr-r{display:flex;align-items:center;gap:8px}
+.hdr-r{display:flex;align-items:center;gap:6px}
 .hbtn{background:rgba(255,255,255,.1);border:none;color:#fff;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:.2s}
 .hbtn:hover{background:rgba(255,255,255,.22)}
 .hbtn.act{background:var(--acc)}
-.session-info{font-size:12px;opacity:.7;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-
-/* MAIN */
+.ses-info{font-size:12px;opacity:.7;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .main{max-width:860px;margin:0 auto;padding:18px 14px 90px}
-
-/* CARD */
 .card{background:var(--card);border-radius:var(--r);padding:18px;box-shadow:var(--sh);margin-bottom:14px}
 .card-t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin-bottom:14px}
-
-/* TABS */
 .tabs{display:flex;gap:3px;background:var(--bg);padding:4px;border-radius:10px;margin-bottom:16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .tab{flex:1;padding:8px 10px;border:none;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;background:transparent;color:var(--mut);white-space:nowrap;min-width:fit-content;transition:.2s}
 .tab.act{background:#fff;color:var(--pri);box-shadow:0 1px 4px rgba(0,0,0,.1)}
-
-/* STATS */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
 .stat{background:#fff;border-radius:10px;padding:14px 10px;text-align:center;border:1.5px solid var(--brd)}
 .sv{font-size:24px;font-weight:800;color:var(--pri)}
 .sl{font-size:10px;color:var(--mut);margin-top:3px;text-transform:uppercase;letter-spacing:.3px}
-
-/* BUTTONS */
 .btn{padding:9px 15px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px;text-decoration:none;transition:.2s;white-space:nowrap}
 .btn-pri{background:var(--pri);color:#fff}.btn-pri:hover{background:#2d2d4e}
 .btn-acc{background:var(--acc);color:#fff}.btn-acc:hover{opacity:.9}
@@ -50,41 +38,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .btn-no{background:#fee2e2;color:#dc2626}.btn-no:hover{background:#fecaca}
 .btn-wa{background:var(--grn);color:#fff}.btn-wa:hover{background:var(--grnd)}
 .btn-ghost{background:transparent;border:1.5px solid var(--brd);color:var(--txt)}.btn-ghost:hover{background:var(--bg)}
+.btn-blue{background:#dbeafe;color:#1d4ed8}.btn-blue:hover{background:#bfdbfe}
 .btn-sm{padding:5px 10px;font-size:12px;border-radius:7px}
 .btn-xs{padding:3px 8px;font-size:11px;border-radius:6px}
-.btn-ic{background:rgba(255,255,255,.08);border:none;color:#fff;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:.2s}.btn-ic:hover{background:rgba(255,255,255,.2)}
-
-/* ORDER CARD */
 .oc{border:1.5px solid var(--brd);border-radius:10px;padding:14px;margin-bottom:10px}
 .oc-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px}
 .oc-rest{font-size:15px;font-weight:700;color:var(--pri)}
 .oc-sub{font-size:12px;color:var(--mut);margin-top:2px}
 .oc-acts{display:flex;gap:6px;flex-wrap:wrap}
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-.b-p{background:#fef3c7;color:#d97706}.b-a{background:#dcfce7;color:#16a34a}.b-r{background:#fee2e2;color:#dc2626}
-.b-free{background:#dbeafe;color:#1d4ed8}
+.b-p{background:#fef3c7;color:#d97706}.b-a{background:#dcfce7;color:#16a34a}.b-r{background:#fee2e2;color:#dc2626}.b-f{background:#dbeafe;color:#1d4ed8}
 .pl{font-size:13px;border-top:1px solid var(--brd);padding-top:8px}
 .pr{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #f0f0f0}
 .pr:last-child{border:none}
 .pn{flex:1;color:var(--txt)}.pq{font-weight:700;color:var(--pri);margin-left:10px}.pp{color:var(--mut);margin-left:8px;min-width:72px;text-align:right}
 .ptot{display:flex;justify-content:flex-end;margin-top:8px;padding-top:7px;border-top:1.5px solid var(--brd);font-weight:800;font-size:15px;color:var(--pri)}
-
-/* FORM */
 .fg{margin-bottom:13px}
 label{display:block;font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
-select,input[type=text],input[type=tel],input[type=number],input[type=password]{width:100%;padding:9px 12px;border:1.5px solid var(--brd);border-radius:8px;font-size:14px;background:#fff;color:var(--txt);outline:none;transition:border-color .2s}
+select,input[type=text],input[type=tel],input[type=number],input[type=password],input[type=date]{width:100%;padding:9px 12px;border:1.5px solid var(--brd);border-radius:8px;font-size:14px;background:#fff;color:var(--txt);outline:none;transition:border-color .2s}
 select:focus,input:focus{border-color:var(--pri)}
-.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1.5px solid var(--brd);border-radius:8px;background:#fff}
-.toggle-label{font-size:13px;font-weight:600}
-.toggle-sub{font-size:11px;color:var(--mut);margin-top:2px}
-.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
-.toggle input{opacity:0;width:0;height:0}
-.toggle-slider{position:absolute;inset:0;background:#ccc;border-radius:20px;cursor:pointer;transition:.3s}
-.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
-.toggle input:checked+.toggle-slider{background:var(--pri)}
-.toggle input:checked+.toggle-slider:before{transform:translateX(20px)}
-
-/* PRODUCT CATALOG */
 .sup-tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .stab{padding:7px 13px;border-radius:20px;border:1.5px solid var(--brd);background:#fff;font-size:13px;cursor:pointer;font-weight:600;transition:.2s}
 .stab.act{background:var(--pri);color:#fff;border-color:var(--pri)}
@@ -96,31 +68,18 @@ select:focus,input:focus{border-color:var(--pri)}
 .qb{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--brd);background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--pri);transition:.2s;line-height:1}
 .qb:hover{background:var(--pri);color:#fff;border-color:var(--pri)}
 .qd{min-width:28px;text-align:center;font-weight:800;font-size:15px}
-
-/* CART BAR */
 .cbar{position:fixed;bottom:0;left:0;right:0;background:var(--pri);color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;transform:translateY(100%);transition:transform .3s;z-index:200;box-shadow:0 -4px 20px rgba(0,0,0,.2)}
 .cbar.up{transform:translateY(0)}
 .cb-v{font-weight:700;font-size:16px}.cb-s{opacity:.7;font-size:12px;margin-top:1px}
-
-/* CONSOLIDATED */
 .cc{border:1.5px solid #d1fae5;background:#f0fdf4;border-radius:10px;padding:14px;margin-bottom:10px}
 .cc-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px}
 .cc-name{font-size:15px;font-weight:800;color:#166534}
-
-/* CHART */
 .ch-wrap{position:relative;height:260px}
-
-/* SECTION HEADER */
 .sh{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px}
-
-/* EMPTY */
 .empty{text-align:center;padding:48px 20px;color:var(--mut)}
 .ei{font-size:44px;margin-bottom:10px}.et{font-size:14px}
-
-/* TOAST */
-.toast{position:fixed;top:62px;right:14px;background:#222;color:#fff;padding:10px 15px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;display:none;box-shadow:0 4px 16px rgba(0,0,0,.2);animation:tin .3s ease}
+.toast{position:fixed;top:62px;right:14px;background:#222;color:#fff;padding:10px 15px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;display:none;box-shadow:0 4px 16px rgba(0,0,0,.2);animation:tin .3s ease;max-width:300px}
 @keyframes tin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:translateX(0)}}
-
 /* PIN MODAL */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px}
 .pin-box{background:#fff;border-radius:18px;padding:28px 24px;width:100%;max-width:320px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)}
@@ -129,59 +88,91 @@ select:focus,input:focus{border-color:var(--pri)}
 .pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:20px}
 .dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--brd);transition:.2s}
 .dot.fill{background:var(--pri);border-color:var(--pri)}
-.pin-err{color:#dc2626;font-size:13px;margin-bottom:12px;font-weight:600}
+.pin-err{color:#dc2626;font-size:13px;margin-bottom:12px;font-weight:600;display:none}
 .numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .nk{background:var(--bg);border:none;border-radius:12px;height:52px;font-size:20px;font-weight:700;cursor:pointer;color:var(--pri);transition:.15s}
-.nk:hover{background:#e0e2e8}
-.nk:active{transform:scale(.93)}
-.nk.del{font-size:18px}.nk.ok{background:var(--pri);color:#fff}
-.nk.ok:hover{background:#2d2d4e}
-
-/* LOGIN SCREEN */
+.nk:hover,.nk:active{background:#dde0e8;transform:scale(.95)}
+.nk.ok{background:var(--pri);color:#fff}.nk.ok:hover{background:#2d2d4e}
+/* LOGIN */
 .login-wrap{max-width:860px;margin:0 auto;padding:24px 14px}
 .login-title{text-align:center;font-size:22px;font-weight:800;color:var(--pri);margin-bottom:4px}
 .login-sub{text-align:center;font-size:14px;color:var(--mut);margin-bottom:24px}
-.rest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-bottom:20px}
+.rest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:20px}
 .rest-card{background:#fff;border-radius:var(--r);padding:18px 14px;cursor:pointer;border:2px solid var(--brd);transition:.2s;text-align:center;box-shadow:var(--sh)}
 .rest-card:hover{border-color:var(--pri);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.12)}
 .rest-emoji{font-size:28px;margin-bottom:8px}
 .rest-name{font-size:13px;font-weight:700;color:var(--pri);line-height:1.3}
 .admin-row{display:flex;justify-content:center;margin-top:10px}
-.admin-btn{background:transparent;border:2px solid var(--pri);color:var(--pri);padding:10px 24px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;transition:.2s}
+.admin-btn{background:transparent;border:2px solid var(--pri);color:var(--pri);padding:10px 28px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;transition:.2s}
 .admin-btn:hover{background:var(--pri);color:#fff}
-
-/* USER MANAGEMENT */
-.user-card{border:1.5px solid var(--brd);border-radius:10px;padding:14px;margin-bottom:10px;background:#fff}
-.uc-hd{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
-.uc-name{font-size:15px;font-weight:700;color:var(--pri)}
-.uc-info{font-size:12px;color:var(--mut);margin-top:2px}
-.uc-acts{display:flex;gap:6px}
-.uc-body{margin-top:12px;padding-top:12px;border-top:1px solid var(--brd)}
+/* USER & SUPPLIER MGMT */
+.user-card,.sup-card{border:1.5px solid var(--brd);border-radius:10px;padding:14px;margin-bottom:10px;background:#fff}
+.uc-hd,.sc-hd{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.uc-name,.sc-name{font-size:15px;font-weight:700;color:var(--pri)}
+.uc-info,.sc-info{font-size:12px;color:var(--mut);margin-top:2px}
+.uc-acts,.sc-acts{display:flex;gap:6px}
+.uc-body,.sc-body{margin-top:12px;padding-top:12px;border-top:1px solid var(--brd)}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-
-/* SUPPLIER MANAGEMENT */
-.sup-card{border:1.5px solid var(--brd);border-radius:10px;padding:14px;margin-bottom:10px;background:#fff}
-.sc-hd{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
-.sc-name{font-size:15px;font-weight:700;color:var(--pri)}
-.sc-info{font-size:12px;color:var(--mut);margin-top:2px}
-.sc-acts{display:flex;gap:6px}
-.sc-body{margin-top:12px;padding-top:12px;border-top:1px solid var(--brd)}
+.three-col{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
 .prod-row{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid var(--brd);border-radius:7px;margin-bottom:6px;background:var(--bg)}
 .prod-info{flex:1}.prod-name-t{font-size:13px;font-weight:600}.prod-meta{font-size:11px;color:var(--mut)}
-.three-col{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
-
-/* INFO BANNER */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1.5px solid var(--brd);border-radius:8px;background:#fff}
+.toggle-lbl{font-size:13px;font-weight:600}.toggle-sub{font-size:11px;color:var(--mut);margin-top:2px}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.tog-sl{position:absolute;inset:0;background:#ccc;border-radius:20px;cursor:pointer;transition:.3s}
+.tog-sl:before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle input:checked+.tog-sl{background:var(--pri)}
+.toggle input:checked+.tog-sl:before{transform:translateX(20px)}
+/* BANNER */
 .banner{background:#fffbeb;border:1.5px solid #fcd34d;border-radius:10px;padding:11px 14px;margin-bottom:12px;font-size:13px;color:#92400e;display:flex;gap:8px;align-items:flex-start;line-height:1.4}
 .banner.blue{background:#eff6ff;border-color:#93c5fd;color:#1e40af}
-
-/* WA SVG */
+.banner.red{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.banner.green{background:#f0fdf4;border-color:#86efac;color:#166534}
+/* WA */
 .wa-ic{width:14px;height:14px;fill:currentColor;flex-shrink:0;margin-top:1px}
-
-/* responsive */
+/* WA MODAL */
+.wa-modal{background:#fff;border-radius:18px;padding:24px;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.wa-modal h3{font-size:17px;font-weight:800;color:var(--pri);margin-bottom:8px}
+.wa-modal p{font-size:13px;color:var(--mut);margin-bottom:16px;line-height:1.5}
+.wa-msg{background:var(--bg);border-radius:8px;padding:12px;font-size:12px;font-family:monospace;white-space:pre-wrap;margin-bottom:16px;max-height:200px;overflow-y:auto;color:var(--txt)}
+.wa-modal-btns{display:flex;gap:8px;flex-wrap:wrap}
+/* ALBARANES */
+.alb-card{border:1.5px solid var(--brd);border-radius:10px;padding:14px;margin-bottom:10px;background:#fff}
+.alb-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.alb-rest{font-size:15px;font-weight:700;color:var(--pri)}
+.alb-info{font-size:12px;color:var(--mut);margin-top:2px}
+.alb-acts{display:flex;gap:6px;flex-wrap:wrap}
+.alb-photo{width:100%;max-height:200px;object-fit:contain;border-radius:8px;margin-bottom:10px;border:1px solid var(--brd)}
+.cmp-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
+.cmp-cell{padding:8px;border-radius:7px;font-size:12px}
+.cmp-ok{background:#f0fdf4;border:1px solid #86efac}
+.cmp-warn{background:#fef3c7;border:1px solid #fcd34d}
+.cmp-err{background:#fef2f2;border:1px solid #fca5a5}
+.cmp-name{font-weight:600;color:var(--pri)}
+.cmp-val{color:var(--mut);margin-top:2px}
+.img-preview{width:100%;border-radius:10px;margin-bottom:12px;display:none;border:1px solid var(--brd)}
+.ocr-progress{font-size:13px;color:var(--mut);text-align:center;padding:10px;display:none}
+.item-entry{border:1.5px solid var(--brd);border-radius:8px;padding:12px;margin-bottom:8px;background:var(--bg);position:relative}
+.item-del{position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:16px;color:var(--mut)}
+.item-del:hover{color:#dc2626}
+/* SPENDING TABLE */
+.spend-table{width:100%;border-collapse:collapse;font-size:13px}
+.spend-table th{background:var(--pri);color:#fff;padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.spend-table td{padding:8px 10px;border-bottom:1px solid var(--brd)}
+.spend-table tr:hover td{background:var(--bg)}
+.diff-ok{color:#16a34a;font-weight:700}
+.diff-warn{color:#d97706;font-weight:700}
+.diff-err{color:#dc2626;font-weight:700}
+/* file input */
+.file-input-wrap{position:relative}
+.file-input-wrap input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%}
+.file-input-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:16px;border:2px dashed var(--brd);border-radius:10px;color:var(--mut);font-size:14px;font-weight:600;cursor:pointer;transition:.2s}
+.file-input-btn:hover{border-color:var(--pri);color:var(--pri);background:#f9f9ff}
 @media(max-width:480px){
   .two-col,.three-col{grid-template-columns:1fr}
-  .hdr .session-info{display:none}
-  .btn-sm{padding:5px 8px;font-size:11px}
+  .cmp-row{grid-template-columns:1fr}
+  .ses-info{display:none}
 }
 </style>
 </head>
@@ -198,59 +189,65 @@ select:focus,input:focus{border-color:var(--pri)}
       <div class="dot" id="d0"></div><div class="dot" id="d1"></div>
       <div class="dot" id="d2"></div><div class="dot" id="d3"></div>
     </div>
-    <div class="pin-err" id="pin-err" style="display:none">PIN incorrecto</div>
+    <div class="pin-err" id="pin-err">PIN incorrecto</div>
     <div class="numpad">
-      <button class="nk" onclick="addPIN('1')">1</button>
-      <button class="nk" onclick="addPIN('2')">2</button>
-      <button class="nk" onclick="addPIN('3')">3</button>
-      <button class="nk" onclick="addPIN('4')">4</button>
-      <button class="nk" onclick="addPIN('5')">5</button>
-      <button class="nk" onclick="addPIN('6')">6</button>
-      <button class="nk" onclick="addPIN('7')">7</button>
-      <button class="nk" onclick="addPIN('8')">8</button>
-      <button class="nk" onclick="addPIN('9')">9</button>
-      <button class="nk del" onclick="delPIN()">⌫</button>
-      <button class="nk" onclick="addPIN('0')">0</button>
-      <button class="nk ok" onclick="confirmPIN()">✓</button>
+      <button class="nk" onclick="addPIN('1')">1</button><button class="nk" onclick="addPIN('2')">2</button><button class="nk" onclick="addPIN('3')">3</button>
+      <button class="nk" onclick="addPIN('4')">4</button><button class="nk" onclick="addPIN('5')">5</button><button class="nk" onclick="addPIN('6')">6</button>
+      <button class="nk" onclick="addPIN('7')">7</button><button class="nk" onclick="addPIN('8')">8</button><button class="nk" onclick="addPIN('9')">9</button>
+      <button class="nk" onclick="delPIN()">⌫</button><button class="nk" onclick="addPIN('0')">0</button><button class="nk ok" onclick="confirmPIN()">✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- WA MODAL -->
+<div class="overlay" id="wa-ov" style="display:none" onclick="if(event.target===this)closeWA()">
+  <div class="wa-modal">
+    <h3>📱 Enviar por WhatsApp</h3>
+    <p id="wa-desc">Pulsa el botón para abrir WhatsApp con el mensaje listo para enviar.</p>
+    <div class="wa-msg" id="wa-msg-preview"></div>
+    <div class="wa-modal-btns">
+      <a id="wa-link-btn" href="#" target="_blank" class="btn btn-wa" onclick="closeWA()">
+        <svg class="wa-ic" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Abrir WhatsApp
+      </a>
+      <button class="btn btn-ghost" onclick="copyWAMsg()">📋 Copiar texto</button>
+      <button class="btn btn-ghost" onclick="closeWA()">Cerrar</button>
     </div>
   </div>
 </div>
 
 <!-- HEADER -->
 <header class="hdr" id="hdr" style="display:none">
-  <div class="logo" onclick="handleLogoClick()">O'<span>Carro</span> Pedidos</div>
+  <div class="logo" onclick="handleLogo()">O'<span>Carro</span></div>
   <div class="hdr-r">
-    <span class="session-info" id="ses-info"></span>
+    <span class="ses-info" id="ses-info"></span>
     <button class="hbtn" id="btn-np" style="display:none" onclick="goOrder()">+ Pedido</button>
-    <button class="hbtn act" id="btn-adm" style="display:none" onclick="goAdmin()">📋</button>
-    <button class="hbtn" id="btn-cfg" style="display:none" onclick="goAdmin();setTab('suppliers')">⚙️</button>
-    <button class="hbtn" onclick="logout()" title="Cerrar sesión">↩</button>
+    <button class="hbtn" id="btn-alb-r" style="display:none" onclick="goAlbaran()">📋 Albarán</button>
+    <button class="hbtn act" id="btn-adm" style="display:none" onclick="goAdmin()">📋 Pedidos</button>
+    <button class="hbtn" onclick="logout()">↩</button>
   </div>
 </header>
 
 <div id="app"></div>
 
 <script>
-/* ═══════════════════════════════════════════════
-   DEFAULT DATA
-═══════════════════════════════════════════════ */
-const DEFAULT_USERS = [
-  {id:'u1', name:"S. XXI · Barra",   restaurant:"O'Carro S. XXI · Barra",  pin:'1001', needsApproval:true},
-  {id:'u2', name:"S. XXI · Sala",    restaurant:"O'Carro S. XXI · Sala",   pin:'1002', needsApproval:true},
-  {id:'u3', name:"Main · Local 1",   restaurant:"O'Carro Main · Local 1",  pin:'1003', needsApproval:true},
-  {id:'u4', name:"Gourmet",          restaurant:"O'Carro Gourmet",         pin:'1004', needsApproval:true},
-  {id:'u5', name:"Express",          restaurant:"O'Carro Express",         pin:'1005', needsApproval:true},
-  {id:'u6', name:"Terrat",           restaurant:"O'Carro Terrat",          pin:'1006', needsApproval:true},
-  {id:'u7', name:"Central",          restaurant:"O'Carro Central",         pin:'1007', needsApproval:true},
-  {id:'u8', name:"Norte",            restaurant:"O'Carro Norte",           pin:'1008', needsApproval:true},
-  {id:'u9', name:"Sur",              restaurant:"O'Carro Sur",             pin:'1009', needsApproval:true},
-  {id:'u10',name:"Marina",           restaurant:"O'Carro Marina",          pin:'1010', needsApproval:true},
-  {id:'u11',name:"Rambla",           restaurant:"O'Carro Rambla",          pin:'1011', needsApproval:true},
-  {id:'u12',name:"Eixample",         restaurant:"O'Carro Eixample",        pin:'1012', needsApproval:true},
-  {id:'u13',name:"Sarrià",           restaurant:"O'Carro Sarrià",          pin:'1013', needsApproval:true},
+/* ═══════════════ DEFAULT DATA ═══════════════ */
+const DEFAULT_USERS=[
+  {id:'u1', name:"S. XXI · Barra",  restaurant:"O'Carro S. XXI · Barra", pin:'1001',needsApproval:true},
+  {id:'u2', name:"S. XXI · Sala",   restaurant:"O'Carro S. XXI · Sala",  pin:'1002',needsApproval:true},
+  {id:'u3', name:"Main · Local 1",  restaurant:"O'Carro Main · Local 1", pin:'1003',needsApproval:true},
+  {id:'u4', name:"Gourmet",         restaurant:"O'Carro Gourmet",        pin:'1004',needsApproval:true},
+  {id:'u5', name:"Express",         restaurant:"O'Carro Express",        pin:'1005',needsApproval:true},
+  {id:'u6', name:"Terrat",          restaurant:"O'Carro Terrat",         pin:'1006',needsApproval:true},
+  {id:'u7', name:"Central",         restaurant:"O'Carro Central",        pin:'1007',needsApproval:true},
+  {id:'u8', name:"Norte",           restaurant:"O'Carro Norte",          pin:'1008',needsApproval:true},
+  {id:'u9', name:"Sur",             restaurant:"O'Carro Sur",            pin:'1009',needsApproval:true},
+  {id:'u10',name:"Marina",          restaurant:"O'Carro Marina",         pin:'1010',needsApproval:true},
+  {id:'u11',name:"Rambla",          restaurant:"O'Carro Rambla",         pin:'1011',needsApproval:true},
+  {id:'u12',name:"Eixample",        restaurant:"O'Carro Eixample",       pin:'1012',needsApproval:true},
+  {id:'u13',name:"Sarrià",          restaurant:"O'Carro Sarrià",         pin:'1013',needsApproval:true},
 ];
-
-const DEFAULT_SUPPLIERS = {
+const DEFAULT_SUPS={
   bencar:{id:'bencar',name:'Bencar',emoji:'🥩',phone:'',products:[
     {id:'b1',name:'Entrecot de ternera',unit:'KG',price:28.50},
     {id:'b2',name:'Chuletón de buey',unit:'KG',price:45.00},
@@ -299,233 +296,181 @@ const DEFAULT_SUPPLIERS = {
   ]},
 };
 
-/* ═══════════════════════════════════════════════
-   STORAGE
-═══════════════════════════════════════════════ */
-let orders    = JSON.parse(localStorage.getItem('oc_orders')    || '[]');
-let cfg       = JSON.parse(localStorage.getItem('oc_cfg')       || JSON.stringify({adminPIN:'0000',adminName:'Josué',adminPhone:'',users:DEFAULT_USERS}));
-let suppliers = JSON.parse(localStorage.getItem('oc_suppliers') || JSON.stringify(DEFAULT_SUPPLIERS));
+/* ═══════════════ STORAGE ═══════════════ */
+let orders    = JSON.parse(localStorage.getItem('oc_orders')    ||'[]');
+let cfg       = JSON.parse(localStorage.getItem('oc_cfg')       ||JSON.stringify({adminPIN:'0000',adminName:'Josué',adminPhone:'',users:DEFAULT_USERS}));
+let suppliers = JSON.parse(localStorage.getItem('oc_suppliers') ||JSON.stringify(DEFAULT_SUPS));
+let albNotes  = JSON.parse(localStorage.getItem('oc_alb')       ||'[]');
+if(!cfg.users) cfg.users=DEFAULT_USERS;
 
-if(!cfg.users) cfg.users = DEFAULT_USERS;
+function saveOrders(){ localStorage.setItem('oc_orders',JSON.stringify(orders)); }
+function saveCfg()   { localStorage.setItem('oc_cfg',JSON.stringify(cfg)); }
+function saveSups()  { localStorage.setItem('oc_suppliers',JSON.stringify(suppliers)); }
+function saveAlb()   { localStorage.setItem('oc_alb',JSON.stringify(albNotes)); }
+function supList()   { return Object.values(suppliers); }
 
-function saveOrders(){ localStorage.setItem('oc_orders', JSON.stringify(orders)); }
-function saveCfg()   { localStorage.setItem('oc_cfg',    JSON.stringify(cfg)); }
-function saveSups()  { localStorage.setItem('oc_suppliers', JSON.stringify(suppliers)); }
-
-/* ═══════════════════════════════════════════════
-   STATE
-═══════════════════════════════════════════════ */
-let S = {
-  view: 'login',  // 'login' | 'order' | 'admin'
-  adminTab: 'pending',
-  session: null,  // { userId, name, restaurant, isAdmin, needsApproval }
-  // order state
-  supId: Object.keys(DEFAULT_SUPPLIERS)[0],
-  cart: {},
-  // admin editing
-  editUserId: null,   // null | 'new' | id
-  editSupId:  null,   // null | 'new' | id
-  openSupId:  null,   // expanded supplier for product mgmt
-  // PIN modal
-  pinTarget: null,    // { type:'user'|'admin', userId }
-  pinBuf: '',
+/* ═══════════════ STATE ═══════════════ */
+let S={
+  view:'login',
+  adminTab:'pending',
+  session:null,
+  supId:Object.keys(DEFAULT_SUPS)[0],
+  cart:{},
+  editUserId:null,
+  editSupId:null,
+  openSupId:null,
+  pinTarget:null,
+  pinBuf:'',
+  // albaran
+  albView:'list',   // 'list' | 'new'
+  albItems:[],
+  albRestaurant:'',
+  albSupId:'',
+  albDate: new Date().toISOString().split('T')[0],
+  albPhoto:null,
+  albOcrRunning:false,
 };
+let chartInst=null;
+const EMOJIS=['🏠','🌿','⭐','🍽️','🏃','🌅','🎯','🧭','🌊','⚓','🌆','🏙️','🌃'];
 
-let chartInst = null;
-
-/* ═══════════════════════════════════════════════
-   HELPERS
-═══════════════════════════════════════════════ */
-const WA = `<svg class="wa-ic" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
+/* ═══════════════ HELPERS ═══════════════ */
+const WA_SVG=`<svg class="wa-ic" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
 
 function fmt(n){ return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
 function fmtD(iso){ return new Date(iso).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,5); }
 function total(o){ return o.items.reduce((s,it)=>s+it.qty*it.price,0); }
-function supList(){ return Object.values(suppliers); }
-
 function toast(msg,col='#222'){
   const t=document.getElementById('toast');
   t.textContent=msg;t.style.background=col;t.style.display='block';
-  clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3200);
+  clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3500);
 }
-
-function waURL(phone, text){ return `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`; }
+function waURL(phone,text){ return `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`; }
 
 function msgAdmin(o){
   const sup=suppliers[o.supId];
   const lines=o.items.map(it=>`• ${it.name}: ${it.qty} ${it.unit}`).join('\n');
   return `📋 *SOLICITUD PEDIDO — O'Carro*\n🏪 ${o.restaurant}\n🏭 Proveedor: ${sup?sup.emoji+' '+sup.name:'?'}\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n\n${lines}\n\n*Total: ${fmt(total(o))}*\n\n_App O'Carro Pedidos_`;
 }
-
 function msgSupplier(o){
   const lines=o.items.map(it=>`• ${it.name} (${it.unit}): ${it.qty}  →  ${fmt(it.qty*it.price)}`).join('\n');
   const rest=o.restaurant.includes('Consolidado')?o.restaurant:`🏪 ${o.restaurant}`;
   return `🛒 *PEDIDO O'CARRO*\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n${rest}\n\n*Productos:*\n${lines}\n\n*TOTAL: ${fmt(total(o))}*\n\n_${cfg.adminName} — Jefe de Compras_`;
 }
 
-/* ═══════════════════════════════════════════════
-   NAVIGATION
-═══════════════════════════════════════════════ */
-function showHeader(isAdmin){
-  const hdr=document.getElementById('hdr');
-  hdr.style.display='flex';
-  document.getElementById('ses-info').textContent = S.session ? (S.session.isAdmin ? '⚙️ '+cfg.adminName : S.session.restaurant) : '';
-  document.getElementById('btn-np').style.display  = !isAdmin ? '' : 'none';
-  document.getElementById('btn-adm').style.display = isAdmin ? '' : 'none';
-  document.getElementById('btn-cfg').style.display = isAdmin ? '' : 'none';
-  setActive(isAdmin ? 'adm' : 'np');
+/* ═══════════════ WA MODAL ═══════════════ */
+let _waMsg='';
+function showWA(phone,msg,desc){
+  _waMsg=msg;
+  document.getElementById('wa-desc').textContent=desc||'Pulsa para abrir WhatsApp con el mensaje listo.';
+  document.getElementById('wa-msg-preview').textContent=msg;
+  const btn=document.getElementById('wa-link-btn');
+  if(phone&&phone.replace(/\D/g,'').length>7){
+    btn.href=waURL(phone,msg);
+    btn.style.opacity='1';btn.style.pointerEvents='auto';
+  } else {
+    btn.href='#';
+    btn.style.opacity='.4';btn.style.pointerEvents='none';
+    document.getElementById('wa-desc').textContent='⚠️ Configura el número en ⚙️ Config antes de enviar.';
+  }
+  document.getElementById('wa-ov').style.display='flex';
+}
+function closeWA(){ document.getElementById('wa-ov').style.display='none'; }
+function copyWAMsg(){
+  navigator.clipboard.writeText(_waMsg).then(()=>toast('Texto copiado','#16a34a')).catch(()=>toast('No se pudo copiar'));
 }
 
-function setActive(key){
-  ['np','adm','cfg'].forEach(k=>{
-    const el=document.getElementById('btn-'+k);
-    if(el) el.classList.toggle('act', k===key);
-  });
-}
-
-function handleLogoClick(){
-  if(S.session && S.session.isAdmin){ goAdmin(); } else if(S.session){ goOrder(); }
-}
-
-function goLogin(){
-  S.view='login'; S.session=null;
-  document.getElementById('hdr').style.display='none';
-  render();
-}
-
-function logout(){
-  if(!confirm('¿Cerrar sesión?')) return;
-  S.view='login'; S.session=null;
-  document.getElementById('hdr').style.display='none';
-  render();
-}
-
-function goOrder(){
-  S.view='order'; S.cart={};
-  const sups=supList(); if(sups.length) S.supId=sups[0].id;
-  showHeader(false); setActive('np'); render();
-}
-
-function goAdmin(){
-  S.view='admin';
-  showHeader(true); setActive('adm'); render();
-}
-
-function setTab(t){
-  S.adminTab=t; setActive('adm');
-  document.getElementById('btn-adm').classList.add('act');
-  render();
-  if(t==='spending') setTimeout(renderChart,50);
-}
-
-/* ═══════════════════════════════════════════════
-   PIN MODAL
-═══════════════════════════════════════════════ */
-function openPIN(type, userId){
-  S.pinTarget={type,userId};
-  S.pinBuf='';
-  const u = type==='user' ? cfg.users.find(u=>u.id===userId) : null;
-  document.getElementById('pin-title').textContent = type==='admin' ? 'Acceso administrador' : (u?u.restaurant:'PIN');
-  document.getElementById('pin-sub').textContent   = type==='admin' ? 'Introduce el PIN de administrador' : 'Introduce tu PIN';
+/* ═══════════════ PIN ═══════════════ */
+function openPIN(type,userId){
+  S.pinTarget={type,userId};S.pinBuf='';
+  const u=type==='user'?cfg.users.find(u=>u.id===userId):null;
+  document.getElementById('pin-title').textContent=type==='admin'?'Administrador':(u?u.restaurant:'PIN');
+  document.getElementById('pin-sub').textContent=type==='admin'?'Introduce el PIN de administrador':'Introduce tu PIN';
   document.getElementById('pin-err').style.display='none';
   updateDots();
   document.getElementById('pin-ov').style.display='flex';
 }
-
-function closePIN(){ document.getElementById('pin-ov').style.display='none'; S.pinBuf=''; }
-
-function addPIN(d){
-  if(S.pinBuf.length>=4) return;
-  S.pinBuf+=d;
-  updateDots();
-  if(S.pinBuf.length===4) setTimeout(confirmPIN,120);
-}
-
-function delPIN(){ S.pinBuf=S.pinBuf.slice(0,-1); updateDots(); }
-
+function closePIN(){ document.getElementById('pin-ov').style.display='none';S.pinBuf=''; }
+function addPIN(d){ if(S.pinBuf.length>=4)return;S.pinBuf+=d;updateDots();if(S.pinBuf.length===4)setTimeout(confirmPIN,120); }
+function delPIN(){ S.pinBuf=S.pinBuf.slice(0,-1);updateDots(); }
 function updateDots(){
-  for(let i=0;i<4;i++){
-    document.getElementById('d'+i).className='dot'+(i<S.pinBuf.length?' fill':'');
-  }
+  for(let i=0;i<4;i++) document.getElementById('d'+i).className='dot'+(i<S.pinBuf.length?' fill':'');
   document.getElementById('pin-err').style.display='none';
 }
-
 function confirmPIN(){
-  const {type, userId} = S.pinTarget;
+  const {type,userId}=S.pinTarget;
   if(type==='admin'){
-    if(S.pinBuf===cfg.adminPIN){
-      closePIN();
-      S.session={isAdmin:true, name:cfg.adminName};
-      goAdmin();
-    } else { wrong(); }
+    if(S.pinBuf===cfg.adminPIN){closePIN();S.session={isAdmin:true,name:cfg.adminName};goAdmin();}
+    else wrong();
   } else {
     const u=cfg.users.find(u=>u.id===userId);
-    if(u && S.pinBuf===u.pin){
-      closePIN();
-      S.session={userId:u.id, name:u.name, restaurant:u.restaurant, isAdmin:false, needsApproval:u.needsApproval};
-      goOrder();
-    } else { wrong(); }
+    if(u&&S.pinBuf===u.pin){closePIN();S.session={userId:u.id,name:u.name,restaurant:u.restaurant,isAdmin:false,needsApproval:u.needsApproval};goOrder();}
+    else wrong();
   }
 }
+function wrong(){ S.pinBuf='';updateDots();const e=document.getElementById('pin-err');e.style.display='block';setTimeout(()=>e.style.display='none',2000); }
 
-function wrong(){
-  S.pinBuf='';
-  updateDots();
-  const e=document.getElementById('pin-err');
-  e.style.display='block';
-  setTimeout(()=>e.style.display='none',2000);
+// PIN keyboard support
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('pin-ov').style.display==='none') return;
+  if(e.key>='0'&&e.key<='9') addPIN(e.key);
+  else if(e.key==='Backspace') delPIN();
+  else if(e.key==='Enter') confirmPIN();
+});
+
+/* ═══════════════ NAVIGATION ═══════════════ */
+function showHdr(isAdmin){
+  document.getElementById('hdr').style.display='flex';
+  document.getElementById('ses-info').textContent=S.session?(S.session.isAdmin?'⚙️ '+cfg.adminName:S.session.restaurant):'';
+  document.getElementById('btn-np').style.display=!isAdmin?'':'none';
+  document.getElementById('btn-alb-r').style.display=!isAdmin?'':'none';
+  document.getElementById('btn-adm').style.display=isAdmin?'':'none';
+  setAct(isAdmin?'adm':'np');
 }
+function setAct(k){ ['np','adm'].forEach(x=>{ const el=document.getElementById('btn-'+x);if(el)el.classList.toggle('act',x===k); }); }
+function handleLogo(){ if(S.session){S.session.isAdmin?goAdmin():goOrder();} }
+function logout(){ if(!confirm('¿Cerrar sesión?'))return;S.session=null;S.view='login';document.getElementById('hdr').style.display='none';render(); }
+function goOrder(){ S.view='order';S.cart={};const sl=supList();if(sl.length)S.supId=sl[0].id;showHdr(false);setAct('np');render(); }
+function goAdmin(){ S.view='admin';showHdr(true);setAct('adm');render(); }
+function goAlbaran(){ S.view='albaran-new';S.albView='new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albDate=new Date().toISOString().split('T')[0];showHdr(false);render(); }
+function setTab(t){ S.adminTab=t;render();if(t==='spending')setTimeout(renderChart,50); }
 
-/* ═══════════════════════════════════════════════
-   MAIN RENDER
-═══════════════════════════════════════════════ */
+/* ═══════════════ RENDER ═══════════════ */
 function render(){
   const app=document.getElementById('app');
-  if(S.view==='login')  app.innerHTML=vLogin();
-  else if(S.view==='order') app.innerHTML=vOrder();
-  else if(S.view==='admin') app.innerHTML=vAdmin();
+  if(S.view==='login')         app.innerHTML=vLogin();
+  else if(S.view==='order')    app.innerHTML=vOrder();
+  else if(S.view==='admin')    app.innerHTML=vAdmin();
+  else if(S.view==='albaran-new') app.innerHTML=vAlbaranNew();
 }
 
-/* ═══════════════════════════════════════════════
-   LOGIN VIEW
-═══════════════════════════════════════════════ */
-const EMOJIS=['🏠','🌿','⭐','🍽️','🏃','🌅','🎯','🧭','🌊','⚓','🌆','🏙️','🌃'];
+/* ═══════════════ LOGIN ═══════════════ */
 function vLogin(){
-  const cards = cfg.users.map((u,i)=>`
+  const cards=cfg.users.map((u,i)=>`
     <div class="rest-card" onclick="openPIN('user','${u.id}')">
       <div class="rest-emoji">${EMOJIS[i%EMOJIS.length]}</div>
       <div class="rest-name">${u.restaurant}</div>
     </div>`).join('');
-
   return `<div class="login-wrap">
     <div class="login-title">O'<span style="color:var(--acc)">Carro</span> Pedidos</div>
     <div class="login-sub">Selecciona tu restaurante</div>
     <div class="rest-grid">${cards}</div>
-    <div class="admin-row">
-      <button class="admin-btn" onclick="openPIN('admin')">⚙️ Administrador</button>
-    </div>
+    <div class="admin-row"><button class="admin-btn" onclick="openPIN('admin')">⚙️ Administrador</button></div>
   </div>`;
 }
 
-/* ═══════════════════════════════════════════════
-   ORDER VIEW
-═══════════════════════════════════════════════ */
+/* ═══════════════ ORDER VIEW ═══════════════ */
 function vOrder(){
   const sups=supList();
-  if(!sups.length) return `<div class="main"><div class="empty"><div class="ei">🏭</div><div class="et">No hay proveedores configurados.<br>El administrador debe añadirlos.</div></div></div>`;
-
+  if(!sups.length) return `<div class="main"><div class="empty"><div class="ei">🏭</div><div class="et">No hay proveedores. El admin debe añadirlos.</div></div></div>`;
   if(!suppliers[S.supId]) S.supId=sups[0].id;
   const sup=suppliers[S.supId];
   const cnt=Object.values(S.cart).reduce((s,v)=>s+v,0);
   const tot=sup.products.reduce((s,p)=>s+(S.cart[p.id]||0)*p.price,0);
-
-  const stabs=sups.map(s=>`<button class="stab ${S.supId===s.id?'act':''}" onclick="setSup('${s.id}')">${s.emoji} ${s.name}</button>`).join('');
-
   const note=S.session.needsApproval
-    ? `<div class="banner">📋 Tu pedido irá a <strong>${cfg.adminName}</strong> para aprobación antes de enviarse al proveedor.</div>`
-    : `<div class="banner blue">⚡ Tus pedidos se aprueban automáticamente y van directo al proveedor.</div>`;
-
+    ?`<div class="banner">📋 Tu pedido irá a <strong>${cfg.adminName}</strong> para aprobación.</div>`
+    :`<div class="banner blue">⚡ Tus pedidos se aprueban automáticamente.</div>`;
+  const stabs=sups.map(s=>`<button class="stab ${S.supId===s.id?'act':''}" onclick="setSup('${s.id}')">${s.emoji} ${s.name}</button>`).join('');
   const prods=sup.products.map(p=>{
     const q=S.cart[p.id]||0;
     return `<div class="pi ${q>0?'ic':''}" id="pi-${p.id}">
@@ -537,477 +482,537 @@ function vOrder(){
       </div>
     </div>`;
   }).join('');
-
-  if(!sup.products.length){
-    return `<div class="main">${note}<div class="sup-tabs">${stabs}</div>
-      <div class="empty"><div class="ei">📦</div><div class="et">Este proveedor no tiene productos.</div></div></div>`;
-  }
-
   return `<div class="main">
     ${note}
     <div class="sh">Proveedor</div>
     <div class="sup-tabs">${stabs}</div>
     <div class="sh">Productos — ${sup.emoji} ${sup.name}</div>
-    <div class="pgrid">${prods}</div>
+    ${sup.products.length?`<div class="pgrid">${prods}</div>`:`<div class="empty"><div class="ei">📦</div><div class="et">Sin productos</div></div>`}
   </div>
   <div class="cbar ${cnt>0?'up':''}" id="cbar">
     <div><div class="cb-v" id="cb-v">${cnt} artículos</div><div class="cb-s" id="cb-s">${fmt(tot)}</div></div>
-    <button class="btn btn-acc" id="cb-btn" onclick="submitOrder()">📤 Enviar pedido</button>
+    <button class="btn btn-acc" onclick="submitOrder()">📤 Enviar pedido</button>
   </div>`;
 }
 
-/* ═══════════════════════════════════════════════
-   ADMIN VIEW
-═══════════════════════════════════════════════ */
+/* ═══════════════ ADMIN VIEW ═══════════════ */
 function vAdmin(){
   const pend=orders.filter(o=>o.status==='pending');
   const appr=orders.filter(o=>o.status==='approved');
-  const totP=pend.reduce((s,o)=>s+total(o),0);
-  const totA=appr.reduce((s,o)=>s+total(o),0);
-
   const stats=`<div class="stats">
     <div class="stat"><div class="sv">${pend.length}</div><div class="sl">Pendientes</div></div>
-    <div class="stat"><div class="sv" style="color:var(--acc);font-size:20px">${fmt(totP)}</div><div class="sl">Por aprobar</div></div>
+    <div class="stat"><div class="sv" style="color:var(--acc);font-size:20px">${fmt(pend.reduce((s,o)=>s+total(o),0))}</div><div class="sl">Por aprobar</div></div>
     <div class="stat"><div class="sv" style="color:#16a34a">${appr.length}</div><div class="sl">Aprobados</div></div>
-    <div class="stat"><div class="sv" style="color:#16a34a;font-size:20px">${fmt(totA)}</div><div class="sl">Gasto</div></div>
+    <div class="stat"><div class="sv" style="color:#16a34a;font-size:20px">${fmt(appr.reduce((s,o)=>s+total(o),0))}</div><div class="sl">Gasto</div></div>
   </div>`;
-
   const tabs=[
     {id:'pending',   lbl:`⏳ Pendientes (${pend.length})`},
     {id:'approved',  lbl:`✅ Aprobados`},
-    {id:'consolidated',lbl:`📦 Consolidado`},
+    {id:'consolidated',lbl:`📦 Consolid.`},
     {id:'spending',  lbl:`📊 Gasto`},
+    {id:'albaranes', lbl:`📋 Albaranes`},
     {id:'users',     lbl:`👥 Usuarios`},
-    {id:'suppliers', lbl:`🏭 Proveedores`},
+    {id:'suppliers', lbl:`🏭 Proveed.`},
     {id:'settings',  lbl:`⚙️ Config`},
   ].map(t=>`<button class="tab ${S.adminTab===t.id?'act':''}" onclick="setTab('${t.id}')">${t.lbl}</button>`).join('');
-
   let content='';
-  if(S.adminTab==='pending')      content=vPending();
-  else if(S.adminTab==='approved')     content=vApproved();
+  if(S.adminTab==='pending')       content=vPending();
+  else if(S.adminTab==='approved') content=vApproved();
   else if(S.adminTab==='consolidated') content=vConsolidated();
-  else if(S.adminTab==='spending')     content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
-  else if(S.adminTab==='users')        content=vUsers();
-  else if(S.adminTab==='suppliers')    content=vSuppliers();
-  else if(S.adminTab==='settings')     content=vSettings();
-
+  else if(S.adminTab==='spending') content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
+  else if(S.adminTab==='albaranes') content=vAlbaranes();
+  else if(S.adminTab==='users')    content=vUsers();
+  else if(S.adminTab==='suppliers') content=vSuppliers();
+  else if(S.adminTab==='settings') content=vSettings();
   return `<div class="main">${stats}<div class="tabs">${tabs}</div><div id="tc">${content}</div></div>`;
 }
 
-/* ── PENDING TAB ── */
-function vPending(){
-  const pend=orders.filter(o=>o.status==='pending');
-  if(!pend.length) return `<div class="empty"><div class="ei">🎉</div><div class="et">Sin pedidos pendientes</div></div>`;
-  return pend.map(o=>orderCard(o,true)).join('');
-}
-
-/* ── APPROVED TAB ── */
-function vApproved(){
-  const appr=orders.filter(o=>o.status==='approved');
-  if(!appr.length) return `<div class="empty"><div class="ei">📋</div><div class="et">Sin pedidos aprobados todavía</div></div>`;
-  return appr.map(o=>orderCard(o,false)).join('');
-}
-
-function orderCard(o, showActions){
-  const sup=suppliers[o.supId]||{name:'?',emoji:'?'};
+function orderCard(o,showActions){
+  const sup=suppliers[o.supId]||{name:'?',emoji:'?',phone:''};
   const tot=total(o);
-  const bcls={pending:'b-p',approved:'b-a',rejected:'b-r'}[o.status];
-  const blbl={pending:'Pendiente',approved:'Aprobado',rejected:'Rechazado'}[o.status];
-  const autoLabel=o.autoApproved?` <span class="badge b-free">Auto</span>`:'';
-
+  const bc={pending:'b-p',approved:'b-a',rejected:'b-r'}[o.status];
+  const bl={pending:'Pendiente',approved:'Aprobado',rejected:'Rechazado'}[o.status];
   const rows=o.items.map(it=>`<div class="pr"><span class="pn">${it.name}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
-
-  const phone=sup.phone||'';
-  const waHref=phone?waURL(phone,msgSupplier(o)):'#';
-  const waDis=phone?'':' title="Configura número en Proveedores" style="opacity:.5;cursor:not-allowed"';
-
   let acts='';
-  if(showActions && o.status==='pending'){
+  if(showActions&&o.status==='pending'){
     acts=`<div class="oc-acts">
       <button class="btn btn-ok btn-sm" onclick="approve('${o.id}')">✅ Aprobar</button>
       <button class="btn btn-no btn-sm" onclick="reject('${o.id}')">✗ Rechazar</button>
     </div>`;
   } else if(o.status==='approved'){
     acts=`<div class="oc-acts">
-      <a href="${waHref}" target="_blank" class="btn btn-wa btn-sm"${waDis}>${WA} ${sup.name}</a>
+      <button class="btn btn-wa btn-sm" onclick="showWA('${sup.phone||''}',msgSupplier(orders.find(x=>x.id==='${o.id}')),'Pedido aprobado — envía al proveedor')">${WA_SVG} ${sup.name}</button>
     </div>`;
   }
-
   return `<div class="oc">
     <div class="oc-hd">
-      <div>
-        <div class="oc-rest">${o.restaurant}${autoLabel}</div>
-        <div class="oc-sub">${sup.emoji} ${sup.name} · ${fmtD(o.createdAt)} · <span class="badge ${bcls}">${blbl}</span></div>
-      </div>${acts}
+      <div><div class="oc-rest">${o.restaurant}${o.autoApproved?` <span class="badge b-f">Auto</span>`:''}</div>
+      <div class="oc-sub">${sup.emoji} ${sup.name} · ${fmtD(o.createdAt)} · <span class="badge ${bc}">${bl}</span></div></div>
+      ${acts}
     </div>
     <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
   </div>`;
 }
+function vPending(){ const p=orders.filter(o=>o.status==='pending');return p.length?p.map(o=>orderCard(o,true)).join(''):`<div class="empty"><div class="ei">🎉</div><div class="et">Sin pedidos pendientes</div></div>`; }
+function vApproved(){ const a=orders.filter(o=>o.status==='approved');return a.length?a.map(o=>orderCard(o,false)).join(''):`<div class="empty"><div class="ei">📋</div><div class="et">Sin pedidos aprobados</div></div>`; }
 
-/* ── CONSOLIDATED TAB ── */
 function vConsolidated(){
   const pend=orders.filter(o=>o.status==='pending');
-  if(!pend.length) return `<div class="empty"><div class="ei">📦</div><div class="et">No hay pedidos pendientes para consolidar</div></div>`;
-
+  if(!pend.length) return `<div class="empty"><div class="ei">📦</div><div class="et">No hay pedidos pendientes</div></div>`;
   const bySup={};
-  pend.forEach(o=>{
-    if(!bySup[o.supId]) bySup[o.supId]={};
-    o.items.forEach(it=>{
-      if(!bySup[o.supId][it.id]) bySup[o.supId][it.id]={...it,qty:0,rests:[]};
-      bySup[o.supId][it.id].qty+=it.qty;
-      bySup[o.supId][it.id].rests.push(o.restaurant.replace("O'Carro ",""));
-    });
-  });
-
+  pend.forEach(o=>{ if(!bySup[o.supId])bySup[o.supId]={}; o.items.forEach(it=>{ if(!bySup[o.supId][it.id])bySup[o.supId][it.id]={...it,qty:0,rests:[]}; bySup[o.supId][it.id].qty+=it.qty; bySup[o.supId][it.id].rests.push(o.restaurant.replace("O'Carro ",'')); }); });
   return Object.entries(bySup).map(([sid,items])=>{
     const sup=suppliers[sid]||{name:sid,emoji:'📦',phone:''};
     const arr=Object.values(items);
     const tot=arr.reduce((s,it)=>s+it.qty*it.price,0);
-    const phone=sup.phone||'';
-    const co={id:'c',supId:sid,restaurant:`Consolidado (${new Set(pend.filter(o=>o.supId===sid).map(o=>o.restaurant)).size} rest.)`,items:arr,createdAt:new Date().toISOString(),status:'approved'};
-    const waHref=phone?waURL(phone,msgSupplier(co)):'#';
-    const waDis=phone?'':' title="Configura número en Proveedores" style="opacity:.5;cursor:not-allowed"';
+    const co={id:'c',supId:sid,restaurant:`Consolidado (${new Set(pend.filter(o=>o.supId===sid).map(o=>o.restaurant)).size} rest.)`,items:arr,createdAt:new Date().toISOString()};
     const rows=arr.map(it=>`<div class="pr"><span class="pn">${it.name} <small style="color:var(--mut)">(${[...new Set(it.rests)].length}r)</small></span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
-    return `<div class="cc">
-      <div class="cc-hd"><div class="cc-name">${sup.emoji} ${sup.name}</div>
-        <a href="${waHref}" target="_blank" class="btn btn-wa btn-sm"${waDis}>${WA} Enviar consolidado</a>
-      </div>
-      <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
-    </div>`;
+    return `<div class="cc"><div class="cc-hd"><div class="cc-name">${sup.emoji} ${sup.name}</div>
+      <button class="btn btn-wa btn-sm" onclick="showWA('${sup.phone||''}',msgSupplier(${JSON.stringify(co).replace(/'/g,"\\'")}), 'Pedido consolidado')">${WA_SVG} Enviar consolidado</button>
+    </div><div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div></div>`;
   }).join('');
 }
 
-/* ── SPENDING / CHART ── */
 function renderChart(){
-  const ctx=document.getElementById('chart');
-  if(!ctx) return;
+  const ctx=document.getElementById('chart');if(!ctx)return;
   if(chartInst){chartInst.destroy();chartInst=null;}
   const byR={};
-  orders.filter(o=>o.status==='approved').forEach(o=>{
-    const k=o.restaurant.replace("O'Carro ","");
-    byR[k]=(byR[k]||0)+total(o);
-  });
+  orders.filter(o=>o.status==='approved').forEach(o=>{ const k=o.restaurant.replace("O'Carro ",'');byR[k]=(byR[k]||0)+total(o); });
   const ent=Object.entries(byR).filter(([,v])=>v>0).sort(([,a],[,b])=>b-a);
-  if(!ent.length){
-    const p=ctx.parentNode;
-    p.innerHTML=`<div class="empty" style="height:260px;display:flex;flex-direction:column;justify-content:center"><div class="ei">📊</div><div class="et">Aprueba pedidos para ver el gasto</div></div>`;
-    return;
-  }
-  chartInst=new Chart(ctx,{
-    type:'bar',
-    data:{labels:ent.map(([k])=>k),datasets:[{data:ent.map(([,v])=>v),backgroundColor:'#1a1a2e',borderRadius:6,hoverBackgroundColor:'#e94560'}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},
-      scales:{y:{ticks:{callback:v=>v.toLocaleString('es-ES',{maximumFractionDigits:0})+' €'},grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}
-  });
+  if(!ent.length){ ctx.parentNode.innerHTML=`<div class="empty" style="height:260px;display:flex;flex-direction:column;justify-content:center"><div class="ei">📊</div><div class="et">Aprueba pedidos para ver el gasto</div></div>`;return; }
+  chartInst=new Chart(ctx,{type:'bar',data:{labels:ent.map(([k])=>k),datasets:[{data:ent.map(([,v])=>v),backgroundColor:'#1a1a2e',borderRadius:6,hoverBackgroundColor:'#e94560'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},scales:{y:{ticks:{callback:v=>v.toLocaleString('es-ES',{maximumFractionDigits:0})+' €'},grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}});
 }
 
-/* ── USERS TAB ── */
-function vUsers(){
-  const isNew = S.editUserId==='new';
-  const newForm = isNew ? userForm(null) : `<button class="btn btn-pri btn-sm" onclick="S.editUserId='new';render()" style="margin-bottom:14px">+ Añadir usuario</button>`;
+/* ═══════════════ ALBARANES ═══════════════ */
+function vAlbaranes(){
+  const btn=`<button class="btn btn-pri btn-sm" onclick="goAlbaranAdmin()" style="margin-bottom:14px">+ Nuevo albarán</button>`;
+  if(!albNotes.length) return btn+`<div class="empty"><div class="ei">📋</div><div class="et">Sin albaranes registrados</div></div>`;
 
+  // Spending comparison table
+  const byRest={};
+  orders.filter(o=>o.status==='approved').forEach(o=>{
+    if(!byRest[o.restaurant])byRest[o.restaurant]={ordered:0,received:0};
+    byRest[o.restaurant].ordered+=total(o);
+  });
+  albNotes.forEach(a=>{
+    if(!byRest[a.restaurant])byRest[a.restaurant]={ordered:0,received:0};
+    byRest[a.restaurant].received+=a.items.reduce((s,it)=>s+it.qty*it.price,0);
+  });
+
+  const tableRows=Object.entries(byRest).map(([rest,d])=>{
+    const diff=d.received-d.ordered;
+    const pct=d.ordered>0?((diff/d.ordered)*100).toFixed(1):'-';
+    const cls=Math.abs(diff)<1?'diff-ok':diff>0?'diff-err':'diff-warn';
+    return `<tr>
+      <td>${rest.replace("O'Carro ",'')}</td>
+      <td>${fmt(d.ordered)}</td>
+      <td>${fmt(d.received)}</td>
+      <td class="${cls}">${diff>=0?'+':''}${fmt(diff)} (${pct}%)</td>
+    </tr>`;
+  }).join('');
+
+  const table=`<div class="card">
+    <div class="card-t">📊 Pedido vs Recibido por local</div>
+    <div style="overflow-x:auto">
+      <table class="spend-table">
+        <tr><th>Local</th><th>Pedido</th><th>Recibido</th><th>Diferencia</th></tr>
+        ${tableRows}
+      </table>
+    </div>
+  </div>`;
+
+  const notes=albNotes.map(a=>albCard(a)).join('');
+  return btn+table+`<div class="sh">Albaranes</div>`+notes;
+}
+
+function goAlbaranAdmin(){ S.view='albaran-new';S.albView='new';S.albItems=[];S.albRestaurant='';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albDate=new Date().toISOString().split('T')[0];render(); }
+
+function albCard(a){
+  const sup=suppliers[a.supId]||{name:'?',emoji:'?'};
+  const tot=a.items.reduce((s,it)=>s+it.qty*it.price,0);
+  // Find matching order
+  const matchOrder=orders.find(o=>o.restaurant===a.restaurant&&o.supId===a.supId&&o.status==='approved');
+  const rows=a.items.map(it=>`<div class="pr"><span class="pn">${it.code?`<small style="color:var(--mut)">[${it.code}]</small> `:''} ${it.name}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
+
+  let cmp='';
+  if(matchOrder){
+    const ordItems=matchOrder.items;
+    const cmpRows=a.items.map(ai=>{
+      const oi=ordItems.find(x=>x.name.toLowerCase()===ai.name.toLowerCase());
+      if(!oi) return `<div class="cmp-cell cmp-warn"><div class="cmp-name">${ai.name}</div><div class="cmp-val">⚠️ No estaba en el pedido</div></div>`;
+      const qDiff=ai.qty-oi.qty;
+      const cls=qDiff===0?'cmp-ok':Math.abs(qDiff/oi.qty)<0.05?'cmp-warn':'cmp-err';
+      return `<div class="cmp-cell ${cls}"><div class="cmp-name">${ai.name}</div><div class="cmp-val">Pedido: ${oi.qty} · Recibido: ${ai.qty} ${qDiff!==0?`(${qDiff>0?'+':''}${qDiff})`:''}</div></div>`;
+    }).join('');
+    cmp=`<div class="sh" style="margin-top:12px">Comparativa con pedido</div><div>${cmpRows}</div>`;
+  }
+
+  return `<div class="alb-card">
+    <div class="alb-hd">
+      <div>
+        <div class="alb-rest">${a.restaurant}</div>
+        <div class="alb-info">${sup.emoji} ${sup.name} · ${new Date(a.date+'T00:00:00').toLocaleDateString('es-ES')}</div>
+      </div>
+      <div class="alb-acts">
+        <button class="btn btn-no btn-xs" onclick="delAlb('${a.id}')">🗑️</button>
+      </div>
+    </div>
+    ${a.photo?`<img src="${a.photo}" class="alb-photo"/>`:''}
+    <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
+    ${cmp}
+  </div>`;
+}
+
+function delAlb(id){ if(!confirm('¿Eliminar este albarán?'))return; albNotes=albNotes.filter(a=>a.id!==id);saveAlb();render(); }
+
+/* ═══════════════ NEW ALBARAN VIEW ═══════════════ */
+function vAlbaranNew(){
+  const isAdmin=S.session&&S.session.isAdmin;
+  const sups=supList();
+  const restSel=isAdmin?`<div class="fg"><label>Restaurante</label>
+    <select id="alb-rest" onchange="S.albRestaurant=this.value">
+      <option value="">— Selecciona —</option>
+      ${cfg.users.map(u=>`<option value="${u.restaurant}" ${S.albRestaurant===u.restaurant?'selected':''}>${u.restaurant}</option>`).join('')}
+    </select></div>`:'';
+
+  const supSel=`<div class="fg"><label>Proveedor</label>
+    <select id="alb-sup" onchange="S.albSupId=this.value">
+      ${sups.map(s=>`<option value="${s.id}" ${S.albSupId===s.id?'selected':''}>${s.emoji} ${s.name}</option>`).join('')}
+    </select></div>`;
+
+  const itemsHtml=S.albItems.map((it,i)=>`
+    <div class="item-entry">
+      <button class="item-del" onclick="albDelItem(${i})">✕</button>
+      <div class="three-col">
+        <div class="fg" style="margin-bottom:6px"><label>Producto</label><input type="text" value="${it.name}" onchange="S.albItems[${i}].name=this.value" placeholder="Entrecot de ternera"/></div>
+        <div class="fg" style="margin-bottom:6px"><label>Código</label><input type="text" value="${it.code||''}" onchange="S.albItems[${i}].code=this.value" placeholder="B001"/></div>
+        <div class="fg" style="margin-bottom:6px"><label>Unidad</label>
+          <select onchange="S.albItems[${i}].unit=this.value">
+            <option ${it.unit==='KG'?'selected':''}>KG</option>
+            <option ${it.unit==='UN'?'selected':''}>UN</option>
+            <option ${it.unit==='L'?'selected':''}>L</option>
+            <option ${it.unit==='Caja'?'selected':''}>Caja</option>
+          </select>
+        </div>
+        <div class="fg" style="margin-bottom:0"><label>Cantidad</label><input type="number" value="${it.qty}" step="0.1" min="0" onchange="S.albItems[${i}].qty=parseFloat(this.value)||0" placeholder="8"/></div>
+        <div class="fg" style="margin-bottom:0"><label>Precio €</label><input type="number" value="${it.price}" step="0.01" min="0" onchange="S.albItems[${i}].price=parseFloat(this.value)||0" placeholder="28.50"/></div>
+        <div class="fg" style="margin-bottom:0"><label>Total</label><input type="text" readonly value="${fmt(it.qty*it.price)}" style="background:var(--bg)"/></div>
+      </div>
+    </div>`).join('');
+
+  return `<div class="main">
+    <div class="card">
+      <div class="card-t">📋 Nuevo Albarán</div>
+      ${restSel}
+      ${supSel}
+      <div class="fg"><label>Fecha del albarán</label>
+        <input type="date" id="alb-date" value="${S.albDate}" onchange="S.albDate=this.value"/>
+      </div>
+      <div class="fg">
+        <label>Foto del albarán (cámara o archivo)</label>
+        <div class="file-input-wrap">
+          <div class="file-input-btn">📷 Toca para fotografiar o subir imagen</div>
+          <input type="file" accept="image/*" capture="environment" id="alb-photo-input" onchange="handleAlbPhoto(this)"/>
+        </div>
+        <img id="alb-img-preview" class="img-preview" style="${S.albPhoto?'display:block':'display:none'}" src="${S.albPhoto||''}"/>
+        <div id="ocr-progress" class="ocr-progress">🔍 Reconociendo texto... puede tardar unos segundos</div>
+        ${S.albPhoto?`<button class="btn btn-blue btn-sm" style="margin-top:8px" onclick="runOCR()">🔍 Reconocer productos (OCR)</button>`:''}
+      </div>
+    </div>
+
+    <div class="sh">Productos del albarán</div>
+    <div id="alb-items-list">${itemsHtml||`<div style="color:var(--mut);font-size:13px;text-align:center;padding:20px">Añade productos manualmente o usa el OCR</div>`}</div>
+
+    <button class="btn btn-ghost" style="width:100%;margin-top:8px;justify-content:center" onclick="albAddItem()">+ Añadir línea</button>
+
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-pri" onclick="saveAlbaran()">💾 Guardar albarán</button>
+      <button class="btn btn-ghost" onclick="${S.session&&S.session.isAdmin?'goAdmin()':'goOrder()'}">Cancelar</button>
+    </div>
+  </div>`;
+}
+
+function handleAlbPhoto(input){
+  const file=input.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    S.albPhoto=e.target.result;
+    const img=document.getElementById('alb-img-preview');
+    if(img){img.src=S.albPhoto;img.style.display='block';}
+    render();
+  };
+  reader.readAsDataURL(file);
+}
+
+function albAddItem(){
+  S.albItems.push({code:'',name:'',unit:'KG',qty:1,price:0});
+  render();
+}
+function albDelItem(i){ S.albItems.splice(i,1);render(); }
+
+async function runOCR(){
+  if(!S.albPhoto){toast('Primero añade una foto','#dc2626');return;}
+  const prog=document.getElementById('ocr-progress');
+  if(prog)prog.style.display='block';
+
+  try{
+    if(!window.Tesseract){
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+        s.onload=res;s.onerror=rej;
+        document.head.appendChild(s);
+      });
+    }
+    const worker=await Tesseract.createWorker('spa+eng');
+    const {data:{text}}=await worker.recognize(S.albPhoto);
+    await worker.terminate();
+
+    // Parse OCR text to find product lines
+    const parsed=parseOCRText(text);
+    if(parsed.length>0){
+      S.albItems=[...S.albItems,...parsed];
+      toast(`✅ Se reconocieron ${parsed.length} líneas. Revisa y corrige.`,'#16a34a');
+    } else {
+      toast('No se reconocieron productos automáticamente. Añádelos manualmente.','#d97706');
+    }
+  } catch(e){
+    toast('Error OCR. Añade los productos manualmente.','#dc2626');
+  } finally {
+    if(prog)prog.style.display='none';
+    render();
+  }
+}
+
+function parseOCRText(text){
+  const lines=text.split('\n').map(l=>l.trim()).filter(l=>l.length>5);
+  const items=[];
+  // Patterns: look for lines with a price number (e.g. 28.50, 28,50)
+  const priceReg=/(\d+[.,]\d{2})/g;
+  const qtyReg=/(\d+[.,]?\d*)\s*(kg|kgs|un|uds|l|lts|caja|cajas)/i;
+  lines.forEach(line=>{
+    const prices=[...line.matchAll(priceReg)].map(m=>parseFloat(m[1].replace(',','.')));
+    if(prices.length===0)return;
+    const qtyMatch=line.match(qtyReg);
+    const qty=qtyMatch?parseFloat(qtyMatch[1].replace(',','.')):1;
+    const unit=qtyMatch?(qtyMatch[2].toLowerCase().startsWith('k')?'KG':qtyMatch[2].toLowerCase().startsWith('u')?'UN':'KG'):'UN';
+    const price=prices[prices.length-1]; // last price on line is usually the unit price or total
+    // Clean name: remove numbers, prices, units from line
+    const name=line.replace(/\d+[.,]\d+/g,'').replace(qtyReg,'').replace(/\s+/g,' ').trim().slice(0,60);
+    // Code: first sequence of 4-8 digits
+    const codeMatch=line.match(/\b(\d{4,8})\b/);
+    const code=codeMatch?codeMatch[1]:'';
+    if(name.length>2&&price>0){
+      items.push({code,name,unit,qty,price});
+    }
+  });
+  return items.slice(0,50); // max 50 items
+}
+
+function saveAlbaran(){
+  const rest=S.session&&!S.session.isAdmin?S.session.restaurant:(document.getElementById('alb-rest')?.value||S.albRestaurant);
+  const supId=document.getElementById('alb-sup')?.value||S.albSupId;
+  const date=document.getElementById('alb-date')?.value||S.albDate;
+  if(!rest){toast('Selecciona el restaurante','#dc2626');return;}
+  if(!S.albItems.length){toast('Añade al menos un producto','#dc2626');return;}
+  const validItems=S.albItems.filter(it=>it.name&&it.qty>0);
+  if(!validItems.length){toast('Completa nombre y cantidad de los productos','#dc2626');return;}
+  const note={id:uid(),restaurant:rest,supId,date,photo:S.albPhoto,items:validItems,createdAt:new Date().toISOString()};
+  albNotes.unshift(note);
+  saveAlb();
+  toast('✅ Albarán guardado','#16a34a');
+  if(S.session&&S.session.isAdmin){ S.adminTab='albaranes';goAdmin(); }
+  else goOrder();
+}
+
+/* ═══════════════ USER MGMT ═══════════════ */
+function vUsers(){
+  const newF=S.editUserId==='new'?userForm(null):`<button class="btn btn-pri btn-sm" onclick="S.editUserId='new';render()" style="margin-bottom:14px">+ Añadir usuario</button>`;
   const list=cfg.users.map(u=>{
-    const editing=S.editUserId===u.id;
+    const ed=S.editUserId===u.id;
     return `<div class="user-card">
       <div class="uc-hd">
-        <div>
-          <div class="uc-name">${u.restaurant}</div>
-          <div class="uc-info">PIN: ${u.pin} · ${u.needsApproval?'Requiere aprobación':'Auto-aprobado'}</div>
-        </div>
+        <div><div class="uc-name">${u.restaurant}</div><div class="uc-info">PIN: ${u.pin} · ${u.needsApproval?'Requiere aprobación':'Auto-aprobado'}</div></div>
         <div class="uc-acts">
-          <button class="btn btn-ghost btn-sm" onclick="S.editUserId=S.editUserId==='${u.id}'?null:'${u.id}';render()">${editing?'✕':'✏️'}</button>
+          <button class="btn btn-ghost btn-sm" onclick="S.editUserId=S.editUserId==='${u.id}'?null:'${u.id}';render()">${ed?'✕':'✏️'}</button>
           <button class="btn btn-no btn-sm" onclick="delUser('${u.id}')">🗑️</button>
         </div>
       </div>
-      ${editing?`<div class="uc-body">${userForm(u)}</div>`:''}
+      ${ed?`<div class="uc-body">${userForm(u)}</div>`:''}
     </div>`;
   }).join('');
-
-  return newForm + list;
+  return newF+list;
 }
-
 function userForm(u){
   const id=u?u.id:'new';
-  const isNew=!u;
   return `<div class="two-col">
-    <div class="fg"><label>Nombre restaurante</label>
-      <input type="text" id="uf-rest-${id}" value="${u?u.restaurant:''}" placeholder="O'Carro Gourmet"/>
-    </div>
-    <div class="fg"><label>Nombre corto</label>
-      <input type="text" id="uf-name-${id}" value="${u?u.name:''}" placeholder="Gourmet"/>
-    </div>
-    <div class="fg"><label>PIN (4 dígitos)</label>
-      <input type="text" id="uf-pin-${id}" value="${u?u.pin:''}" maxlength="4" placeholder="1234"/>
-    </div>
-    <div class="fg"><label>Confirmación de pedido</label>
+    <div class="fg"><label>Nombre restaurante</label><input type="text" id="uf-rest-${id}" value="${u?u.restaurant:''}" placeholder="O'Carro Gourmet"/></div>
+    <div class="fg"><label>Nombre corto</label><input type="text" id="uf-name-${id}" value="${u?u.name:''}" placeholder="Gourmet"/></div>
+    <div class="fg"><label>PIN (4 dígitos)</label><input type="text" id="uf-pin-${id}" value="${u?u.pin:''}" maxlength="4" placeholder="1234"/></div>
+    <div class="fg"><label>Aprobación</label>
       <select id="uf-appr-${id}">
         <option value="1" ${u&&u.needsApproval?'selected':''}>Requiere aprobación</option>
         <option value="0" ${u&&!u.needsApproval?'selected':''}>Auto-aprobado</option>
-      </select>
-    </div>
+      </select></div>
   </div>
   <div style="display:flex;gap:8px">
-    <button class="btn btn-pri btn-sm" onclick="saveUser('${id}')">${isNew?'✓ Crear':'✓ Guardar'}</button>
+    <button class="btn btn-pri btn-sm" onclick="saveUser('${id}')">${!u?'✓ Crear':'✓ Guardar'}</button>
     <button class="btn btn-ghost btn-sm" onclick="S.editUserId=null;render()">Cancelar</button>
   </div>`;
 }
-
 function saveUser(id){
   const rest=document.getElementById('uf-rest-'+id)?.value.trim();
   const name=document.getElementById('uf-name-'+id)?.value.trim();
-  const pin =document.getElementById('uf-pin-'+id)?.value.trim();
+  const pin=document.getElementById('uf-pin-'+id)?.value.trim();
   const appr=document.getElementById('uf-appr-'+id)?.value;
-
-  if(!rest||!pin||pin.length<4||!/^\d+$/.test(pin)){ toast('Rellena nombre y PIN de 4 dígitos','#dc2626'); return; }
-
-  if(id==='new'){
-    cfg.users.push({id:'u'+uid(),name:name||rest,restaurant:rest,pin,needsApproval:appr==='1'});
-  } else {
-    const u=cfg.users.find(u=>u.id===id);
-    if(u){ u.name=name||rest; u.restaurant=rest; u.pin=pin; u.needsApproval=appr==='1'; }
-  }
-  saveCfg(); S.editUserId=null; render();
-  toast('Usuario guardado','#16a34a');
+  if(!rest||!pin||pin.length<4||!/^\d+$/.test(pin)){toast('Rellena nombre y PIN de 4 dígitos','#dc2626');return;}
+  if(id==='new') cfg.users.push({id:'u'+uid(),name:name||rest,restaurant:rest,pin,needsApproval:appr==='1'});
+  else { const u=cfg.users.find(u=>u.id===id);if(u){u.name=name||rest;u.restaurant=rest;u.pin=pin;u.needsApproval=appr==='1';} }
+  saveCfg();S.editUserId=null;render();toast('Usuario guardado','#16a34a');
 }
+function delUser(id){ if(!confirm('¿Eliminar?'))return;cfg.users=cfg.users.filter(u=>u.id!==id);saveCfg();render(); }
 
-function delUser(id){
-  if(!confirm('¿Eliminar este usuario?')) return;
-  cfg.users=cfg.users.filter(u=>u.id!==id);
-  saveCfg(); render();
-  toast('Usuario eliminado');
-}
-
-/* ── SUPPLIERS TAB ── */
+/* ═══════════════ SUPPLIER MGMT ═══════════════ */
 function vSuppliers(){
-  const isNew=S.editSupId==='new';
-  const newForm=isNew?supForm(null):`<button class="btn btn-pri btn-sm" onclick="S.editSupId='new';render()" style="margin-bottom:14px">+ Añadir proveedor</button>`;
-
+  const newF=S.editSupId==='new'?supForm(null):`<button class="btn btn-pri btn-sm" onclick="S.editSupId='new';render()" style="margin-bottom:14px">+ Añadir proveedor</button>`;
   const list=supList().map(sup=>{
-    const editing=S.editSupId===sup.id;
-    const open=S.openSupId===sup.id;
-    const prodCount=sup.products.length;
+    const ed=S.editSupId===sup.id,op=S.openSupId===sup.id;
     return `<div class="sup-card">
       <div class="sc-hd">
-        <div>
-          <div class="sc-name">${sup.emoji} ${sup.name}</div>
-          <div class="sc-info">${prodCount} productos · ${sup.phone?sup.phone:'Sin número WhatsApp'}</div>
-        </div>
+        <div><div class="sc-name">${sup.emoji} ${sup.name}</div><div class="sc-info">${sup.products.length} productos · ${sup.phone||'Sin número'}</div></div>
         <div class="sc-acts">
-          <button class="btn btn-ghost btn-sm" onclick="S.openSupId=S.openSupId==='${sup.id}'?null:'${sup.id}';S.editSupId=null;render()">${open?'▲ Cerrar':'📦 Productos'}</button>
-          <button class="btn btn-ghost btn-sm" onclick="S.editSupId=S.editSupId==='${sup.id}'?null:'${sup.id}';S.openSupId=null;render()">${editing?'✕':'✏️'}</button>
+          <button class="btn btn-ghost btn-sm" onclick="S.openSupId=S.openSupId==='${sup.id}'?null:'${sup.id}';S.editSupId=null;render()">${op?'▲':'📦'}</button>
+          <button class="btn btn-ghost btn-sm" onclick="S.editSupId=S.editSupId==='${sup.id}'?null:'${sup.id}';S.openSupId=null;render()">${ed?'✕':'✏️'}</button>
           <button class="btn btn-no btn-sm" onclick="delSup('${sup.id}')">🗑️</button>
         </div>
       </div>
-      ${editing?`<div class="sc-body">${supForm(sup)}</div>`:''}
-      ${open?`<div class="sc-body">${prodManager(sup)}</div>`:''}
+      ${ed?`<div class="sc-body">${supForm(sup)}</div>`:''}
+      ${op?`<div class="sc-body">${prodMgr(sup)}</div>`:''}
     </div>`;
   }).join('');
-
-  return newForm+list;
+  return newF+list;
 }
-
 function supForm(sup){
   const id=sup?sup.id:'new';
-  const isNew=!sup;
   return `<div class="two-col">
-    <div class="fg"><label>Nombre proveedor</label>
-      <input type="text" id="sf-name-${id}" value="${sup?sup.name:''}" placeholder="Bencar"/>
-    </div>
-    <div class="fg"><label>Emoji / icono</label>
-      <input type="text" id="sf-emoji-${id}" value="${sup?sup.emoji:'🏭'}" maxlength="4" placeholder="🏭"/>
-    </div>
-    <div class="fg" style="grid-column:1/-1"><label>WhatsApp (sin +, sin espacios)</label>
-      <input type="tel" id="sf-phone-${id}" value="${sup?sup.phone:''}" placeholder="34612345678"/>
-    </div>
+    <div class="fg"><label>Nombre</label><input type="text" id="sf-name-${id}" value="${sup?sup.name:''}" placeholder="Bencar"/></div>
+    <div class="fg"><label>Emoji</label><input type="text" id="sf-emoji-${id}" value="${sup?sup.emoji:'🏭'}" maxlength="4"/></div>
+    <div class="fg" style="grid-column:1/-1"><label>WhatsApp (sin + ni espacios)</label><input type="tel" id="sf-phone-${id}" value="${sup?sup.phone:''}" placeholder="34612345678"/></div>
   </div>
   <div style="display:flex;gap:8px">
-    <button class="btn btn-pri btn-sm" onclick="saveSup('${id}')">${isNew?'✓ Crear':'✓ Guardar'}</button>
+    <button class="btn btn-pri btn-sm" onclick="saveSup('${id}')">${!sup?'✓ Crear':'✓ Guardar'}</button>
     <button class="btn btn-ghost btn-sm" onclick="S.editSupId=null;render()">Cancelar</button>
   </div>`;
 }
-
 function saveSup(id){
-  const name  =document.getElementById('sf-name-'+id)?.value.trim();
-  const emoji =document.getElementById('sf-emoji-'+id)?.value.trim()||'🏭';
-  const phone =document.getElementById('sf-phone-'+id)?.value.trim().replace(/\D/g,'');
-  if(!name){ toast('Introduce el nombre del proveedor','#dc2626'); return; }
-  if(id==='new'){
-    const newId='s'+uid();
-    suppliers[newId]={id:newId,name,emoji,phone,products:[]};
-  } else {
-    if(!suppliers[id]) return;
-    suppliers[id].name=name; suppliers[id].emoji=emoji; suppliers[id].phone=phone;
-  }
-  saveSups(); S.editSupId=null; render();
-  toast('Proveedor guardado','#16a34a');
+  const name=document.getElementById('sf-name-'+id)?.value.trim();
+  const emoji=document.getElementById('sf-emoji-'+id)?.value.trim()||'🏭';
+  const phone=document.getElementById('sf-phone-'+id)?.value.trim().replace(/\D/g,'');
+  if(!name){toast('Introduce el nombre','#dc2626');return;}
+  if(id==='new'){const nid='s'+uid();suppliers[nid]={id:nid,name,emoji,phone,products:[]};}
+  else{if(!suppliers[id])return;suppliers[id].name=name;suppliers[id].emoji=emoji;suppliers[id].phone=phone;}
+  saveSups();S.editSupId=null;render();toast('Proveedor guardado','#16a34a');
 }
-
-function delSup(id){
-  if(!confirm('¿Eliminar este proveedor y todos sus productos?')) return;
-  delete suppliers[id];
-  saveSups(); render();
-  toast('Proveedor eliminado');
+function delSup(id){ if(!confirm('¿Eliminar proveedor?'))return;delete suppliers[id];saveSups();render(); }
+function prodMgr(sup){
+  const prods=sup.products.map(p=>`<div class="prod-row"><div class="prod-info"><div class="prod-name-t">${p.name}</div><div class="prod-meta">${fmt(p.price)} / ${p.unit}</div></div><button class="btn btn-no btn-xs" onclick="delProd('${sup.id}','${p.id}')">✕</button></div>`).join('');
+  return `${!sup.products.length?`<div style="color:var(--mut);font-size:13px;text-align:center;margin-bottom:12px">Sin productos</div>`:''}${prods}
+  <div class="sh" style="margin-top:12px">Añadir producto</div>
+  <div class="three-col">
+    <div class="fg"><label>Nombre</label><input type="text" id="pf-name-${sup.id}" placeholder="Entrecot de ternera"/></div>
+    <div class="fg"><label>Unidad</label><select id="pf-unit-${sup.id}"><option>KG</option><option>UN</option><option>L</option><option>Caja</option></select></div>
+    <div class="fg"><label>Precio €</label><input type="number" id="pf-price-${sup.id}" placeholder="12.50" step="0.01" min="0"/></div>
+  </div>
+  <button class="btn btn-ok btn-sm" onclick="addProd('${sup.id}')">+ Añadir producto</button>`;
 }
-
-/* ── PRODUCT MANAGER ── */
-function prodManager(sup){
-  const prods=sup.products.map(p=>`
-    <div class="prod-row">
-      <div class="prod-info">
-        <div class="prod-name-t">${p.name}</div>
-        <div class="prod-meta">${fmt(p.price)} / ${p.unit}</div>
-      </div>
-      <button class="btn btn-no btn-xs" onclick="delProd('${sup.id}','${p.id}')">✕</button>
-    </div>`).join('');
-
-  return `
-    ${sup.products.length===0?`<div style="color:var(--mut);font-size:13px;margin-bottom:12px;text-align:center">Sin productos. Añade el primero.</div>`:''}
-    ${prods}
-    <div class="sh" style="margin-top:14px">Añadir producto</div>
-    <div class="three-col">
-      <div class="fg"><label>Nombre</label>
-        <input type="text" id="pf-name-${sup.id}" placeholder="Entrecot de ternera"/>
-      </div>
-      <div class="fg"><label>Unidad</label>
-        <select id="pf-unit-${sup.id}"><option>KG</option><option>UN</option><option>L</option><option>Caja</option></select>
-      </div>
-      <div class="fg"><label>Precio (€)</label>
-        <input type="number" id="pf-price-${sup.id}" placeholder="12.50" step="0.01" min="0"/>
-      </div>
-    </div>
-    <button class="btn btn-ok btn-sm" onclick="addProd('${sup.id}')">+ Añadir producto</button>`;
+function addProd(sid){
+  const name=document.getElementById('pf-name-'+sid)?.value.trim();
+  const unit=document.getElementById('pf-unit-'+sid)?.value;
+  const price=parseFloat(document.getElementById('pf-price-'+sid)?.value);
+  if(!name||isNaN(price)||price<0){toast('Nombre y precio obligatorios','#dc2626');return;}
+  suppliers[sid].products.push({id:'p'+uid(),name,unit:unit||'KG',price});
+  saveSups();render();toast('Producto añadido','#16a34a');
 }
+function delProd(sid,pid){ if(!suppliers[sid])return;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups();render(); }
 
-function addProd(supId){
-  const name =document.getElementById('pf-name-'+supId)?.value.trim();
-  const unit =document.getElementById('pf-unit-'+supId)?.value;
-  const price=parseFloat(document.getElementById('pf-price-'+supId)?.value);
-  if(!name||isNaN(price)||price<0){ toast('Nombre y precio son obligatorios','#dc2626'); return; }
-  if(!suppliers[supId]) return;
-  suppliers[supId].products.push({id:'p'+uid(),name,unit:unit||'KG',price});
-  saveSups(); render();
-  toast('Producto añadido','#16a34a');
-}
-
-function delProd(supId,prodId){
-  if(!suppliers[supId]) return;
-  suppliers[supId].products=suppliers[supId].products.filter(p=>p.id!==prodId);
-  saveSups(); render();
-}
-
-/* ── SETTINGS TAB ── */
+/* ═══════════════ SETTINGS ═══════════════ */
 function vSettings(){
   return `<div class="card">
     <div class="card-t">Administrador</div>
-    <div class="fg"><label>Nombre</label>
-      <input type="text" value="${cfg.adminName}" onchange="cfg.adminName=this.value;saveCfg()"/>
-    </div>
-    <div class="fg"><label>PIN administrador</label>
-      <input type="password" value="${cfg.adminPIN}" maxlength="4" onchange="cfg.adminPIN=this.value;saveCfg()" placeholder="4 dígitos"/>
-    </div>
-    <div class="fg"><label>WhatsApp (notificaciones de pedidos)</label>
+    <div class="fg"><label>Nombre</label><input type="text" value="${cfg.adminName}" onchange="cfg.adminName=this.value;saveCfg()"/></div>
+    <div class="fg"><label>PIN administrador (4 dígitos)</label><input type="password" value="${cfg.adminPIN}" maxlength="4" onchange="cfg.adminPIN=this.value;saveCfg()"/></div>
+    <div class="fg">
+      <label>📱 Tu WhatsApp — para recibir pedidos de restaurantes</label>
       <input type="tel" value="${cfg.adminPhone||''}" placeholder="34612345678 (sin + ni espacios)" onchange="cfg.adminPhone=this.value.replace(/\\D/g,'');saveCfg()"/>
+      ${!cfg.adminPhone?`<div style="color:#dc2626;font-size:12px;margin-top:4px">⚠️ Sin número configurado — los restaurantes no podrán notificarte por WhatsApp</div>`:`<div style="color:#16a34a;font-size:12px;margin-top:4px">✅ Número configurado</div>`}
     </div>
     <div class="card-t" style="margin-top:20px">Datos</div>
-    <button class="btn btn-no btn-sm" onclick="if(confirm('¿Borrar TODOS los pedidos?')){orders=[];saveOrders();render();toast('Pedidos eliminados','#dc2626')}">🗑️ Borrar todos los pedidos</button>
-    &nbsp;
-    <button class="btn btn-no btn-sm" onclick="if(confirm('¿Restaurar datos de fábrica? Se perderán usuarios y proveedores personalizados.')){localStorage.clear();location.reload()}">⚠️ Restaurar de fábrica</button>
-    <div style="margin-top:18px;padding:12px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--mut)">
-      <strong>💡 Cómo publicar esta web (gratis):</strong><br>
-      1. Ve a <strong>netlify.com/drop</strong><br>
-      2. Arrastra este archivo HTML<br>
-      3. Obtienes una URL como <em>ocarro-pedidos.netlify.app</em><br>
-      4. Compártela con los restaurantes
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-no btn-sm" onclick="if(confirm('¿Borrar TODOS los pedidos?')){orders=[];saveOrders();render();toast('Pedidos eliminados','#dc2626')}">🗑️ Borrar pedidos</button>
+      <button class="btn btn-no btn-sm" onclick="if(confirm('¿Borrar todos los albaranes?')){albNotes=[];saveAlb();render();toast('Albaranes eliminados','#dc2626')}">🗑️ Borrar albaranes</button>
+      <button class="btn btn-no btn-sm" onclick="if(confirm('¿Restaurar de fábrica? Se perderá todo.')){localStorage.clear();location.reload()}">⚠️ Restaurar fábrica</button>
+    </div>
+    <div style="margin-top:16px;padding:12px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--mut)">
+      <strong>💡 Para actualizar la web:</strong><br>
+      Descarga el nuevo archivo → ve a GitHub → abre index.html → lápiz ✏️ → reemplaza el contenido → Commit.
     </div>
   </div>`;
 }
 
-/* ═══════════════════════════════════════════════
-   ORDER ACTIONS
-═══════════════════════════════════════════════ */
-function setSup(id){ S.supId=id; S.cart={}; render(); }
-
+/* ═══════════════ ORDER ACTIONS ═══════════════ */
+function setSup(id){ S.supId=id;S.cart={};render(); }
 function chgQ(id,d){
-  const q=S.cart[id]||0, nq=Math.max(0,q+d);
-  if(nq===0) delete S.cart[id]; else S.cart[id]=nq;
-
-  const el=document.getElementById('qd-'+id); if(el) el.textContent=nq;
-  const pi=document.getElementById('pi-'+id); if(pi) pi.className='pi'+(nq>0?' ic':'');
-
+  const q=S.cart[id]||0,nq=Math.max(0,q+d);
+  if(nq===0)delete S.cart[id];else S.cart[id]=nq;
+  const el=document.getElementById('qd-'+id);if(el)el.textContent=nq;
+  const pi=document.getElementById('pi-'+id);if(pi)pi.className='pi'+(nq>0?' ic':'');
   const sup=suppliers[S.supId];
   const cnt=Object.values(S.cart).reduce((s,v)=>s+v,0);
   const tot=(sup?sup.products:[]).reduce((s,p)=>s+(S.cart[p.id]||0)*p.price,0);
-  const bar=document.getElementById('cbar'); if(bar) bar.className='cbar'+(cnt>0?' up':'');
-  const cv=document.getElementById('cb-v'); if(cv) cv.textContent=`${cnt} artículos`;
-  const cs=document.getElementById('cb-s'); if(cs) cs.textContent=fmt(tot);
+  const bar=document.getElementById('cbar');if(bar)bar.className='cbar'+(cnt>0?' up':'');
+  const cv=document.getElementById('cb-v');if(cv)cv.textContent=`${cnt} artículos`;
+  const cs=document.getElementById('cb-s');if(cs)cs.textContent=fmt(tot);
 }
-
 function submitOrder(){
-  if(!S.session){ toast('No hay sesión activa','#dc2626'); return; }
+  if(!S.session){toast('Sin sesión','#dc2626');return;}
   const sup=suppliers[S.supId];
-  if(!sup){ toast('Proveedor no disponible','#dc2626'); return; }
-  const cartKeys=Object.keys(S.cart);
-  if(!cartKeys.length){ toast('Añade productos al pedido','#dc2626'); return; }
-
+  if(!sup||!Object.keys(S.cart).length){toast('Añade productos al pedido','#dc2626');return;}
   const items=sup.products.filter(p=>S.cart[p.id]).map(p=>({...p,qty:S.cart[p.id]}));
   const needApproval=S.session.needsApproval;
-
-  const o={
-    id:uid(),
-    restaurant:S.session.restaurant,
-    supId:S.supId,
-    items,
-    status:needApproval?'pending':'approved',
-    autoApproved:!needApproval,
-    createdAt:new Date().toISOString()
-  };
-  orders.unshift(o);
-  saveOrders();
-  S.cart={};
-
+  const o={id:uid(),restaurant:S.session.restaurant,supId:S.supId,items,status:needApproval?'pending':'approved',autoApproved:!needApproval,createdAt:new Date().toISOString()};
+  orders.unshift(o);saveOrders();S.cart={};
   if(needApproval){
-    // Notify admin via WhatsApp
-    const adminNum=(cfg.adminPhone||'').replace(/\D/g,'');
-    if(adminNum.length>7) setTimeout(()=>window.open(waURL(adminNum,msgAdmin(o)),'_blank'),200);
-    toast('✅ Pedido enviado — espera aprobación','#d97706');
+    const adminPhone=cfg.adminPhone||'';
+    const msg=msgAdmin(o);
+    showWA(adminPhone,msg,`Pedido de ${o.restaurant} — envíalo a ${cfg.adminName} para que lo apruebe`);
+    toast('✅ Pedido guardado — envía el WhatsApp','#d97706');
   } else {
-    // Auto-approved → send directly to supplier
-    const phone=(sup.phone||'').replace(/\D/g,'');
-    if(phone.length>7) setTimeout(()=>window.open(waURL(phone,msgSupplier(o)),'_blank'),200);
-    toast('⚡ Pedido enviado al proveedor','#16a34a');
+    const phone=sup.phone||'';
+    const msg=msgSupplier(o);
+    showWA(phone,msg,`Pedido aprobado automáticamente — envíalo a ${sup.name}`);
+    toast('⚡ Pedido aprobado — envía el WhatsApp al proveedor','#16a34a');
   }
   render();
 }
-
 function approve(id){
-  const o=orders.find(o=>o.id===id); if(!o) return;
-  o.status='approved'; saveOrders(); render();
+  const o=orders.find(o=>o.id===id);if(!o)return;
+  o.status='approved';saveOrders();render();
   toast('✅ Pedido aprobado','#16a34a');
 }
-
 function reject(id){
-  const o=orders.find(o=>o.id===id); if(!o) return;
-  o.status='rejected'; saveOrders(); render();
+  const o=orders.find(o=>o.id===id);if(!o)return;
+  o.status='rejected';saveOrders();render();
   toast('Pedido rechazado','#dc2626');
 }
 
-/* ═══════════════════════════════════════════════
-   INIT
-═══════════════════════════════════════════════ */
+/* ═══════════════ INIT ═══════════════ */
 window.addEventListener('DOMContentLoaded',()=>{
-  // Seed demo orders if empty
   if(!orders.length){
     const n=Date.now();
     orders=[
-      {id:'d1',restaurant:"O'Carro Gourmet",supId:'bencar',status:'pending',autoApproved:false,
-       createdAt:new Date(n-7200000).toISOString(),
-       items:[{id:'b1',name:'Entrecot de ternera',unit:'KG',price:28.50,qty:8},{id:'b3',name:'Solomillo de ternera',unit:'KG',price:38.90,qty:3}]},
-      {id:'d2',restaurant:"O'Carro Norte",supId:'g1012',status:'pending',autoApproved:false,
-       createdAt:new Date(n-3600000).toISOString(),
-       items:[{id:'g1',name:'Foie gras de pato fresco',unit:'KG',price:85.00,qty:1},{id:'g3',name:'Jamón ibérico 5J',unit:'KG',price:95.00,qty:2}]},
-      {id:'d3',restaurant:"O'Carro Eixample",supId:'bencar',status:'approved',autoApproved:false,
-       createdAt:new Date(n-18000000).toISOString(),
-       items:[{id:'b2',name:'Chuletón de buey',unit:'KG',price:45.00,qty:5},{id:'b15',name:'Carrillera de cerdo',unit:'KG',price:12.90,qty:8}]},
+      {id:'d1',restaurant:"O'Carro Gourmet",supId:'bencar',status:'pending',autoApproved:false,createdAt:new Date(n-7200000).toISOString(),items:[{id:'b1',name:'Entrecot de ternera',unit:'KG',price:28.50,qty:8},{id:'b3',name:'Solomillo de ternera',unit:'KG',price:38.90,qty:3}]},
+      {id:'d2',restaurant:"O'Carro Norte",supId:'g1012',status:'pending',autoApproved:false,createdAt:new Date(n-3600000).toISOString(),items:[{id:'g1',name:'Foie gras de pato fresco',unit:'KG',price:85.00,qty:1},{id:'g3',name:'Jamón ibérico 5J',unit:'KG',price:95.00,qty:2}]},
+      {id:'d3',restaurant:"O'Carro Eixample",supId:'bencar',status:'approved',autoApproved:false,createdAt:new Date(n-18000000).toISOString(),items:[{id:'b2',name:'Chuletón de buey',unit:'KG',price:45.00,qty:5},{id:'b15',name:'Carrillera de cerdo',unit:'KG',price:12.90,qty:8}]},
     ];
     saveOrders();
   }
