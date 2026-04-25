@@ -291,13 +291,19 @@ let cfg      = JSON.parse(localStorage.getItem('oc_cfg') || JSON.stringify({admi
 if(!cfg.users) cfg.users=DEFAULT_USERS;
 function saveCfg(){ localStorage.setItem('oc_cfg', JSON.stringify(cfg)); }
 
-/* ═══════════════ FIREBASE DATA (pedidos, proveedores, albaranes) ═══════════════ */
+/* ═══════════════ FIREBASE DATA (pedidos, proveedores, albaranes, revenue) ═══════════════ */
 let orders   = [];
 let suppliers= JSON.parse(localStorage.getItem('oc_suppliers')||JSON.stringify(DEFAULT_SUPS));
 let albNotes = [];
+let revenue  = {};
 let fbConnected = false;
 
 function supList(){ return Object.values(suppliers); }
+function visibleSups(){
+  const all=supList();
+  if(!S.session||S.session.isAdmin) return all;
+  return all.filter(s=>!(s.disabledFor||[]).includes(S.session.userId));
+}
 
 /* ═══════════════ FIREBASE LISTENERS ═══════════════ */
 function initFirebaseListeners(){
@@ -341,6 +347,12 @@ function initFirebaseListeners(){
       fbDb.ref('suppliers').set(DEFAULT_SUPS);
     }
   });
+
+  // Revenue — food cost
+  fbDb.ref('revenue').on('value', snap => {
+    revenue = snap.val() || {};
+    if(S.view==='admin' && S.adminTab==='foodcost') renderAdminContent();
+  });
 }
 
 /* ═══════════════ SAVE FUNCTIONS ═══════════════ */
@@ -376,6 +388,7 @@ let S={
   editOrderId:null, editItems:[],
   pinTarget:null, pinBuf:'',
   albView:'list', albItems:[], albRestaurant:'', albSupId:'', albDate:new Date().toISOString().split('T')[0], albPhoto:null,
+  fcPeriod:'month', fcDate:new Date().toISOString().split('T')[0],
 };
 let chartInst=null;
 const EMOJIS=['🏠','🌿','⭐','🍽️','🏃','🌅','🎯','🧭','🌊','⚓','🌆','🏙️','🌃'];
@@ -467,7 +480,7 @@ function showHdr(isAdmin){
 }
 function handleLogo(){ if(S.session){S.session.isAdmin?goAdmin():goOrder();} }
 function logout(){ if(!confirm('¿Cerrar sesión?'))return;S.session=null;S.view='login';document.getElementById('hdr').style.display='none';render(); }
-function goOrder(){ S.view='order';S.cart={};S.orderTab='new';const sl=supList();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
+function goOrder(){ S.view='order';S.cart={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
 function goAdmin(){ S.view='admin';showHdr(true);render(); }
 function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albDate=new Date().toISOString().split('T')[0];showHdr(false);render(); }
 function setTab(t){ S.adminTab=t;render();if(t==='spending')setTimeout(renderChart,50); }
@@ -489,6 +502,7 @@ function renderAdminContent(){
   else if(S.adminTab==='approved') content=vApproved();
   else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='spending') content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
+  else if(S.adminTab==='foodcost') content=vFoodCost();
   else if(S.adminTab==='albaranes') content=vAlbaranes();
   else if(S.adminTab==='users')    content=vUsers();
   else if(S.adminTab==='suppliers') content=vSuppliers();
@@ -534,9 +548,9 @@ function vOrder(){
     return `<div class="main">${tabsHtml}${vMyOrders()}</div>`;
   }
 
-  const sups=supList();
-  if(!sups.length) return `<div class="main">${tabsHtml}<div class="empty"><div class="ei">🏭</div><div class="et">No hay proveedores configurados.</div></div></div>`;
-  if(!suppliers[S.supId]) S.supId=sups[0].id;
+  const sups=visibleSups();
+  if(!sups.length) return `<div class="main">${tabsHtml}<div class="empty"><div class="ei">🏭</div><div class="et">No hay proveedores activos para este local.</div></div></div>`;
+  if(!suppliers[S.supId]||!(sups.find(s=>s.id===S.supId))) S.supId=sups[0].id;
   const sup=suppliers[S.supId];
   const cnt=Object.values(S.cart).reduce((s,v)=>s+v,0);
   const tot=sup.products.reduce((s,p)=>s+(S.cart[p.id]||0)*p.price,0);
@@ -614,6 +628,7 @@ function vAdmin(){
     {id:'approved',  lbl:`✅ Aprobados`},
     {id:'consolidated',lbl:`📦 Consolid.`},
     {id:'spending',  lbl:`📊 Gasto`},
+    {id:'foodcost',  lbl:`💰 Food Cost`},
     {id:'albaranes', lbl:`📋 Albaranes`},
     {id:'users',     lbl:`👥 Usuarios`},
     {id:'suppliers', lbl:`🏭 Proveed.`},
@@ -625,6 +640,7 @@ function vAdmin(){
   else if(S.adminTab==='approved') content=vApproved();
   else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='spending') content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
+  else if(S.adminTab==='foodcost') content=vFoodCost();
   else if(S.adminTab==='albaranes') content=vAlbaranes();
   else if(S.adminTab==='users')    content=vUsers();
   else if(S.adminTab==='suppliers') content=vSuppliers();
@@ -971,13 +987,11 @@ function delUser(id){ if(!confirm('¿Eliminar?'))return;cfg.users=cfg.users.filt
 function vSuppliers(){
   const newF=S.editSupId==='new'?supForm(null):`<button class="btn btn-pri btn-sm" onclick="S.editSupId='new';render()" style="margin-bottom:14px">+ Añadir proveedor</button>`;
   const list=supList().map(sup=>{
-    const ed=S.editSupId===sup.id,op=S.openSupId===sup.id;
+    const open=S.openSupId===sup.id;
     return `<div class="sup-card"><div class="sc-hd"><div><div class="sc-name">${sup.emoji} ${sup.name}</div><div class="sc-info">${sup.products.length} productos · ${sup.phone||'Sin número'}</div></div>
-      <div class="sc-acts"><button class="btn btn-ghost btn-sm" onclick="S.openSupId=S.openSupId==='${sup.id}'?null:'${sup.id}';S.editSupId=null;render()">${op?'▲':'📦'}</button>
-      <button class="btn btn-ghost btn-sm" onclick="S.editSupId=S.editSupId==='${sup.id}'?null:'${sup.id}';S.openSupId=null;render()">${ed?'✕':'✏️'}</button>
+      <div class="sc-acts"><button class="btn btn-ghost btn-sm" onclick="S.openSupId=S.openSupId==='${sup.id}'?null:'${sup.id}';render()">${open?'▲ Cerrar':'✏️ Editar'}</button>
       <button class="btn btn-no btn-sm" onclick="delSup('${sup.id}')">🗑️</button></div></div>
-      ${ed?`<div class="sc-body">${supForm(sup)}</div>`:''}
-      ${op?`<div class="sc-body">${prodMgr(sup)}</div>`:''}
+      ${open?`<div class="sc-body">${supDetailForm(sup)}</div>`:''}
     </div>`;
   }).join('');
   return newF+list;
@@ -990,8 +1004,33 @@ function supForm(sup){
     <div class="fg" style="grid-column:1/-1"><label>WhatsApp (sin + ni espacios)</label><input type="tel" id="sf-phone-${id}" value="${sup?sup.phone:''}" placeholder="34612345678"/></div>
   </div>
   <div style="display:flex;gap:8px">
-    <button class="btn btn-pri btn-sm" onclick="saveSup2('${id}')">${!sup?'✓ Crear':'✓ Guardar'}</button>
+    <button class="btn btn-pri btn-sm" onclick="saveSup2('${id}')">${!sup?'✓ Crear proveedor':'✓ Guardar'}</button>
     <button class="btn btn-ghost btn-sm" onclick="S.editSupId=null;render()">Cancelar</button>
+  </div>`;
+}
+function supDetailForm(sup){
+  const prods=sup.products.map(p=>`<div class="prod-row"><div class="prod-info" style="flex:1"><div class="prod-name-t">${p.name}</div><div style="display:flex;gap:6px;align-items:center;margin-top:4px"><span style="font-size:12px;color:var(--mut);min-width:30px">${p.unit}</span><input type="number" value="${p.price.toFixed(2)}" step="0.01" min="0" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sup.id}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">€</span></div></div><button class="btn btn-no btn-xs" style="align-self:center" onclick="delProd('${sup.id}','${p.id}')">✕</button></div>`).join('');
+  return `<div class="sh">Información del proveedor</div>
+  <div class="two-col">
+    <div class="fg"><label>Nombre</label><input type="text" id="sf-name-${sup.id}" value="${sup.name}" placeholder="Bencar"/></div>
+    <div class="fg"><label>Emoji</label><input type="text" id="sf-emoji-${sup.id}" value="${sup.emoji}" maxlength="4"/></div>
+    <div class="fg" style="grid-column:1/-1"><label>WhatsApp (sin + ni espacios)</label><input type="tel" id="sf-phone-${sup.id}" value="${sup.phone||''}" placeholder="34612345678"/></div>
+  </div>
+  <button class="btn btn-pri btn-sm" onclick="saveSup2('${sup.id}')">✓ Guardar cambios</button>
+  <div class="sh" style="margin-top:20px">Productos (${sup.products.length}) — edita el precio directamente</div>
+  ${!sup.products.length?`<div style="color:var(--mut);font-size:13px;text-align:center;margin:8px 0 12px">Sin productos aún</div>`:''}
+  ${prods}
+  <div class="sh" style="margin-top:16px">Añadir producto</div>
+  <div class="three-col">
+    <div class="fg"><label>Nombre</label><input type="text" id="pf-name-${sup.id}" placeholder="Entrecot..."/></div>
+    <div class="fg"><label>Unidad</label><select id="pf-unit-${sup.id}"><option>KG</option><option>UN</option><option>L</option><option>Caja</option></select></div>
+    <div class="fg"><label>Precio €</label><input type="number" id="pf-price-${sup.id}" placeholder="12.50" step="0.01" min="0"/></div>
+  </div>
+  <button class="btn btn-ok btn-sm" onclick="addProd('${sup.id}')">+ Añadir producto</button>
+  <div class="sh" style="margin-top:20px">Visibilidad por local</div>
+  <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Desmarca los locales que <strong>no</strong> deben ver este proveedor</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
+    ${cfg.users.map(u=>{const dis=(sup.disabledFor||[]).includes(u.id);return`<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;background:${dis?'var(--srf)':'transparent'};border:1px solid ${dis?'var(--brd)':'transparent'}"><input type="checkbox" ${!dis?'checked':''} onchange="toggleSupVisibility('${sup.id}','${u.id}',this.checked)"/><span style="font-size:13px;${dis?'color:var(--mut)':''}">${dis?'🔒 ':''} ${u.restaurant}</span></label>`;}).join('')}
   </div>`;
 }
 function saveSup2(id){
@@ -999,21 +1038,23 @@ function saveSup2(id){
   const emoji=document.getElementById('sf-emoji-'+id)?.value.trim()||'🏭';
   const phone=document.getElementById('sf-phone-'+id)?.value.trim().replace(/\D/g,'');
   if(!name){toast('Introduce el nombre','#dc2626');return;}
-  if(id==='new'){const nid='s'+uid();suppliers[nid]={id:nid,name,emoji,phone,products:[]};}
-  else{if(!suppliers[id])return;suppliers[id].name=name;suppliers[id].emoji=emoji;suppliers[id].phone=phone;}
-  saveSups();S.editSupId=null;render();toast('Proveedor guardado','#16a34a');
+  if(id==='new'){const nid='s'+uid();suppliers[nid]={id:nid,name,emoji,phone,products:[]};saveSups();S.editSupId=null;S.openSupId=nid;render();toast('Proveedor creado — ya puedes añadir productos','#16a34a');}
+  else{if(!suppliers[id])return;suppliers[id].name=name;suppliers[id].emoji=emoji;suppliers[id].phone=phone;saveSups();render();toast('Proveedor guardado','#16a34a');}
 }
 function delSup(id){ if(!confirm('¿Eliminar proveedor?'))return;delete suppliers[id];saveSups();render(); }
-function prodMgr(sup){
-  const prods=sup.products.map(p=>`<div class="prod-row"><div class="prod-info"><div class="prod-name-t">${p.name}</div><div class="prod-meta">${fmt(p.price)} / ${p.unit}</div></div><button class="btn btn-no btn-xs" onclick="delProd('${sup.id}','${p.id}')">✕</button></div>`).join('');
-  return `${!sup.products.length?`<div style="color:var(--mut);font-size:13px;text-align:center;margin-bottom:12px">Sin productos</div>`:''}${prods}
-  <div class="sh" style="margin-top:12px">Añadir producto</div>
-  <div class="three-col">
-    <div class="fg"><label>Nombre</label><input type="text" id="pf-name-${sup.id}" placeholder="Entrecot..."/></div>
-    <div class="fg"><label>Unidad</label><select id="pf-unit-${sup.id}"><option>KG</option><option>UN</option><option>L</option><option>Caja</option></select></div>
-    <div class="fg"><label>Precio €</label><input type="number" id="pf-price-${sup.id}" placeholder="12.50" step="0.01" min="0"/></div>
-  </div>
-  <button class="btn btn-ok btn-sm" onclick="addProd('${sup.id}')">+ Añadir producto</button>`;
+function toggleSupVisibility(sid,uid,visible){
+  if(!suppliers[sid])return;
+  if(!suppliers[sid].disabledFor)suppliers[sid].disabledFor=[];
+  if(visible){suppliers[sid].disabledFor=suppliers[sid].disabledFor.filter(id=>id!==uid);}
+  else{if(!suppliers[sid].disabledFor.includes(uid))suppliers[sid].disabledFor.push(uid);}
+  saveSups();
+  toast(visible?'Proveedor activado para este local':'Proveedor desactivado para este local','#16a34a');
+}
+function editProdPrice(sid,pid,val){
+  const price=parseFloat(val);
+  if(!suppliers[sid]||isNaN(price)||price<0){toast('Precio no válido','#dc2626');return;}
+  const prod=suppliers[sid].products.find(p=>p.id===pid);
+  if(prod){prod.price=price;saveSups();toast('Precio actualizado','#16a34a');}
 }
 function addProd(sid){
   const name=document.getElementById('pf-name-'+sid)?.value.trim();
@@ -1024,6 +1065,132 @@ function addProd(sid){
   saveSups();render();toast('Producto añadido','#16a34a');
 }
 function delProd(sid,pid){ if(!suppliers[sid])return;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups();render(); }
+
+/* ═══════════════ FOOD COST ═══════════════ */
+function fcKey(){
+  const d=new Date(S.fcDate+'T12:00:00');
+  if(S.fcPeriod==='day') return 'd_'+S.fcDate;
+  if(S.fcPeriod==='week'){
+    const m=new Date(d); m.setDate(d.getDate()-((d.getDay()+6)%7));
+    return 'w_'+m.toISOString().split('T')[0];
+  }
+  return 'm_'+S.fcDate.slice(0,7);
+}
+function fcRange(){
+  const d=new Date(S.fcDate+'T12:00:00');
+  if(S.fcPeriod==='day'){ return {s:new Date(S.fcDate+'T00:00:00'),e:new Date(S.fcDate+'T23:59:59')}; }
+  if(S.fcPeriod==='week'){
+    const s=new Date(d); s.setDate(d.getDate()-((d.getDay()+6)%7)); s.setHours(0,0,0,0);
+    const e=new Date(s); e.setDate(s.getDate()+6); e.setHours(23,59,59,999);
+    return {s,e};
+  }
+  return {s:new Date(d.getFullYear(),d.getMonth(),1),e:new Date(d.getFullYear(),d.getMonth()+1,0,23,59,59,999)};
+}
+function fcPeriodLabel(){
+  const d=new Date(S.fcDate+'T12:00:00');
+  if(S.fcPeriod==='day') return d.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+  if(S.fcPeriod==='week'){ const {s,e}=fcRange(); return s.toLocaleDateString('es-ES',{day:'numeric',month:'short'})+' – '+e.toLocaleDateString('es-ES',{day:'numeric',month:'short',year:'numeric'}); }
+  return d.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+}
+function fcNavDate(dir){
+  const d=new Date(S.fcDate+'T12:00:00');
+  if(S.fcPeriod==='day') d.setDate(d.getDate()+dir);
+  else if(S.fcPeriod==='week') d.setDate(d.getDate()+dir*7);
+  else d.setMonth(d.getMonth()+dir);
+  S.fcDate=d.toISOString().split('T')[0]; render();
+}
+function fcOrders(){
+  const {s,e}=fcRange();
+  return orders.filter(o=>o.status==='approved'&&new Date(o.createdAt)>=s&&new Date(o.createdAt)<=e);
+}
+function saveRevenue(key,val){
+  const v=parseFloat(val);
+  if(isNaN(v)||v<0){toast('Valor no válido','#dc2626');return;}
+  revenue[key]=v;
+  if(fbDb) fbDb.ref('revenue/'+key).set(v);
+  render();
+}
+function fcBadge(pct){
+  if(pct===null||pct===undefined) return `<span style="color:var(--mut);font-size:12px">—</span>`;
+  const col=pct<28?'#16a34a':pct<33?'#ca8a04':pct<38?'#ea580c':'#dc2626';
+  const lbl=pct<28?'Excelente':pct<33?'Bueno':pct<38?'Atención':'Elevado';
+  const ico=pct<28?'✅':pct<33?'👍':pct<38?'⚠️':'🔴';
+  return `<span style="color:${col};font-weight:700">${ico} ${pct.toFixed(1)}%</span><div style="font-size:11px;color:${col};margin-top:2px">${lbl}</div>`;
+}
+function vFoodCost(){
+  const key=fcKey();
+  const rev=revenue[key]||0;
+  const appr=fcOrders();
+  const totalCost=appr.reduce((s,o)=>s+total(o),0);
+  const pct=(rev>0)?((totalCost/rev)*100):null;
+  const pctCol=pct===null?'var(--mut)':pct<28?'#16a34a':pct<33?'#ca8a04':pct<38?'#ea580c':'#dc2626';
+  const pctLbl=pct===null?'Sin facturación':pct<28?'Excelente':pct<33?'Bueno':pct<38?'Atención':'Elevado';
+  const pctIco=pct===null?'':pct<28?'✅':pct<33?'👍':pct<38?'⚠️':'🔴';
+
+  const byRest={};
+  cfg.users.forEach(u=>{byRest[u.id]={name:u.restaurant,id:u.id,cost:0};});
+  appr.forEach(o=>{const u=cfg.users.find(x=>x.restaurant===o.restaurant);if(u&&byRest[u.id])byRest[u.id].cost+=total(o);});
+  const restRows=Object.values(byRest).filter(r=>r.cost>0).sort((a,b)=>b.cost-a.cost).map(r=>{
+    const rKey=key+'_r_'+r.id;
+    const rRev=revenue[rKey]||0;
+    const rPct=(rRev>0)?((r.cost/rRev)*100):null;
+    const rCol=rPct===null?'var(--mut)':rPct<28?'#16a34a':rPct<33?'#ca8a04':rPct<38?'#ea580c':'#dc2626';
+    return `<tr style="border-top:1px solid var(--brd)">
+      <td style="padding:8px 4px 8px 0;font-size:13px">${r.name}</td>
+      <td style="padding:8px 4px;text-align:right;font-weight:600;font-size:13px;white-space:nowrap">${fmt(r.cost)}</td>
+      <td style="padding:8px 4px"><div style="display:flex;align-items:center;gap:4px">
+        <input type="number" value="${rRev||''}" placeholder="—" step="0.01" min="0"
+          style="width:90px;padding:4px 6px;border:1px solid var(--brd);border-radius:6px;font-size:13px;text-align:right"
+          onchange="saveRevenue('${rKey}',this.value)"/>
+        <span style="font-size:11px;color:var(--mut)">€</span>
+      </div></td>
+      <td style="padding:8px 0;text-align:center"><span style="color:${rCol};font-weight:700;font-size:13px">${rPct!==null?rPct.toFixed(1)+'%':'—'}</span></td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="card" style="margin-bottom:12px">
+    <div style="display:flex;gap:6px;margin-bottom:16px">
+      ${['day','week','month'].map(p=>`<button class="btn ${S.fcPeriod===p?'btn-pri':'btn-ghost'} btn-sm" onclick="S.fcPeriod='${p}';render()">${p==='day'?'Día':p==='week'?'Semana':'Mes'}</button>`).join('')}
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <button class="btn btn-ghost btn-sm" onclick="fcNavDate(-1)">◀</button>
+      <div style="flex:1;text-align:center;font-weight:600;font-size:14px;text-transform:capitalize">${fcPeriodLabel()}</div>
+      <button class="btn btn-ghost btn-sm" onclick="fcNavDate(1)">▶</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center">
+      <div style="padding:14px 10px;background:var(--srf);border-radius:10px">
+        <div style="font-size:10px;color:var(--mut);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Coste compras</div>
+        <div style="font-size:20px;font-weight:800">${fmt(totalCost)}</div>
+        <div style="font-size:11px;color:var(--mut);margin-top:4px">${appr.length} pedido${appr.length!==1?'s':''}</div>
+      </div>
+      <div style="padding:14px 10px;background:var(--srf);border-radius:10px">
+        <div style="font-size:10px;color:var(--mut);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Facturación</div>
+        <input type="number" value="${rev||''}" placeholder="0.00" step="0.01" min="0"
+          style="width:100%;padding:6px 4px;border:1px solid var(--brd);border-radius:6px;font-size:18px;font-weight:700;text-align:center;background:var(--bg)"
+          onchange="saveRevenue('${key}',this.value)"/>
+        <div style="font-size:10px;color:var(--mut);margin-top:4px">€ — edita y pulsa Enter</div>
+      </div>
+      <div style="padding:14px 10px;background:var(--srf);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <div style="font-size:10px;color:var(--mut);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Food Cost</div>
+        ${pct!==null
+          ? `<div style="font-size:32px;font-weight:800;color:${pctCol};line-height:1">${pctIco} ${pct.toFixed(1)}%</div><div style="font-size:11px;color:${pctCol};margin-top:4px">${pctLbl}</div>`
+          : `<div style="font-size:13px;color:var(--mut)">Introduce<br>facturación</div>`}
+      </div>
+    </div>
+  </div>
+  ${restRows
+    ? `<div class="card"><div class="card-t">Desglose por local</div>
+       <table style="width:100%;border-collapse:collapse">
+         <thead><tr style="color:var(--mut);font-size:11px;text-transform:uppercase">
+           <th style="text-align:left;padding:4px 4px 8px 0">Local</th>
+           <th style="text-align:right;padding:4px 4px 8px">Compras</th>
+           <th style="padding:4px 4px 8px">Facturación €</th>
+           <th style="text-align:center;padding:4px 0 8px">FC %</th>
+         </tr></thead>
+         <tbody>${restRows}</tbody>
+       </table></div>`
+    : `<div class="empty"><div class="ei">🧾</div><div class="et">Sin pedidos aprobados en este periodo</div></div>`}`;
+}
 
 /* ═══════════════ SETTINGS ═══════════════ */
 function vSettings(){
