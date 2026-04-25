@@ -3,18 +3,43 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="O'Carro">
+<link rel="manifest" id="pwa-manifest">
 <title>O'Carro — Pedidos</title>
 <!-- Firebase -->
 <script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-app-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-database-compat.js"></script>
 <!-- Charts -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<!-- Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --pri:#1a1a2e;--acc:#e94560;--grn:#25D366;--grnd:#1da851;
   --bg:#f0f2f5;--card:#fff;--brd:#e0e0e0;
   --txt:#222;--mut:#888;--r:12px;--sh:0 2px 14px rgba(0,0,0,.08);
 }
+body.dark{
+  --pri:#e94560;--acc:#ff6b8a;
+  --bg:#0f0f1a;--card:#1a1a2e;--brd:#2d2d4e;
+  --txt:#e8e8f0;--mut:#8888aa;--sh:0 2px 14px rgba(0,0,0,.4);
+}
+body.dark .hdr{background:#0a0a14}
+body.dark .tab.act{background:#2d2d4e;color:#e8e8f0}
+body.dark .tabs{background:#0f0f1a}
+body.dark input,body.dark select,body.dark textarea{background:#2d2d4e;color:#e8e8f0;border-color:#3d3d5e}
+body.dark .stab{background:#2d2d4e;color:#e8e8f0}
+body.dark .stab.act{background:var(--pri);color:#fff}
+body.dark .pi{background:#1a1a2e;border-color:#2d2d4e}
+body.dark .pi.ic{border-color:var(--pri)}
+body.dark .sidebar{background:#0a0a14;border-color:#2d2d4e}
+body.dark .oc{background:#1a1a2e;border-color:#2d2d4e}
+body.dark .stat{background:#1a1a2e;border-color:#2d2d4e}
+body.dark .btn-ghost{border-color:#2d2d4e;color:#e8e8f0}
+body.dark .banner{background:#2d2d4e}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
 .hdr{background:var(--pri);color:#fff;height:56px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:90;box-shadow:0 2px 8px rgba(0,0,0,.25)}
@@ -53,7 +78,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .oc-sub{font-size:12px;color:var(--mut);margin-top:2px}
 .oc-acts{display:flex;gap:6px;flex-wrap:wrap}
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-.b-p{background:#fef3c7;color:#d97706}.b-a{background:#dcfce7;color:#16a34a}.b-r{background:#fee2e2;color:#dc2626}.b-f{background:#dbeafe;color:#1d4ed8}
+.b-p{background:#fef3c7;color:#d97706}.b-a{background:#dcfce7;color:#16a34a}.b-r{background:#fee2e2;color:#dc2626}.b-f{background:#dbeafe;color:#1d4ed8}.b-recv{background:#f3e8ff;color:#7c3aed}.b-urg{background:#dc2626;color:#fff;animation:urgpulse 1.2s ease-in-out infinite}
+@keyframes urgpulse{0%,100%{opacity:1}50%{opacity:.7}}
 .pl{font-size:13px;border-top:1px solid var(--brd);padding-top:8px}
 .pr{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed #f0f0f0}
 .pr:last-child{border:none}
@@ -288,6 +314,7 @@ select:focus,input:focus{border-color:var(--pri)}
     <button class="hbtn" id="btn-np" style="display:none" onclick="goOrder()">+ Pedido</button>
     <button class="hbtn" id="btn-alb-r" style="display:none" onclick="goAlbaran()">📋</button>
     <button class="hbtn act" id="btn-adm" style="display:none" onclick="goAdmin()">📋 Admin</button>
+    <button class="hbtn" id="btn-dark" onclick="toggleDarkMode()" title="Modo oscuro" style="font-size:16px;padding:6px 10px">🌙</button>
     <button class="hbtn" onclick="logout()">↩</button>
   </div>
 </header>
@@ -510,9 +537,30 @@ function initFirebaseListeners(){
   });
 
   // Orders — real-time sync
+  let _lastOrderIds=null;
   fbDb.ref('orders').on('value', snap => {
     const val = snap.val();
-    orders = val ? Object.values(val).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)) : [];
+    const newOrders = val ? Object.values(val).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)) : [];
+    // Push notifications for new orders (admin) and status changes (restaurant)
+    if(_lastOrderIds!==null){
+      const newIds=new Set(newOrders.map(o=>o.id));
+      const oldIds=_lastOrderIds;
+      newOrders.forEach(o=>{
+        if(!oldIds.has(o.id)){
+          // Brand new order
+          if(S.session?.isAdmin) pushNotify(`Nuevo pedido — ${o.restaurant}`,`${(suppliers[o.supId]||{name:o.supId}).name} · ${fmt(total(o))}${o.urgent?' 🚨 URGENTE':''}`,o.urgent?'🚨':'🛒');
+        } else {
+          // Status change for restaurant's own order
+          const old=orders.find(x=>x.id===o.id);
+          if(old&&old.status!==o.status&&S.session&&!S.session.isAdmin&&o.restaurant===S.session.restaurant){
+            if(o.status==='approved') pushNotify('Pedido aprobado ✅',`Tu pedido a ${(suppliers[o.supId]||{name:o.supId}).name} ha sido aprobado`,'✅');
+            else if(o.status==='rejected') pushNotify('Pedido rechazado ✗',o.rejectReason||'Contacta con el administrador','❌');
+          }
+        }
+      });
+    }
+    _lastOrderIds=new Set(newOrders.map(o=>o.id));
+    orders = newOrders;
     if(S.view==='admin') renderAdminContent();
     if(S.view==='order' && S.orderTab==='history') render();
   });
@@ -601,6 +649,10 @@ let S={
   albCropping:false,
   sidebarOpen:false,
   sbGroups:{pedidos:true,analisis:false,gestion:false},
+  orderUrgent:false,
+  orderDeliveryDate:'',
+  prodSearch:'',
+  darkMode:localStorage.getItem('oc_dark')==='1',
 };
 let cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
 let chartInst=null;
@@ -613,10 +665,10 @@ function fmt(n){ return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximu
 function fmtD(iso){ return new Date(iso).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function total(o){ return o.items.reduce((s,it)=>s+it.qty*it.price,0); }
-function toast(msg,col='#222'){
+function toast(msg,col='#222',dur=3500){
   const t=document.getElementById('toast');
   t.textContent=msg;t.style.background=col;t.style.display='block';
-  clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',3500);
+  clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',dur);
 }
 function waURL(phone,text){ return `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`; }
 
@@ -696,8 +748,8 @@ function logout(){ if(!confirm('¿Cerrar sesión?'))return;S.session=null;S.view
 function goOrder(){ S.view='order';S.cart={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
 function goAdmin(){ S.view='admin';showHdr(true);render(); }
 function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albDate=new Date().toISOString().split('T')[0];showHdr(false);render(); }
-function setTab(t){ S.adminTab=t;render();if(t==='spending')setTimeout(renderChart,50); }
-function setTabSb(t){ S.adminTab=t;S.sidebarOpen=false;render();if(t==='spending')setTimeout(renderChart,50); }
+function setTab(t){ S.adminTab=t;render();if(t==='spending')setTimeout(renderChart,50);if(t==='monthly')setTimeout(renderMonthlyChart,50); }
+function setTabSb(t){ S.adminTab=t;S.sidebarOpen=false;render();if(t==='spending')setTimeout(renderChart,50);if(t==='monthly')setTimeout(renderMonthlyChart,50); }
 function toggleSbGroup(g){ S.sbGroups[g]=!S.sbGroups[g];render(); }
 
 /* ═══════════════ RENDER ═══════════════ */
@@ -716,7 +768,9 @@ function renderAdminContent(){
   if(S.adminTab==='pending')       content=vPending();
   else if(S.adminTab==='approved') content=vApproved();
   else if(S.adminTab==='consolidated') content=vConsolidated();
+  else if(S.adminTab==='received') content=vReceived();
   else if(S.adminTab==='spending') content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
+  else if(S.adminTab==='monthly')  content=vMonthly();
   else if(S.adminTab==='foodcost') content=vFoodCost();
   else if(S.adminTab==='budgets')  content=vBudgets();
   else if(S.adminTab==='compare')  content=vCompare();
@@ -729,6 +783,7 @@ function renderAdminContent(){
   tc.innerHTML=content;
   if(S.adminTab==='escandallos') initEscandallos();
   if(S.adminTab==='spending') setTimeout(renderChart,50);
+  if(S.adminTab==='monthly') setTimeout(renderMonthlyChart,50);
   // Update sidebar stats
   const pend=orders.filter(o=>o.status==='pending');
   const appr=orders.filter(o=>o.status==='approved');
@@ -778,7 +833,9 @@ function vOrder(){
     ?`<div class="banner">📋 Tu pedido irá a <strong>${cfg.adminName}</strong> para aprobación antes de enviarse al proveedor.</div>`
     :`<div class="banner blue">⚡ Tus pedidos se aprueban automáticamente y van directo al proveedor.</div>`;
   const stabs=sups.map(s=>`<button class="stab ${S.supId===s.id?'act':''}" onclick="setSup('${s.id}')">${s.emoji} ${s.name}</button>`).join('');
-  const prods=sup.products.map(p=>{
+  const searchTerm=(S.prodSearch||'').toLowerCase().trim();
+  const filteredProds=sup.products.filter(p=>!searchTerm||p.name.toLowerCase().includes(searchTerm));
+  const prods=filteredProds.map(p=>{
     const q=S.cart[p.id]||0;
     return `<div class="pi ${q>0?'ic':''}" id="pi-${p.id}">
       <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${fmt(p.price)} / ${p.unit}</div></div>
@@ -790,8 +847,15 @@ function vOrder(){
     </div>`;
   }).join('');
   const myTpls=Object.values(templates[S.session.userId]||{}).filter(t=>t.supId===S.supId);
+  // Auto-suggest: most ordered products for this restaurant+supplier
+  const myHistory=orders.filter(o=>o.restaurant===S.session.restaurant&&o.supId===S.supId&&o.status!=='rejected');
+  const autoSuggest={};
+  myHistory.forEach(o=>o.items.forEach(it=>{if(!autoSuggest[it.id])autoSuggest[it.id]={...it,count:0,totalQty:0};autoSuggest[it.id].count++;autoSuggest[it.id].totalQty+=it.qty;}));
+  const topProds=Object.values(autoSuggest).sort((a,b)=>b.count-a.count).slice(0,5);
+  const autoBtn=topProds.length&&!Object.keys(S.cart).length?`<button class="btn btn-blue btn-sm" onclick="loadAutoSuggest()" style="white-space:nowrap">🤖 Pedido típico</button>`:'';
   const tplSection=`<div class="sh" style="margin-top:4px">Plantillas</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      ${autoBtn}
       ${myTpls.map(t=>`<div style="display:flex;gap:2px"><button class="btn btn-ghost btn-sm" onclick="loadTemplate('${t.id}')" style="border-radius:6px 0 0 6px">📥 ${t.name}</button><button class="btn btn-no btn-sm" onclick="deleteTpl('${t.id}')" style="border-radius:0 6px 6px 0;padding:0 8px">✕</button></div>`).join('')}
       ${cnt>0?`<button class="btn btn-ghost btn-sm" onclick="S.showSaveTemplate=!S.showSaveTemplate;render()">💾 Guardar</button>`:''}
     </div>
@@ -799,10 +863,23 @@ function vOrder(){
   return `<div class="main">
     ${tabsHtml}${note}
     ${tplSection}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 0 6px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 14px;border-radius:10px;border:2px solid ${S.orderUrgent?'#dc2626':'var(--brd)'};background:${S.orderUrgent?'#fff1f2':'var(--card)'};transition:.2s">
+        <input type="checkbox" id="ord-urg" ${S.orderUrgent?'checked':''} onchange="S.orderUrgent=this.checked;render()" style="width:16px;height:16px;accent-color:#dc2626">
+        <span style="font-weight:700;font-size:13px;color:${S.orderUrgent?'#dc2626':'var(--txt)'}">🚨 Urgente</span>
+      </label>
+      <div style="flex:1;min-width:160px">
+        <label style="font-size:11px;color:var(--mut);display:block;margin-bottom:3px">📅 Entrega deseada</label>
+        <input type="date" value="${S.orderDeliveryDate||''}" onchange="S.orderDeliveryDate=this.value" style="padding:7px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;width:100%;background:var(--card);color:var(--txt)">
+      </div>
+    </div>
     <div class="sh">Proveedor</div>
     <div class="sup-tabs">${stabs}</div>
-    <div class="sh">Productos — ${sup.emoji} ${sup.name}</div>
-    ${sup.products.length?`<div class="pgrid">${prods}</div>`:`<div class="empty"><div class="ei">📦</div><div class="et">Sin productos</div></div>`}
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <div class="sh" style="margin:0;flex:1">Productos — ${sup.emoji} ${sup.name}</div>
+      <input type="text" placeholder="🔍 Buscar producto..." value="${S.prodSearch||''}" oninput="S.prodSearch=this.value;render()" style="padding:6px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:12px;width:180px;background:var(--card);color:var(--txt)">
+    </div>
+    ${filteredProds.length?`<div class="pgrid">${prods}</div>`:`<div class="empty"><div class="ei">🔍</div><div class="et">Sin resultados para "${S.prodSearch}"</div></div>`}
   </div>
   <div class="cbar ${cnt>0?'up':''}" id="cbar">
     <div><div class="cb-v" id="cb-v">${cnt} artículos</div><div class="cb-s" id="cb-s">${fmt(tot)}</div></div>
@@ -820,21 +897,25 @@ function vMyOrders(){
     const sMap={
       pending: {cls:'b-p', lbl:'⏳ Pendiente de aprobación'},
       approved:{cls:'b-a', lbl:'✅ Aprobado'},
-      rejected:{cls:'b-r', lbl:'✗ Rechazado'}
+      rejected:{cls:'b-r', lbl:'✗ Rechazado'},
+      received:{cls:'b-recv',lbl:'📦 Recibido'}
     };
     const s=sMap[o.status]||{cls:'b-p',lbl:o.status};
     const modTag=o.modifiedByAdmin?`<span class="badge b-f" style="margin-left:6px">✏️ Modificado</span>`:'';
+    const urgTag=o.urgent?`<span class="badge b-urg" style="margin-left:6px">🚨 URGENTE</span>`:'';
+    const delTag=o.deliveryDate?`<span style="font-size:11px;color:var(--mut);margin-left:6px">📅 Entrega: ${o.deliveryDate}</span>`:'';
     const rows=o.items.map(it=>`<div class="pr"><span class="pn">${it.name}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
     const rejNote=o.status==='rejected'&&o.rejectReason?`<div class="banner red" style="margin-top:8px">💬 ${o.rejectReason}</div>`:'';
-    return `<div class="oc">
+    const recvBtn=o.status==='approved'?`<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="markReceived('${o.id}')">📦 Confirmar recepción</button>`:'';
+    return `<div class="oc" ${o.urgent?'style="border-color:#dc2626"':''}>
       <div class="oc-hd">
         <div>
-          <div class="oc-rest">${sup.emoji} ${sup.name}${modTag}</div>
-          <div class="oc-sub">${fmtD(o.createdAt)} · <span class="badge ${s.cls}">${s.lbl}</span></div>
+          <div class="oc-rest">${sup.emoji} ${sup.name}${modTag}${urgTag}</div>
+          <div class="oc-sub">${fmtD(o.createdAt)} · <span class="badge ${s.cls}">${s.lbl}</span>${delTag}</div>
         </div>
       </div>
       <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
-      ${rejNote}
+      ${rejNote}${recvBtn}
     </div>`;
   }).join('');
 }
@@ -869,7 +950,7 @@ function vAdmin(){
   }
   function grpHd(g,emoji,lbl){
     const open=S.sbGroups[g];
-    const childTabs={pedidos:['pending','approved','consolidated'],analisis:['spending','foodcost','budgets','compare','prices'],gestion:['users','suppliers','settings','escandallos']};
+    const childTabs={pedidos:['pending','approved','consolidated','received'],analisis:['spending','monthly','foodcost','budgets','compare','prices'],gestion:['users','suppliers','settings','escandallos']};
     const hasAct=(childTabs[g]||[]).includes(S.adminTab);
     return `<div class="sg-hd${hasAct&&!open?' has-act':''}" onclick="toggleSbGroup('${g}')"><span>${emoji} ${lbl}</span><span class="sg-arrow">${open?'▲':'▼'}</span></div>`;
   }
@@ -881,10 +962,12 @@ function vAdmin(){
       ${sbItem('pending','Pendientes','sb-pend-badge')}
       ${sbItem('approved','Aprobados')}
       ${sbItem('consolidated','Consolidado')}
+      ${sbItem('received','📦 Recibidos')}
     `:''}
     ${grpHd('analisis','📊','Análisis')}
     ${S.sbGroups.analisis?`
       ${sbItem('spending','Gasto por local')}
+      ${sbItem('monthly','Comparativa mensual')}
       ${sbItem('foodcost','Food Cost')}
       ${sbItem('budgets','Presupuestos')}
       ${sbItem('compare','Comparar precios')}
@@ -904,7 +987,9 @@ function vAdmin(){
   if(S.adminTab==='pending')        content=vPending();
   else if(S.adminTab==='approved')  content=vApproved();
   else if(S.adminTab==='consolidated') content=vConsolidated();
+  else if(S.adminTab==='received')  content=vReceived();
   else if(S.adminTab==='spending')  content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
+  else if(S.adminTab==='monthly')   content=vMonthly();
   else if(S.adminTab==='foodcost')  content=vFoodCost();
   else if(S.adminTab==='budgets')   content=vBudgets();
   else if(S.adminTab==='compare')   content=vCompare();
@@ -934,9 +1019,14 @@ function orderCard(o,showActions){
   const isEditing=S.editOrderId===o.id;
   const editItems=isEditing?S.editItems:o.items;
   const tot=editItems.reduce((s,it)=>s+it.qty*it.price,0);
-  const bc={pending:'b-p',approved:'b-a',rejected:'b-r'}[o.status];
-  const bl={pending:'Pendiente',approved:'Aprobado',rejected:'Rechazado'}[o.status];
+  const bc={pending:'b-p',approved:'b-a',rejected:'b-r',received:'b-recv'}[o.status]||'b-p';
+  const bl={pending:'Pendiente',approved:'Aprobado',rejected:'Rechazado',received:'✔ Recibido'}[o.status]||o.status;
   const modTag=o.modifiedByAdmin?` <span class="badge b-f">✏️ Modificado</span>`:'';
+  const urgTag=o.urgent?` <span class="badge b-urg">🚨 URGENTE</span>`:'';
+  const delTag=o.deliveryDate?` <span style="font-size:11px;color:var(--mut);font-weight:600">📅 Entrega: ${o.deliveryDate}</span>`:'';
+  const recvBtn=showActions&&o.status==='approved'?`<button class="btn btn-ghost btn-sm" onclick="markReceived('${o.id}')">📦 Marcar recibido</button>`:'';
+  const restRecvBtn=!showActions&&o.status==='approved'&&S.session?`<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="markReceived('${o.id}')">📦 Confirmar recepción</button>`:'';
+
   let itemsHtml='';
   if(isEditing){
     itemsHtml=S.editItems.map((it,i)=>`
@@ -981,15 +1071,16 @@ function orderCard(o,showActions){
   const bLimit=bKey?(budgets[bKey]||0):0;
   const bSpent=bKey?orders.filter(x=>x.status==='approved'&&x.restaurant===o.restaurant&&x.createdAt.startsWith(o.createdAt.slice(0,7))).reduce((s,x)=>s+total(x),0):0;
   const budgetAlert=bLimit>0&&bSpent>bLimit?`<div class="banner red" style="margin:4px 0 2px">💳 Presupuesto superado — ${fmt(bSpent)} de ${fmt(bLimit)}</div>`:'';
-  return `<div class="oc" ${isEditing?'style="border-color:var(--pri);box-shadow:0 0 0 2px rgba(26,26,46,.15)"':''}>
+  return `<div class="oc" ${isEditing?'style="border-color:var(--pri);box-shadow:0 0 0 2px rgba(26,26,46,.15)"':o.urgent?'style="border-color:#dc2626"':''}>
     <div class="oc-hd">
-      <div><div class="oc-rest">${o.restaurant}${o.autoApproved?` <span class="badge b-f">Auto</span>`:''}${modTag}</div>
-      <div class="oc-sub">${sup.emoji} ${sup.name} · ${fmtD(o.createdAt)} · <span class="badge ${bc}">${bl}</span></div></div>
+      <div><div class="oc-rest">${o.restaurant}${o.autoApproved?` <span class="badge b-f">Auto</span>`:''}${modTag}${urgTag}</div>
+      <div class="oc-sub">${sup.emoji} ${sup.name} · ${fmtD(o.createdAt)} · <span class="badge ${bc}">${bl}</span>${delTag}</div></div>
       ${acts}
     </div>
     ${largeAlert}${budgetAlert}
     ${isEditing?`<div class="banner blue" style="margin-bottom:10px">✏️ Modifica las cantidades y pulsa <strong>Aprobar</strong></div>`:''}
     <div class="pl">${itemsHtml}${totLabel}</div>
+    ${recvBtn||restRecvBtn}
   </div>`;
 }
 
@@ -1368,17 +1459,27 @@ function delUser(id){ if(!confirm('¿Eliminar?'))return;cfg.users=cfg.users.filt
 
 /* ═══════════════ SUPPLIER MGMT ═══════════════ */
 function vSuppliers(){
+  const curMonth=new Date().toISOString().slice(0,7);
+  const curYear=new Date().toISOString().slice(0,4);
   const newF=S.editSupId==='new'?supForm(null):`<button class="btn btn-pri btn-sm" onclick="S.editSupId='new';render()" style="margin-bottom:14px">+ Añadir proveedor</button>`;
+  const exportBtn=`<button class="btn btn-ghost btn-sm" onclick="exportExcel('all')" style="margin-bottom:14px;margin-left:8px">📥 Exportar pedidos</button>`;
   const list=supList().map(sup=>{
     if(!sup.products) sup.products=[];
     const open=S.openSupId===sup.id;
-    return `<div class="sup-card"><div class="sc-hd"><div><div class="sc-name">${sup.emoji} ${sup.name}</div><div class="sc-info">${sup.products.length} productos · ${sup.phone||'Sin número'}</div></div>
+    const supOrders=orders.filter(o=>o.supId===sup.id&&o.status!=='rejected');
+    const mesActual=supOrders.filter(o=>o.createdAt.startsWith(curMonth)).reduce((s,o)=>s+total(o),0);
+    const anoActual=supOrders.filter(o=>o.createdAt.startsWith(curYear)).reduce((s,o)=>s+total(o),0);
+    const balanceHtml=`<div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
+      <span style="font-size:11px;background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:6px;font-weight:600">Este mes: ${fmt(mesActual)}</span>
+      <span style="font-size:11px;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:6px;font-weight:600">Este año: ${fmt(anoActual)}</span>
+    </div>`;
+    return `<div class="sup-card"><div class="sc-hd"><div><div class="sc-name">${sup.emoji} ${sup.name}</div><div class="sc-info">${sup.products.length} productos · ${sup.phone||'Sin número'}</div>${balanceHtml}</div>
       <div class="sc-acts"><button class="btn btn-ghost btn-sm" onclick="S.openSupId=S.openSupId==='${sup.id}'?null:'${sup.id}';render()">${open?'▲ Cerrar':'✏️ Editar'}</button>
       <button class="btn btn-no btn-sm" onclick="delSup('${sup.id}')">🗑️</button></div></div>
       ${open?`<div class="sc-body">${supDetailForm(sup)}</div>`:''}
     </div>`;
   }).join('');
-  return newF+list;
+  return newF+exportBtn+list;
 }
 function supForm(sup){
   const id=sup?sup.id:'new';
@@ -1446,7 +1547,13 @@ function editProdPrice(sid,pid,val){
       const h={id:uid(),supId:sid,supName:suppliers[sid].name,prodId:pid,prodName:prod.name,oldPrice,newPrice:price,changedAt:new Date().toISOString()};
       fbDb.ref('priceHistory/'+h.id).set(h);
     }
-    toast('Precio actualizado','#16a34a');
+    const alertPct=cfg.priceAlertPct||5;
+    if(oldPrice>0){
+      const pct=((price-oldPrice)/oldPrice)*100;
+      if(pct>alertPct) toast(`⚠️ ${prod.name}: precio subió un +${pct.toFixed(1)}%`,'#d97706',4000);
+      else if(pct<-alertPct) toast(`✅ ${prod.name}: precio bajó un ${pct.toFixed(1)}%`,'#16a34a',4000);
+      else toast('Precio actualizado','#16a34a');
+    } else { toast('Precio actualizado','#16a34a'); }
   }
 }
 function addProd(sid){
@@ -1487,6 +1594,17 @@ function deleteTpl(tplId){
   if(templates[uid2])delete templates[uid2][tplId];
   if(fbDb)fbDb.ref('templates/'+uid2+'/'+tplId).remove();
   render();
+}
+function loadAutoSuggest(){
+  if(!S.session) return;
+  const myHistory=orders.filter(o=>o.restaurant===S.session.restaurant&&o.supId===S.supId&&o.status!=='rejected');
+  const acc={};
+  myHistory.forEach(o=>o.items.forEach(it=>{if(!acc[it.id])acc[it.id]={prodId:it.id,totalQty:0,count:0};acc[it.id].count++;acc[it.id].totalQty+=it.qty;}));
+  S.cart={};
+  Object.values(acc).sort((a,b)=>b.count-a.count).slice(0,5).forEach(it=>{
+    S.cart[it.prodId]=Math.round(it.totalQty/it.count)||1;
+  });
+  render();toast('🤖 Pedido típico cargado — ajusta cantidades','#7c3aed');
 }
 
 /* ═══════════════ PRESUPUESTOS ═══════════════ */
@@ -1730,6 +1848,17 @@ function vSettings(){
       <input type="number" value="${cfg.alertThreshold||300}" min="0" step="10" onchange="cfg.alertThreshold=parseFloat(this.value)||300;saveCfg()"/>
       <div style="font-size:12px;color:var(--mut);margin-top:4px">Se marca en rojo cualquier pedido que supere este importe</div>
     </div>
+    <div class="fg">
+      <label>Alerta subida de precios (%)</label>
+      <input type="number" value="${cfg.priceAlertPct||5}" min="1" max="50" step="1" onchange="cfg.priceAlertPct=parseFloat(this.value)||5;saveCfg()"/>
+      <div style="font-size:12px;color:var(--mut);margin-top:4px">Aviso cuando un producto sube más de este porcentaje</div>
+    </div>
+    <div class="card-t" style="margin-top:20px">🔔 Notificaciones push</div>
+    <div class="fg">
+      <div style="font-size:13px;margin-bottom:8px">Activa las notificaciones del navegador para recibir avisos de nuevos pedidos en tiempo real, aunque tengas la pestaña en segundo plano.</div>
+      <button class="btn btn-pri btn-sm" onclick="requestPushPermission()">🔔 Activar notificaciones</button>
+      <div id="push-status" style="font-size:12px;color:var(--mut);margin-top:6px">${'Notification' in window?Notification.permission==='granted'?'✅ Notificaciones activas':Notification.permission==='denied'?'❌ Bloqueadas en el navegador — debes activarlas manualmente':'⚪ No activadas aún':'⚠️ Tu navegador no soporta notificaciones'}</div>
+    </div>
     <div class="card-t" style="margin-top:20px">🤖 IA para albaranes — Google Gemini</div>
     <div class="fg">
       <label>API Key de Gemini (gratis)</label>
@@ -1744,6 +1873,25 @@ function vSettings(){
       <button class="btn btn-no btn-sm" onclick="if(confirm('¿Borrar todos los albaranes?')){fbDb.ref('albaranes').remove();toast('Albaranes eliminados','#dc2626')}">🗑️ Borrar albaranes</button>
     </div>
   </div>`;
+}
+
+/* ═══════════════ PUSH NOTIFICATIONS ═══════════════ */
+function requestPushPermission(){
+  if(!('Notification' in window)){toast('Tu navegador no soporta notificaciones','#dc2626');return;}
+  Notification.requestPermission().then(perm=>{
+    const el=document.getElementById('push-status');
+    if(perm==='granted'){
+      if(el)el.textContent='✅ Notificaciones activas';
+      toast('🔔 Notificaciones activadas','#16a34a');
+    } else {
+      if(el)el.textContent='❌ Bloqueadas — actívalas en la configuración del navegador';
+      toast('❌ Notificaciones bloqueadas','#dc2626');
+    }
+  });
+}
+function pushNotify(title,body,icon='🛒'){
+  if(!('Notification' in window)||Notification.permission!=='granted') return;
+  try{ new Notification(`${icon} ${title}`,{body,icon:'https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f6d2.svg',badge:'https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f6d2.svg'}); }catch(e){}
 }
 
 /* ═══════════════ ORDER ACTIONS ═══════════════ */
@@ -1767,9 +1915,9 @@ function submitOrder(){
   if(!sup||!Object.keys(S.cart).length){toast('Añade productos al pedido','#dc2626');return;}
   const items=sup.products.filter(p=>S.cart[p.id]).map(p=>({...p,qty:S.cart[p.id]}));
   const needApproval=S.session.needsApproval;
-  const o={id:uid(),restaurant:S.session.restaurant,supId:S.supId,items,status:needApproval?'pending':'approved',autoApproved:!needApproval,createdAt:new Date().toISOString()};
+  const o={id:uid(),restaurant:S.session.restaurant,supId:S.supId,items,status:needApproval?'pending':'approved',autoApproved:!needApproval,createdAt:new Date().toISOString(),urgent:S.orderUrgent||false,deliveryDate:S.orderDeliveryDate||null};
   saveOrder(o);
-  S.cart={};
+  S.cart={};S.orderUrgent=false;S.orderDeliveryDate='';S.prodSearch='';
   if(needApproval){
     showWA(cfg.adminPhone||'',msgAdmin(o),`Pedido de ${o.restaurant} — envíalo a ${cfg.adminName} para que lo apruebe`);
     toast('✅ Pedido enviado — notifica al jefe por WhatsApp','#d97706');
@@ -1816,6 +1964,83 @@ function approveWithEdits(id){
   if(!fbDb){ const o=orders.find(x=>x.id===id);if(o){o.status='approved';o.items=items;o.modifiedByAdmin=true;} }
   S.editOrderId=null;S.editItems=[];
   toast('✅ Pedido modificado y aprobado','#16a34a');
+}
+
+function markReceived(id){
+  updateOrder(id,{status:'received',receivedAt:new Date().toISOString()});
+  if(!fbDb){ const o=orders.find(x=>x.id===id);if(o){o.status='received';o.receivedAt=new Date().toISOString();} render(); }
+  toast('📦 Pedido marcado como recibido','#7c3aed');
+}
+
+function vReceived(){
+  const rec=orders.filter(o=>o.status==='received').sort((a,b)=>new Date(b.receivedAt||b.createdAt)-new Date(a.receivedAt||a.createdAt));
+  if(!rec.length) return `<div class="empty"><div class="ei">📦</div><div class="et">Sin pedidos recibidos aún</div></div>`;
+  const tot=rec.reduce((s,o)=>s+total(o),0);
+  return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div style="font-size:13px;color:var(--mut)">${rec.length} pedidos confirmados · ${fmt(tot)} total</div>
+    <button class="btn btn-ghost btn-sm" onclick="exportExcel('received')">📥 Exportar Excel</button>
+  </div>`+rec.map(o=>orderCard(o,false)).join('');
+}
+
+function vMonthly(){
+  return `<div class="card">
+    <div class="card-t">Gasto mensual por local — últimos 6 meses</div>
+    <div style="margin-bottom:10px;display:flex;justify-content:flex-end">
+      <button class="btn btn-ghost btn-sm" onclick="exportExcel('monthly')">📥 Exportar Excel</button>
+    </div>
+    <div class="ch-wrap"><canvas id="monthly-chart"></canvas></div>
+  </div>`;
+}
+
+let _monthlyChart=null;
+function renderMonthlyChart(){
+  const canvas=document.getElementById('monthly-chart');
+  if(!canvas) return;
+  if(_monthlyChart){_monthlyChart.destroy();_monthlyChart=null;}
+  const now=new Date();
+  const months=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months.push(d.toISOString().slice(0,7));
+  }
+  const rests=[...new Set(orders.map(o=>o.restaurant))].sort();
+  const colors=['#e94560','#1a1a2e','#16a34a','#d97706','#7c3aed','#0891b2','#db2777','#059669','#dc2626','#2563eb','#9333ea','#ea580c'];
+  const datasets=rests.map((r,i)=>({
+    label:r.replace("O'Carro ",''),
+    data:months.map(m=>orders.filter(o=>o.status!=='rejected'&&o.restaurant===r&&o.createdAt.startsWith(m)).reduce((s,o)=>s+total(o),0)),
+    backgroundColor:colors[i%colors.length]+'99',
+    borderColor:colors[i%colors.length],
+    borderWidth:1.5,
+    borderRadius:4,
+  }));
+  const labels=months.map(m=>{const[y,mo]=m.split('-');return new Date(y,mo-1).toLocaleDateString('es',{month:'short',year:'2-digit'});});
+  _monthlyChart=new Chart(canvas,{type:'bar',data:{labels,datasets},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10},boxWidth:10}}},scales:{x:{stacked:false},y:{ticks:{callback:v=>'€'+v.toLocaleString('es')}}}}});
+}
+
+function exportExcel(type){
+  if(typeof XLSX==='undefined'){toast('Librería Excel no cargada','#dc2626');return;}
+  let rows=[];
+  let filename='pedidos';
+  if(type==='all'||type==='monthly'||!type){
+    filename='pedidos_ocarro_'+new Date().toISOString().slice(0,10);
+    rows=[['ID','Fecha','Local','Proveedor','Estado','Total €','Urgente','Entrega'],...orders.map(o=>[o.id,o.createdAt.slice(0,10),o.restaurant,(suppliers[o.supId]||{name:o.supId}).name,o.status,total(o).toFixed(2),o.urgent?'Sí':'No',o.deliveryDate||''])];
+  } else if(type==='received'){
+    filename='pedidos_recibidos_'+new Date().toISOString().slice(0,10);
+    const rec=orders.filter(o=>o.status==='received');
+    rows=[['ID','Fecha pedido','Fecha recepción','Local','Proveedor','Total €'],...rec.map(o=>[o.id,o.createdAt.slice(0,10),(o.receivedAt||'').slice(0,10),o.restaurant,(suppliers[o.supId]||{name:o.supId}).name,total(o).toFixed(2)])];
+  }
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Pedidos');
+  XLSX.writeFile(wb,filename+'.xlsx');
+  toast('📥 Excel descargado','#16a34a');
+}
+
+function toggleDarkMode(){
+  S.darkMode=!S.darkMode;
+  localStorage.setItem('oc_dark',S.darkMode?'1':'0');
+  document.body.classList.toggle('dark',S.darkMode);
+  render();
 }
 
 /* ═══════════════ ESCANDALLOS ═══════════════ */
@@ -2005,21 +2230,34 @@ function escAddIng(){
 
 function escQuitarIng(i){ _escIngs.splice(i,1); escRenderIngs(); escRecalc(); }
 
+function escLivePrice(ing){
+  // Use live price from suppliers if product still exists there
+  const sup=suppliers[ing.proveedorId];
+  if(sup&&sup.products){
+    const prod=sup.products.find(p=>p.id===ing.productoId);
+    if(prod) return parseFloat(prod.price)||0;
+  }
+  return parseFloat(ing.precioUnitario)||0;
+}
 function escRenderIngs(){
   const cont=document.getElementById('esc-ing-list');
   if(!cont) return;
   if(!_escIngs.length){cont.innerHTML='<p style="color:var(--mut);font-size:13px">Sin ingredientes</p>';return;}
-  cont.innerHTML=_escIngs.map((ing,i)=>`
-    <div class="esc-ing-row">
+  cont.innerHTML=_escIngs.map((ing,i)=>{
+    const liveP=escLivePrice(ing);
+    const changed=Math.abs(liveP-(parseFloat(ing.precioUnitario)||0))>0.001;
+    const priceTag=changed?`<span style="color:#d97706;font-size:10px" title="Precio actualizado desde tarifa">🔄 ${escFmt(liveP)}</span>`:`${escFmt(liveP)}`;
+    return `<div class="esc-ing-row">
       <span class="in">${ing.nombre}</span>
-      <span class="id">${ing.cantidad} ${ing.unidad} × ${escFmt(ing.precioUnitario)}</span>
-      <span class="ic">${escFmt(ing.cantidad*ing.precioUnitario)}</span>
+      <span class="id">${ing.cantidad} ${ing.unidad} × ${priceTag}</span>
+      <span class="ic">${escFmt(ing.cantidad*liveP)}</span>
       <button onclick="escQuitarIng(${i})" title="Eliminar">✕</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function escRecalc(){
-  const coste=_escIngs.reduce((s,i)=>s+(parseFloat(i.cantidad)||0)*(parseFloat(i.precioUnitario)||0),0);
+  const coste=_escIngs.reduce((s,i)=>s+(parseFloat(i.cantidad)||0)*escLivePrice(i),0);
   const pvp=parseFloat(document.getElementById('esc-pvp')?.value)||0;
   const fcObj=parseFloat(document.getElementById('esc-fcobj')?.value)||30;
   const fcReal=pvp>0?(coste/pvp*100):null;
@@ -2038,7 +2276,9 @@ function escRecalc(){
 function escSave(){
   const nombre=document.getElementById('esc-nombre').value.trim();
   if(!nombre){toast('Escribe el nombre del plato','#dc2626');return;}
-  const data={nombre,categoria:document.getElementById('esc-categoria').value,precioVenta:parseFloat(document.getElementById('esc-pvp').value)||0,foodCostObjetivo:parseFloat(document.getElementById('esc-fcobj').value)||30,notas:document.getElementById('esc-notas').value.trim(),ingredientes:_escIngs,updatedAt:Date.now()};
+  // Snapshot live prices into each ingredient before saving
+  const ingsWithLivePrice=_escIngs.map(ing=>({...ing,precioUnitario:escLivePrice(ing)}));
+  const data={nombre,categoria:document.getElementById('esc-categoria').value,precioVenta:parseFloat(document.getElementById('esc-pvp').value)||0,foodCostObjetivo:parseFloat(document.getElementById('esc-fcobj').value)||30,notas:document.getElementById('esc-notas').value.trim(),ingredientes:ingsWithLivePrice,updatedAt:Date.now()};
   const ref=_escEditId?fbDb.ref('escandallos/'+_escEditId):fbDb.ref('escandallos').push();
   if(!_escEditId) data.createdAt=Date.now();
   ref.set(data).then(()=>{escCloseModal();toast('✅ Escandallo guardado','#16a34a');}).catch(e=>toast('Error: '+e.message,'#dc2626'));
@@ -2387,6 +2627,17 @@ window.addEventListener('DOMContentLoaded',()=>{
     fbDb  = firebase.database();
   } catch(e) {
     console.warn('Firebase init error:', e);
+  }
+  if(S.darkMode) document.body.classList.add('dark');
+  // PWA manifest injection
+  const manifest={name:"O'Carro Pedidos",short_name:"O'Carro",start_url:window.location.href,display:"standalone",background_color:"#f0f2f5",theme_color:"#1a1a2e",icons:[{src:"https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f6d2.svg",sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}]};
+  const mBlob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+  const mUrl=URL.createObjectURL(mBlob);
+  document.getElementById('pwa-manifest').href=mUrl;
+  if('serviceWorker' in navigator){
+    const sw=`self.addEventListener('fetch',e=>{});`;
+    const swBlob=new Blob([sw],{type:'application/javascript'});
+    navigator.serviceWorker.register(URL.createObjectURL(swBlob),{type:'classic'}).catch(()=>{});
   }
   initFirebaseListeners();
   addMissingSuppliers();
