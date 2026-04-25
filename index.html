@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>O'Carro — Pedidos</title>
 <!-- Firebase -->
 <script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-app-compat.js"></script>
@@ -161,6 +161,34 @@ select:focus,input:focus{border-color:var(--pri)}
   .two-col,.three-col{grid-template-columns:1fr}
   .ses-info{display:none}
 }
+/* ── SIDEBAR ADMIN LAYOUT ── */
+.adm-layout{display:flex;height:calc(100vh - 56px);overflow:hidden}
+.sidebar{width:210px;flex-shrink:0;background:var(--pri);color:#fff;overflow-y:auto;display:flex;flex-direction:column;z-index:88}
+.sb-mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:6px}
+.sb-ms{padding:10px 12px;text-align:center}
+.sb-msv{font-size:18px;font-weight:800;line-height:1}
+.sb-msl{font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.3px;margin-top:3px}
+.sg-hd{padding:10px 14px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;opacity:.55;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:.15s}
+.sg-hd:hover,.sg-hd.has-act{opacity:.9;background:rgba(255,255,255,.05)}
+.sg-arrow{font-size:9px;transition:.2s}
+.sg-direct{padding:11px 14px;font-size:13px;font-weight:600;cursor:pointer;opacity:.75;transition:.15s;display:flex;align-items:center;gap:8px}
+.sg-direct:hover{opacity:1;background:rgba(255,255,255,.08)}
+.sg-direct.act{opacity:1;background:rgba(255,255,255,.15);border-left:3px solid var(--acc);padding-left:11px}
+.sg-item{padding:9px 14px 9px 32px;font-size:13px;cursor:pointer;opacity:.7;transition:.15s;display:flex;align-items:center;justify-content:space-between}
+.sg-item:hover{opacity:1;background:rgba(255,255,255,.07)}
+.sg-item.act{opacity:1;background:rgba(255,255,255,.15);font-weight:700;border-left:3px solid var(--acc);padding-left:29px}
+.sb-badge{background:var(--acc);border-radius:10px;padding:1px 7px;font-size:11px;font-weight:800}
+.adm-content{flex:1;overflow-y:auto;padding:16px;min-width:0;background:var(--bg)}
+.sb-overlay{display:none;position:fixed;inset:0;top:56px;background:rgba(0,0,0,.45);z-index:87}
+.hbtn-menu{display:none;background:rgba(255,255,255,.1);border:none;color:#fff;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:18px;align-items:center;justify-content:center}
+@media(max-width:700px){
+  .hbtn-menu{display:flex}
+  .adm-layout{height:auto;min-height:calc(100vh - 56px)}
+  .sidebar{position:fixed;left:0;top:56px;bottom:0;width:240px;transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1)}
+  .sidebar.sb-open{transform:translateX(0);box-shadow:4px 0 24px rgba(0,0,0,.35)}
+  .sb-overlay.sb-open{display:block}
+  .adm-content{padding:12px 10px}
+}
 </style>
 </head>
 <body>
@@ -205,7 +233,10 @@ select:focus,input:focus{border-color:var(--pri)}
 
 <!-- HEADER -->
 <header class="hdr" id="hdr" style="display:none">
-  <div class="logo" onclick="handleLogo()">O'<span>Carro</span> <span class="fb-dot" id="fb-dot"></span></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="hbtn-menu" id="btn-menu" onclick="S.sidebarOpen=!S.sidebarOpen;render()">☰</button>
+    <div class="logo" onclick="handleLogo()">O'<span>Carro</span> <span class="fb-dot" id="fb-dot"></span></div>
+  </div>
   <div class="hdr-r">
     <span class="ses-info" id="ses-info"></span>
     <button class="hbtn" id="btn-np" style="display:none" onclick="goOrder()">+ Pedido</button>
@@ -408,7 +439,11 @@ let S={
   albView:'list', albItems:[], albRestaurant:'', albSupId:'', albDate:new Date().toISOString().split('T')[0], albPhoto:null,
   fcPeriod:'month', fcDate:new Date().toISOString().split('T')[0],
   showSaveTemplate:false,
+  albCropping:false,
+  sidebarOpen:false,
+  sbGroups:{pedidos:true,analisis:false,gestion:false},
 };
+let cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
 let chartInst=null;
 const EMOJIS=['🏠','🌿','⭐','🍽️','🏃','🌅','🎯','🧭','🌊','⚓','🌆','🏙️','🌃'];
 
@@ -503,6 +538,8 @@ function goOrder(){ S.view='order';S.cart={};S.orderTab='new';const sl=visibleSu
 function goAdmin(){ S.view='admin';showHdr(true);render(); }
 function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albDate=new Date().toISOString().split('T')[0];showHdr(false);render(); }
 function setTab(t){ S.adminTab=t;render();if(t==='spending')setTimeout(renderChart,50); }
+function setTabSb(t){ S.adminTab=t;S.sidebarOpen=false;render();if(t==='spending')setTimeout(renderChart,50); }
+function toggleSbGroup(g){ S.sbGroups[g]=!S.sbGroups[g];render(); }
 
 /* ═══════════════ RENDER ═══════════════ */
 function render(){
@@ -531,14 +568,14 @@ function renderAdminContent(){
   else if(S.adminTab==='settings') content=vSettings();
   tc.innerHTML=content;
   if(S.adminTab==='spending') setTimeout(renderChart,50);
-  // Update stats
+  // Update sidebar stats
   const pend=orders.filter(o=>o.status==='pending');
   const appr=orders.filter(o=>o.status==='approved');
-  const statsEl=document.getElementById('admin-stats');
-  if(statsEl) statsEl.innerHTML=buildStats(pend,appr);
-  // Update tab badges
-  const tabPend=document.getElementById('tab-pending');
-  if(tabPend) tabPend.textContent=`⏳ Pendientes (${pend.length})`;
+  const sbStatsEl=document.getElementById('sb-stats');
+  if(sbStatsEl) sbStatsEl.innerHTML=buildSbStats(pend,appr);
+  // Update pending badge in sidebar
+  const sbBadge=document.getElementById('sb-pend-badge');
+  if(sbBadge){sbBadge.textContent=pend.length;sbBadge.style.display=pend.length?'':'none';}
 }
 
 /* ═══════════════ LOGIN ═══════════════ */
@@ -650,47 +687,82 @@ function buildStats(pend,appr){
     <div class="stat"><div class="sv" style="color:#16a34a;font-size:20px">${fmt(appr.reduce((s,o)=>s+total(o),0))}</div><div class="sl">Gasto</div></div>`;
 }
 
+function buildSbStats(pend,appr){
+  return `
+    <div class="sb-ms"><div class="sb-msv">${pend.length}</div><div class="sb-msl">Pendientes</div></div>
+    <div class="sb-ms"><div class="sb-msv" style="color:var(--acc)">${appr.length}</div><div class="sb-msl">Aprobados</div></div>
+    <div class="sb-ms"><div class="sb-msv" style="font-size:13px">${fmt(pend.reduce((s,o)=>s+total(o),0))}</div><div class="sb-msl">Por aprobar</div></div>
+    <div class="sb-ms"><div class="sb-msv" style="font-size:13px;color:#4ade80">${fmt(appr.reduce((s,o)=>s+total(o),0))}</div><div class="sb-msl">Gasto</div></div>`;
+}
+
 function vAdmin(){
   const pend=orders.filter(o=>o.status==='pending');
   const appr=orders.filter(o=>o.status==='approved');
-  const tabs=[
-    {id:'pending',   lbl:`⏳ Pendientes (${pend.length})`, elId:'tab-pending'},
-    {id:'approved',  lbl:`✅ Aprobados`},
-    {id:'consolidated',lbl:`📦 Consolid.`},
-    {id:'spending',  lbl:`📊 Gasto`},
-    {id:'foodcost',  lbl:`💰 Food Cost`},
-    {id:'budgets',   lbl:`💳 Presupuesto`},
-    {id:'compare',   lbl:`🔍 Comparar`},
-    {id:'prices',    lbl:`📈 Precios`},
-    {id:'albaranes', lbl:`📋 Albaranes`},
-    {id:'users',     lbl:`👥 Usuarios`},
-    {id:'suppliers', lbl:`🏭 Proveed.`},
-    {id:'settings',  lbl:`⚙️ Config`},
-  ].map(t=>`<button id="${t.elId||''}" class="tab ${S.adminTab===t.id?'act':''}" onclick="setTab('${t.id}')">${t.lbl}</button>`).join('');
+
+  function sbItem(id,lbl,badgeId){
+    const act=S.adminTab===id;
+    const badge=badgeId==='sb-pend-badge'
+      ? `<span class="sb-badge" id="sb-pend-badge" style="${pend.length?'':'display:none'}">${pend.length}</span>`
+      : '';
+    return `<div class="sg-item${act?' act':''}" onclick="setTabSb('${id}')"><span>${lbl}</span>${badge}</div>`;
+  }
+  function grpHd(g,emoji,lbl){
+    const open=S.sbGroups[g];
+    const childTabs={pedidos:['pending','approved','consolidated'],analisis:['spending','foodcost','budgets','compare','prices'],gestion:['users','suppliers','settings']};
+    const hasAct=(childTabs[g]||[]).includes(S.adminTab);
+    return `<div class="sg-hd${hasAct&&!open?' has-act':''}" onclick="toggleSbGroup('${g}')"><span>${emoji} ${lbl}</span><span class="sg-arrow">${open?'▲':'▼'}</span></div>`;
+  }
+
+  const sidebar=`<div class="sidebar${S.sidebarOpen?' sb-open':''}">
+    <div class="sb-mini-stats" id="sb-stats">${buildSbStats(pend,appr)}</div>
+    ${grpHd('pedidos','📦','Pedidos')}
+    ${S.sbGroups.pedidos?`
+      ${sbItem('pending','Pendientes','sb-pend-badge')}
+      ${sbItem('approved','Aprobados')}
+      ${sbItem('consolidated','Consolidado')}
+    `:''}
+    ${grpHd('analisis','📊','Análisis')}
+    ${S.sbGroups.analisis?`
+      ${sbItem('spending','Gasto por local')}
+      ${sbItem('foodcost','Food Cost')}
+      ${sbItem('budgets','Presupuestos')}
+      ${sbItem('compare','Comparar precios')}
+      ${sbItem('prices','Historial precios')}
+    `:''}
+    <div class="sg-direct${S.adminTab==='albaranes'?' act':''}" onclick="setTabSb('albaranes')">📋 Albaranes</div>
+    ${grpHd('gestion','⚙️','Gestión')}
+    ${S.sbGroups.gestion?`
+      ${sbItem('users','Usuarios')}
+      ${sbItem('suppliers','Proveedores')}
+      ${sbItem('settings','Configuración')}
+    `:''}
+  </div>`;
 
   let content='';
-  if(S.adminTab==='pending')       content=vPending();
-  else if(S.adminTab==='approved') content=vApproved();
+  if(S.adminTab==='pending')        content=vPending();
+  else if(S.adminTab==='approved')  content=vApproved();
   else if(S.adminTab==='consolidated') content=vConsolidated();
-  else if(S.adminTab==='spending') content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
-  else if(S.adminTab==='foodcost') content=vFoodCost();
-  else if(S.adminTab==='budgets')  content=vBudgets();
-  else if(S.adminTab==='compare')  content=vCompare();
-  else if(S.adminTab==='prices')   content=vPriceHistory();
+  else if(S.adminTab==='spending')  content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
+  else if(S.adminTab==='foodcost')  content=vFoodCost();
+  else if(S.adminTab==='budgets')   content=vBudgets();
+  else if(S.adminTab==='compare')   content=vCompare();
+  else if(S.adminTab==='prices')    content=vPriceHistory();
   else if(S.adminTab==='albaranes') content=vAlbaranes();
-  else if(S.adminTab==='users')    content=vUsers();
+  else if(S.adminTab==='users')     content=vUsers();
   else if(S.adminTab==='suppliers') content=vSuppliers();
-  else if(S.adminTab==='settings') content=vSettings();
+  else if(S.adminTab==='settings')  content=vSettings();
 
   const liveTag=fbConnected?`<span class="live-badge"><span class="pulse"></span>EN VIVO</span>`:'';
 
-  return `<div class="main">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div style="font-size:13px;font-weight:700;color:var(--pri)">Panel de compras</div>${liveTag}
+  return `<div class="adm-layout">
+    ${sidebar}
+    <div class="sb-overlay${S.sidebarOpen?' sb-open':''}" onclick="S.sidebarOpen=false;render()"></div>
+    <div class="adm-content">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:13px;font-weight:700;color:var(--pri)">Panel de compras</div>${liveTag}
+      </div>
+      <div id="tc">${content}</div>
     </div>
-    <div class="stats" id="admin-stats">${buildStats(pend,appr)}</div>
-    <div class="tabs">${tabs}</div>
-    <div id="tc">${content}</div>
   </div>`;
 }
 
@@ -863,9 +935,19 @@ function vAlbaranNew(){
       <div class="fg"><label>Fecha</label><input type="date" id="alb-date" value="${S.albDate}" onchange="S.albDate=this.value"/></div>
       <div class="fg"><label>Foto del albarán</label>
         <div class="file-input-wrap"><div class="file-input-btn">📷 Fotografiar o subir imagen</div><input type="file" accept="image/*" capture="environment" onchange="handleAlbPhoto(this)"/></div>
-        <img id="alb-img-preview" class="img-preview" style="${S.albPhoto?'display:block':'display:none'}" src="${S.albPhoto||''}"/>
-        <div id="ocr-progress" class="ocr-progress">🔍 Reconociendo texto...</div>
-        ${S.albPhoto?`<button class="btn btn-blue btn-sm" style="margin-top:8px" onclick="runOCR()">${cfg.geminiKey?'🤖 Reconocer con IA (Gemini)':'🔍 Reconocer productos (OCR)'}</button>`:''}
+        ${S.albCropping
+          ? `<div style="font-size:13px;color:var(--mut);margin:8px 0 6px">📌 Arrastra para seleccionar el área a escanear</div>
+             <canvas id="crop-canvas" style="width:100%;border-radius:8px;cursor:crosshair;touch-action:none;border:2px dashed var(--pri)"></canvas>
+             <div style="display:flex;gap:8px;margin-top:10px">
+               <button class="btn btn-pri btn-sm" onclick="applyCrop()">✂️ Aplicar recorte</button>
+               <button class="btn btn-ghost btn-sm" onclick="cancelCrop()">Cancelar</button>
+             </div>`
+          : `<img id="alb-img-preview" class="img-preview" style="${S.albPhoto?'display:block':'display:none'}" src="${S.albPhoto||''}"/>
+             <div id="ocr-progress" class="ocr-progress">🔍 Reconociendo texto...</div>
+             ${S.albPhoto?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+               <button class="btn btn-ghost btn-sm" onclick="showCropUI()">✂️ Recortar imagen</button>
+               <button class="btn btn-blue btn-sm" onclick="runOCR()">${cfg.geminiKey?'🤖 Reconocer con IA (Gemini)':'🔍 Reconocer productos (OCR)'}</button>
+             </div>`:''}` }
       </div>
     </div>
     <div class="sh">Productos del albarán</div>
@@ -876,6 +958,66 @@ function vAlbaranNew(){
       <button class="btn btn-ghost" onclick="${S.session&&S.session.isAdmin?'goAdmin()':'goOrder()'}">Cancelar</button>
     </div>
   </div>`;
+}
+
+/* ═══════════════ RECORTADOR ═══════════════ */
+function showCropUI(){
+  S.albCropping=true;
+  render();
+  setTimeout(initCropCanvas,80);
+}
+function cancelCrop(){ S.albCropping=false; render(); }
+function initCropCanvas(){
+  const canvas=document.getElementById('crop-canvas');
+  if(!canvas)return;
+  const img=new Image();
+  img.src=S.albPhoto;
+  img.onload=()=>{
+    const maxW=canvas.parentElement.clientWidth-4;
+    const scale=Math.min(1,maxW/img.naturalWidth);
+    canvas.width=img.naturalWidth*scale;
+    canvas.height=img.naturalHeight*scale;
+    canvas._scale=scale; canvas._img=img;
+    const ctx=canvas.getContext('2d');
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
+    const pos=(e)=>{
+      const r=canvas.getBoundingClientRect();
+      const t=e.touches?e.touches[0]:e;
+      return{x:Math.max(0,Math.min(canvas.width,t.clientX-r.left)),y:Math.max(0,Math.min(canvas.height,t.clientY-r.top))};
+    };
+    canvas.onmousedown=canvas.ontouchstart=(e)=>{e.preventDefault();const p=pos(e);cropState={dragging:true,startX:p.x,startY:p.y,endX:p.x,endY:p.y};};
+    canvas.onmousemove=canvas.ontouchmove=(e)=>{if(!cropState.dragging)return;e.preventDefault();const p=pos(e);cropState.endX=p.x;cropState.endY=p.y;drawOverlay(ctx,img,canvas.width,canvas.height);};
+    canvas.onmouseup=canvas.ontouchend=()=>{cropState.dragging=false;};
+  };
+}
+function drawOverlay(ctx,img,w,h){
+  ctx.drawImage(img,0,0,w,h);
+  const x1=Math.min(cropState.startX,cropState.endX),y1=Math.min(cropState.startY,cropState.endY);
+  const x2=Math.max(cropState.startX,cropState.endX),y2=Math.max(cropState.startY,cropState.endY);
+  ctx.fillStyle='rgba(0,0,0,0.55)';
+  ctx.fillRect(0,0,w,h);
+  if(x2>x1&&y2>y1){
+    ctx.clearRect(x1,y1,x2-x1,y2-y1);
+    ctx.drawImage(img,x1,y1,x2-x1,y2-y1,x1,y1,x2-x1,y2-y1);
+    ctx.strokeStyle='#e94560';ctx.lineWidth=2;
+    ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+  }
+}
+function applyCrop(){
+  const canvas=document.getElementById('crop-canvas');
+  if(!canvas){toast('Error al recortar','#dc2626');return;}
+  const sc=canvas._scale||1;
+  const x1=Math.min(cropState.startX,cropState.endX),y1=Math.min(cropState.startY,cropState.endY);
+  const w=Math.abs(cropState.endX-cropState.startX),h=Math.abs(cropState.endY-cropState.startY);
+  if(w<20||h<20){toast('Selecciona un área más grande arrastrando','#dc2626');return;}
+  const out=document.createElement('canvas');
+  out.width=Math.round(w/sc); out.height=Math.round(h/sc);
+  out.getContext('2d').drawImage(canvas._img,x1/sc,y1/sc,w/sc,h/sc,0,0,out.width,out.height);
+  S.albPhoto=out.toDataURL('image/jpeg',0.95);
+  S.albCropping=false;
+  render();
+  toast('✂️ Recorte aplicado — ahora pulsa Reconocer','#16a34a');
 }
 
 function handleAlbPhoto(input){
