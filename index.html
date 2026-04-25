@@ -896,7 +896,7 @@ async function runOCR(){
       // Gemini Vision
       const base64=S.albPhoto.split(',')[1];
       const mime=S.albPhoto.split(';')[0].split(':')[1]||'image/jpeg';
-      const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cfg.geminiKey}`,{
+      const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cfg.geminiKey}`,{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({contents:[{parts:[
           {inline_data:{mime_type:mime,data:base64}},
