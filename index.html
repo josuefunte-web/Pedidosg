@@ -189,6 +189,52 @@ select:focus,input:focus{border-color:var(--pri)}
   .sb-overlay.sb-open{display:block}
   .adm-content{padding:12px 10px}
 }
+/* ── ESCANDALLOS ── */
+.esc-filtros{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.esc-filtros input,.esc-filtros select{padding:8px 12px;border-radius:8px;border:1.5px solid var(--brd);background:#fff;color:var(--txt);font-size:14px}
+.esc-filtros input{flex:1;min-width:180px}
+.esc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.esc-card{background:var(--card);border:1.5px solid var(--brd);border-radius:var(--r);padding:16px;cursor:pointer;transition:box-shadow .2s,transform .15s;position:relative}
+.esc-card:hover{box-shadow:0 4px 18px rgba(0,0,0,.12);transform:translateY(-2px)}
+.esc-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--bg);color:var(--mut);margin-bottom:8px}
+.esc-card h4{margin:0 0 10px;font-size:16px;color:var(--pri)}
+.esc-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px}
+.esc-stat{display:flex;flex-direction:column}
+.esc-stat span:first-child{color:var(--mut);font-size:11px}
+.esc-stat strong{font-size:14px}
+.esc-fc-ind{position:absolute;top:14px;right:14px;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:3px solid}
+.esc-ok{border-color:#22c55e;color:#22c55e;background:rgba(34,197,94,.1)}
+.esc-warn{border-color:#f59e0b;color:#f59e0b;background:rgba(245,158,11,.1)}
+.esc-bad{border-color:#ef4444;color:#ef4444;background:rgba(239,68,68,.1)}
+/* Modal escandallos */
+.esc-modal-box{width:92vw;max-width:880px;max-height:90vh;overflow-y:auto;border-radius:14px;background:#fff;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.esc-modal-body{display:grid;grid-template-columns:1fr 1.4fr}
+@media(max-width:680px){.esc-modal-body{grid-template-columns:1fr}}
+.esc-left{padding:20px;border-right:1px solid var(--brd);display:flex;flex-direction:column;gap:6px}
+.esc-left label{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-top:8px}
+.esc-left input,.esc-left select,.esc-left textarea{padding:8px 10px;border-radius:8px;border:1.5px solid var(--brd);background:var(--bg);color:var(--txt);font-size:14px;width:100%;box-sizing:border-box}
+.esc-right{padding:20px;display:flex;flex-direction:column;gap:10px}
+.esc-right h4{margin:0;font-size:15px}
+.esc-add-ing{display:flex;gap:6px;flex-wrap:wrap;align-items:center;background:var(--bg);padding:10px;border-radius:10px}
+.esc-add-ing select,.esc-add-ing input{padding:6px 8px;border-radius:7px;border:1.5px solid var(--brd);background:#fff;color:var(--txt);font-size:13px}
+.esc-add-ing select:first-child{flex:1.2;min-width:110px}
+.esc-add-ing select:nth-child(2){flex:1.5;min-width:130px}
+.esc-add-ing input{width:70px}
+.esc-ing-list{flex:1;overflow-y:auto;max-height:220px;display:flex;flex-direction:column;gap:6px}
+.esc-ing-row{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg);border-radius:8px;font-size:13px}
+.esc-ing-row .in{flex:1;font-weight:500}
+.esc-ing-row .id{color:var(--mut);font-size:12px;white-space:nowrap}
+.esc-ing-row .ic{font-weight:700;white-space:nowrap;min-width:55px;text-align:right}
+.esc-ing-row button{background:none;border:none;cursor:pointer;color:#ef4444;font-size:15px;padding:0 2px}
+.esc-calcs{background:var(--bg);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:7px}
+.esc-calc-r{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.esc-calc-r span{color:var(--mut)}
+.esc-calc-r strong{font-size:15px}
+.fc-ok{color:#22c55e}.fc-warn{color:#f59e0b}.fc-bad{color:#ef4444}
+.esc-modal-hd{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--brd)}
+.esc-modal-hd h3{margin:0;font-size:18px;color:var(--pri)}
+.esc-modal-ft{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-top:1px solid var(--brd)}
+.esc-modal-ft-r{display:flex;gap:10px}
 </style>
 </head>
 <body>
@@ -270,20 +316,73 @@ const DEFAULT_USERS=[
 ];
 const DEFAULT_SUPS={
   bencar:{id:'bencar',name:'Bencar',emoji:'🥩',phone:'',products:[
-    {id:'b1',name:'Entrecot de ternera',unit:'KG',price:28.50},
-    {id:'b2',name:'Chuletón de buey',unit:'KG',price:45.00},
-    {id:'b3',name:'Solomillo de ternera',unit:'KG',price:38.90},
-    {id:'b4',name:'Costilla de cerdo',unit:'KG',price:6.80},
-    {id:'b5',name:'Panceta ibérica',unit:'KG',price:12.50},
-    {id:'b6',name:'Pollo entero',unit:'UN',price:8.20},
-    {id:'b7',name:'Pechuga de pollo',unit:'KG',price:7.90},
-    {id:'b8',name:'Chorizo fresco',unit:'KG',price:9.40},
-    {id:'b9',name:'Morcilla',unit:'KG',price:8.70},
-    {id:'b10',name:'Papada de cerdo',unit:'KG',price:11.20},
-    {id:'b11',name:'Muslo de pollo',unit:'KG',price:4.50},
-    {id:'b12',name:'Aguja de ternera',unit:'KG',price:18.30},
-    {id:'b13',name:'Falda de ternera',unit:'KG',price:14.80},
-    {id:'b15',name:'Carrillera de cerdo',unit:'KG',price:12.90},
+    {id:'bx1',name:'AGUJA DE TERNERA',unit:'Kg',price:12.99},
+    {id:'bx2',name:'ALETA DE TERNERA',unit:'Kg',price:11.99},
+    {id:'bx3',name:'CADERA O BABILLA DE TERNERA',unit:'Kg',price:14.99},
+    {id:'bx4',name:'CARNE PARA GUISAR (MAGRA) O RAGOUT',unit:'Kg',price:11.99},
+    {id:'bx5',name:'CARNE PICAR/PICADA (BURGUER MEAT)',unit:'Kg',price:11.99},
+    {id:'bx6',name:'CARNE PICADA DE VACA (BURGUER MEAT)',unit:'Kg',price:11.99},
+    {id:'bx7',name:'CARNE PICADA MIXTA (BURGUER MEAT)',unit:'Kg',price:9.5},
+    {id:'bx8',name:'CARRILLADA DE TERNERA',unit:'Kg',price:14.99},
+    {id:'bx9',name:'CHULETON DE TERNERA',unit:'Kg',price:18.99},
+    {id:'bx10',name:'CHULETÓN TERNERA ANGUS',unit:'Kg',price:19.99},
+    {id:'bx11',name:'CHURRASCO DE TERNERA',unit:'Kg',price:9.5},
+    {id:'bx12',name:'CONTRA O CULATA DE TERNERA',unit:'Kg',price:14.99},
+    {id:'bx13',name:'COSTILLAR DE VACA',unit:'Kg',price:9.5},
+    {id:'bx14',name:'ENTRAÑA DE AÑOJO',unit:'Kg',price:13.99},
+    {id:'bx15',name:'FALDA DE TERNERA',unit:'Kg',price:9.5},
+    {id:'bx16',name:'FILETES DE TERNERA',unit:'Kg',price:14.99},
+    {id:'bx17',name:'HAMBURGUESA (BURGUER MEAT)',unit:'Kg',price:11.99},
+    {id:'bx18',name:'LOMO ALTO O BAJO TERNERA SIN HUESO',unit:'Kg',price:19.99},
+    {id:'bx19',name:'LOMO TERNERA ENTERO',unit:'Kg',price:18.99},
+    {id:'bx20',name:'LOMO DE VACA SELECCIÓN',unit:'Kg',price:15.99},
+    {id:'bx21',name:'MORCILLO DE TERNERA',unit:'Kg',price:13.5},
+    {id:'bx22',name:'OSSOBUCO DE TERNERA',unit:'Kg',price:10.9},
+    {id:'bx23',name:'RABO DE TERNERA',unit:'Kg',price:13.99},
+    {id:'bx24',name:'SOLOMILLO DE TERNERA LIMPIO',unit:'Kg',price:28.99},
+    {id:'bx25',name:'T BONE TERNERA ANGUS',unit:'Kg',price:21.99},
+    {id:'bx26',name:'TAPA O REDONDO O ESPALDILLA',unit:'Kg',price:14.99},
+    {id:'bx27',name:'TAPILLA DE TERNERA',unit:'Kg',price:15.99},
+    {id:'bx28',name:'TIRAS DE ASADO DE TERNERA',unit:'Kg',price:9.5},
+    {id:'bx29',name:'TOMAHAWK',unit:'Kg',price:27.06},
+    {id:'bx30',name:'VACIO DE TERNERA',unit:'Kg',price:13.99},
+    {id:'bx31',name:'CHULETA T-BONE DE VACA',unit:'Kg',price:24.64},
+    {id:'bx32',name:'CHULETON DE VACA LUX',unit:'Kg',price:27.06},
+    {id:'bx33',name:'HAMBURGUESAS DE BUEY',unit:'Kg',price:13.99},
+    {id:'bx34',name:'SOLOMILLO DE VACA PREMIUM',unit:'Kg',price:24.99},
+    {id:'bx35',name:'FILETE DE LOMO DE AÑOJO 1/1',unit:'Kg',price:17.49},
+    {id:'bx36',name:'CADERA Y BABILLA DE CERDO',unit:'Kg',price:6.49},
+    {id:'bx37',name:'CARNE PICADA DE CERDO',unit:'Kg',price:5.63},
+    {id:'bx38',name:'CARNE PICADA DE PRESA DUROC',unit:'Kg',price:8.99},
+    {id:'bx39',name:'CARRILLADA DE CERDO congelada',unit:'Kg',price:10.99},
+    {id:'bx40',name:'CHULETAS DE CERDO AGUJA',unit:'Kg',price:5.99},
+    {id:'bx41',name:'CHULETAS DE CERDO DE PALO',unit:'Kg',price:6.99},
+    {id:'bx42',name:'CINTA FRESCA, ADOBADA, AJILLO',unit:'Kg',price:6.5},
+    {id:'bx43',name:'CODILLO DE JAMON NATURAL',unit:'Kg',price:4.99},
+    {id:'bx44',name:'CODILLO DE PALETA',unit:'Kg',price:4.99},
+    {id:'bx45',name:'CONTRA DE CERDO',unit:'Kg',price:6.5},
+    {id:'bx46',name:'COSTILLAR DE CERDO',unit:'Kg',price:6.99},
+    {id:'bx47',name:'COSTILLAS FRESCAS (PUNTAS)',unit:'Kg',price:6.99},
+    {id:'bx48',name:'FILETES DE CERDO',unit:'Kg',price:6.5},
+    {id:'bx49',name:'HAMBURGUESA DE CERDO (BURGUER MEAT)',unit:'Kg',price:5.99},
+    {id:'bx50',name:'JAMON DE CERDO PARA ASAR (SIN HUESO)',unit:'Kg',price:6.4},
+    {id:'bx51',name:'MAGRO DE CERDO',unit:'Kg',price:5.63},
+    {id:'bx52',name:'MANOS Y OREJAS DE CERDO',unit:'Kg',price:4.5},
+    {id:'bx53',name:'PALETA CON PIEL',unit:'Kg',price:4.5},
+    {id:'bx54',name:'PALETA S/H',unit:'Kg',price:6.5},
+    {id:'bx55',name:'PANCETA FRESCA (SIN HUESO)',unit:'Kg',price:6.99},
+    {id:'bx56',name:'PAPADA DE CERDO SIN CORTEZA',unit:'Kg',price:2.5},
+    {id:'bx57',name:'PRESA DUROC',unit:'Kg',price:8.99},
+    {id:'bx58',name:'SECRETO DE CERDO BLANCO',unit:'Kg',price:8.72},
+    {id:'bx59',name:'SOLOMILLO DUROC',unit:'Kg',price:7.5},
+    {id:'bx60',name:'SOLOMILLO DE CERDO CONGELADO',unit:'Kg',price:7.08},
+    {id:'bx61',name:'TIRAS DE COSTILLA',unit:'Kg',price:6.3},
+    {id:'bx62',name:'RAGOUT DE CERDO',unit:'Kg',price:8.38},
+    {id:'bx63',name:'ALBONDIGA MIXTA',unit:'Kg',price:8.99},
+    {id:'bx64',name:'CARNE PICADA DE SECRETO IBÉRICO',unit:'Kg',price:9.99},
+    {id:'bx65',name:'PRESA IBERICA EXTRA CONGELADA',unit:'Kg',price:23.99},
+    {id:'bx66',name:'SECRETO DE CERDO IBERICO 2ª CONGELADO',unit:'Kg',price:12.99},
+    {id:'bx67',name:'SECRETO IBERICO EXTRA CONGELADO',unit:'Kg',price:21.99},
   ]},
   g1012:{id:'g1012',name:'1012 Gourmet',emoji:'🌟',phone:'',products:[
     {id:'g1',name:'Foie gras de pato fresco',unit:'KG',price:85.00},
@@ -307,13 +406,73 @@ const DEFAULT_SUPS={
     {id:'c7',name:'Secreto ibérico',unit:'KG',price:16.90},
   ]},
   ismael:{id:'ismael',name:'Ismael',emoji:'🛒',phone:'',products:[
-    {id:'i1',name:'Entrecot de ternera',unit:'KG',price:26.50},
-    {id:'i2',name:'Solomillo de ternera',unit:'KG',price:36.00},
-    {id:'i3',name:'Pollo entero',unit:'UN',price:7.80},
-    {id:'i4',name:'Costilla de cerdo',unit:'KG',price:6.20},
-    {id:'i5',name:'Papada de cerdo',unit:'KG',price:17.50},
-    {id:'i6',name:'Pechuga de pollo',unit:'KG',price:7.40},
-    {id:'i7',name:'Crema de sobrasada',unit:'KG',price:12.00},
+    {id:'ix1',name:'POLLO 1ª ENTERO',unit:'Kg',price:3.25},
+    {id:'ix2',name:'POLLO PICANTON',unit:'Kg',price:3.99},
+    {id:'ix3',name:'ALAS DE POLLO',unit:'Kg',price:3.99},
+    {id:'ix4',name:'CODORNICES',unit:'Kg',price:2.3},
+    {id:'ix5',name:'CONEJO ENTERO FRESCO',unit:'Kg',price:8.99},
+    {id:'ix6',name:'CONTRAMUSLOS DE POLLO',unit:'Kg',price:5.81},
+    {id:'ix7',name:'CONTRAM. POLLO LIMPIOS O FILETES',unit:'Kg',price:7.99},
+    {id:'ix8',name:'GALLINA ENTERA PESADA',unit:'Kg',price:4.99},
+    {id:'ix9',name:'HIGADITOS DE POLLO',unit:'Kg',price:1.99},
+    {id:'ix10',name:'JAMONCITOS DE POLLO',unit:'Kg',price:3.5},
+    {id:'ix11',name:'PECHUGA DE PAVO',unit:'Kg',price:9.99},
+    {id:'ix12',name:'PECHUGA ENTERA',unit:'Kg',price:6.78},
+    {id:'ix13',name:'PECHUGA FILETES O PICADA',unit:'Kg',price:7.75},
+    {id:'ix14',name:'RAGOUT DE PAVO',unit:'Kg',price:9.99},
+    {id:'ix15',name:'TRASEROS DE POLLO',unit:'Kg',price:3.5},
+    {id:'ix16',name:'PECHUGA DE POLLO CON HUESO',unit:'Kg',price:4.84},
+    {id:'ix17',name:'CHULETA DE PAVO AL AJILLO',unit:'Kg',price:8.99},
+    {id:'ix18',name:'CALLOS O MORROS FRESCOS DE TERNERA',unit:'Kg',price:6.96},
+    {id:'ix19',name:'HIGADO DE TERNERA',unit:'Kg',price:8.73},
+    {id:'ix20',name:'CANAL DE CORDERO LECHAL DE SEGOVIA',unit:'Kg',price:19.99},
+    {id:'ix21',name:'CHULETAS CORDERO LECHAL SEGOVIA',unit:'Kg',price:25.99},
+    {id:'ix22',name:'CHULETAS CORDERO LECHAL congelado',unit:'Kg',price:21.99},
+    {id:'ix23',name:'PALETILLAS CORDERO LECHAL',unit:'Kg',price:26.99},
+    {id:'ix24',name:'PIERNAS DE CORDERO LECHAL',unit:'Kg',price:13.58},
+    {id:'ix25',name:'CALDERETA CORD. (FALDA Y CUELLO)',unit:'Kg',price:3.99},
+    {id:'ix26',name:'CALDERETA CON PIERNA',unit:'Kg',price:9.99},
+    {id:'ix27',name:'BUTIFARRA BLANCA DE PINCHO',unit:'Kg',price:6.99},
+    {id:'ix28',name:'CHISTORRA DE NAVARRA',unit:'Kg',price:7.99},
+    {id:'ix29',name:'CHORIZO ASTURIANO LA CARMINA',unit:'Kg',price:10.99},
+    {id:'ix30',name:'CHORIZO CASERO DE PUEBLO',unit:'Kg',price:6.99},
+    {id:'ix31',name:'CHORIZO PINCHO Y CRIOLLO GRANEL',unit:'Kg',price:6.99},
+    {id:'ix32',name:'CHULETAS DE SAJONIA EXTRA',unit:'Kg',price:7.99},
+    {id:'ix33',name:'CINTA DE LOMO ADOBADA (ENTERAS)',unit:'Kg',price:6.5},
+    {id:'ix34',name:'CINTA DE LOMO AL AJILLO (ENTERAS)',unit:'Kg',price:6.5},
+    {id:'ix35',name:'CODILLO SALMUERIZADO',unit:'Kg',price:5.99},
+    {id:'ix36',name:'COSTILLAS ADOBADAS',unit:'Kg',price:6.99},
+    {id:'ix37',name:'COSTILLAS AL AJILLO',unit:'Kg',price:6.99},
+    {id:'ix38',name:'ESPINAZO SALADO',unit:'Kg',price:4.99},
+    {id:'ix39',name:'HUESO DE TERNERA',unit:'Kg',price:1.99},
+    {id:'ix40',name:'HUNTO CURADO',unit:'Kg',price:7.99},
+    {id:'ix41',name:'LACON AHUMA. S/HUESO (FILETE SAJONIA)',unit:'Kg',price:8.99},
+    {id:'ix42',name:'LONGANIZA BLANCA FRESCA',unit:'Kg',price:6.99},
+    {id:'ix43',name:'MORCILLA ASTURIANA LA CARMINA',unit:'Kg',price:10.99},
+    {id:'ix44',name:'MORCILLA DE ARROZ DE BURGOS TERE',unit:'Kg',price:6.99},
+    {id:'ix45',name:'MORCILLA DE ARROZ PINCHO',unit:'Kg',price:6.99},
+    {id:'ix46',name:'OREJA COCIDA',unit:'Kg',price:6.99},
+    {id:'ix47',name:'PANCETA SALADA',unit:'Kg',price:5.99},
+    {id:'ix48',name:'PASTA DE MORCILLA CEBOLLA',unit:'Kg',price:5.99},
+    {id:'ix49',name:'PICADILLO DE CHORIZO CASERO',unit:'Kg',price:5.99},
+    {id:'ix50',name:'PICADILLO DE JAMÓN',unit:'Kg',price:12.99},
+    {id:'ix51',name:'PICADILLO DE JAMÓN IBERICO',unit:'Kg',price:18.99},
+    {id:'ix52',name:'PINCHOS MORUNOS (GRANEL)',unit:'Kg',price:6.99},
+    {id:'ix53',name:'PUNTAS DE JAMON',unit:'Kg',price:4.99},
+    {id:'ix54',name:'TOCINETA ADOBADA',unit:'Kg',price:5.99},
+    {id:'ix55',name:'TOCINO IBERICO SALADO',unit:'Kg',price:3.99},
+    {id:'ix56',name:'TORREZNO PRECOCINADO',unit:'Kg',price:15.9},
+    {id:'ix57',name:'BACON AHUMADO EXTRA ENTERO',unit:'Kg',price:7.99},
+    {id:'ix58',name:'JAMON SERRANO BODEGA',unit:'Kg',price:17.5},
+    {id:'ix59',name:'JAMON YORK SANDWICH 11 X 11',unit:'Kg',price:6.99},
+    {id:'ix60',name:'MORTADELA VALLE',unit:'Kg',price:10.99},
+    {id:'ix61',name:'JAMON COCIDO EXTRA',unit:'Kg',price:10.99},
+    {id:'ix62',name:'MAXIPECHUGA PAVO CAMPOFRIO',unit:'Kg',price:10.99},
+    {id:'ix63',name:'SALCHICHON EXTRA',unit:'Kg',price:11.99},
+    {id:'ix64',name:'CHORIZO REVILLA',unit:'Kg',price:11.99},
+    {id:'ix65',name:'QUESO BARRA EDAM',unit:'Kg',price:9.5},
+    {id:'ix66',name:'CREMA DE SOBRASADA',unit:'Kg',price:10.99},
+    {id:'ix67',name:'QUESO AZUL',unit:'Kg',price:14.99},
   ]},
 };
 
@@ -566,7 +725,9 @@ function renderAdminContent(){
   else if(S.adminTab==='users')    content=vUsers();
   else if(S.adminTab==='suppliers') content=vSuppliers();
   else if(S.adminTab==='settings') content=vSettings();
+  else if(S.adminTab==='escandallos') content=vEscandallos();
   tc.innerHTML=content;
+  if(S.adminTab==='escandallos') initEscandallos();
   if(S.adminTab==='spending') setTimeout(renderChart,50);
   // Update sidebar stats
   const pend=orders.filter(o=>o.status==='pending');
@@ -708,7 +869,7 @@ function vAdmin(){
   }
   function grpHd(g,emoji,lbl){
     const open=S.sbGroups[g];
-    const childTabs={pedidos:['pending','approved','consolidated'],analisis:['spending','foodcost','budgets','compare','prices'],gestion:['users','suppliers','settings']};
+    const childTabs={pedidos:['pending','approved','consolidated'],analisis:['spending','foodcost','budgets','compare','prices'],gestion:['users','suppliers','settings','escandallos']};
     const hasAct=(childTabs[g]||[]).includes(S.adminTab);
     return `<div class="sg-hd${hasAct&&!open?' has-act':''}" onclick="toggleSbGroup('${g}')"><span>${emoji} ${lbl}</span><span class="sg-arrow">${open?'▲':'▼'}</span></div>`;
   }
@@ -735,6 +896,7 @@ function vAdmin(){
       ${sbItem('users','Usuarios')}
       ${sbItem('suppliers','Proveedores')}
       ${sbItem('settings','Configuración')}
+      ${sbItem('escandallos','🧮 Escandallos')}
     `:''}
   </div>`;
 
@@ -751,6 +913,7 @@ function vAdmin(){
   else if(S.adminTab==='users')     content=vUsers();
   else if(S.adminTab==='suppliers') content=vSuppliers();
   else if(S.adminTab==='settings')  content=vSettings();
+  else if(S.adminTab==='escandallos') content=vEscandallos();
 
   const liveTag=fbConnected?`<span class="live-badge"><span class="pulse"></span>EN VIVO</span>`:'';
 
@@ -1655,6 +1818,568 @@ function approveWithEdits(id){
   toast('✅ Pedido modificado y aprobado','#16a34a');
 }
 
+/* ═══════════════ ESCANDALLOS ═══════════════ */
+let _escEditId=null, _escIngs=[], _escAllData={}, _escSupsCache={}, _escInit=false;
+
+function vEscandallos(){
+  return `
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="font-size:18px;font-weight:800;color:var(--pri)">🧮 Escandallos</div>
+    <button class="btn btn-pri btn-sm" onclick="escOpenModal()">+ Nuevo</button>
+  </div>
+  <div class="esc-filtros">
+    <input type="text" id="esc-search" placeholder="Buscar plato..." oninput="escRender()" />
+    <select id="esc-cat-filter" onchange="escRender()">
+      <option value="">Todas las categorías</option>
+      <option>Entrantes</option><option>Carnes</option><option>Pescados</option>
+      <option>Postres</option><option>Bebidas</option><option>Otros</option>
+    </select>
+  </div>
+  <div id="esc-grid" class="esc-grid"><p style="color:var(--mut)">Cargando...</p></div>
+
+  <!-- MODAL -->
+  <div class="overlay" id="esc-modal-ov" style="display:none" onclick="if(event.target===this)escCloseModal()">
+    <div class="esc-modal-box">
+      <div class="esc-modal-hd">
+        <h3 id="esc-modal-title">Nuevo escandallo</h3>
+        <button class="btn btn-ghost btn-sm" onclick="escCloseModal()">✕</button>
+      </div>
+      <div class="esc-modal-body">
+        <div class="esc-left">
+          <label>Nombre del plato</label>
+          <input type="text" id="esc-nombre" placeholder="Ej: Entrecot con patatas"/>
+          <label>Categoría</label>
+          <select id="esc-categoria">
+            <option>Entrantes</option><option>Carnes</option><option>Pescados</option>
+            <option>Postres</option><option>Bebidas</option><option>Otros</option>
+          </select>
+          <label>Precio de venta (PVP) €</label>
+          <input type="number" id="esc-pvp" min="0" step="0.01" placeholder="0.00" oninput="escRecalc()"/>
+          <label>Food cost objetivo (%)</label>
+          <input type="number" id="esc-fcobj" min="1" max="100" value="30" oninput="escRecalc()"/>
+          <label>Notas</label>
+          <textarea id="esc-notas" rows="3" placeholder="Alérgenos, temporada..."></textarea>
+        </div>
+        <div class="esc-right">
+          <h4>Ingredientes</h4>
+          <div class="esc-add-ing">
+            <select id="esc-sel-prov" onchange="escLoadProds()">
+              <option value="">-- Proveedor --</option>
+            </select>
+            <select id="esc-sel-prod"><option value="">-- Producto --</option></select>
+            <input type="number" id="esc-sel-qty" placeholder="Cant." min="0" step="0.001"/>
+            <button class="btn btn-ghost btn-sm" onclick="escAddIng()">+ Añadir</button>
+          </div>
+          <div id="esc-ing-list" class="esc-ing-list"><p style="color:var(--mut);font-size:13px">Sin ingredientes</p></div>
+          <div class="esc-calcs">
+            <div class="esc-calc-r"><span>Coste total</span><strong id="ec-coste">0,00 €</strong></div>
+            <div class="esc-calc-r"><span>Food cost real</span><strong id="ec-fc">— %</strong></div>
+            <div class="esc-calc-r"><span>PVP sugerido</span><strong id="ec-pvpsug">— €</strong></div>
+            <div class="esc-calc-r"><span>Margen bruto</span><strong id="ec-margen">— €</strong></div>
+            <div class="esc-calc-r"><span>% Margen</span><strong id="ec-margenpct">— %</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="esc-modal-ft">
+        <button class="btn btn-no btn-sm" id="esc-btn-del" style="display:none" onclick="escDelete()">🗑 Eliminar</button>
+        <div class="esc-modal-ft-r">
+          <button class="btn btn-ghost btn-sm" onclick="escCloseModal()">Cancelar</button>
+          <button class="btn btn-pri btn-sm" onclick="escSave()">💾 Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function initEscandallos(){
+  _escSupsCache = suppliers;
+  escRender();
+  if(_escInit||!fbDb) return;
+  _escInit=true;
+  fbDb.ref('escandallos').on('value', snap=>{
+    _escAllData = snap.val() || {};
+    escRender();
+  });
+}
+
+function escRender(){
+  const grid = document.getElementById('esc-grid');
+  if(!grid) return;
+  const txt = (document.getElementById('esc-search')?.value||'').toLowerCase();
+  const cat = document.getElementById('esc-cat-filter')?.value||'';
+  const entries = Object.entries(_escAllData).filter(([,e])=>{
+    return (!txt||e.nombre?.toLowerCase().includes(txt))&&(!cat||e.categoria===cat);
+  });
+  if(!entries.length){
+    grid.innerHTML='<p style="color:var(--mut)">No hay escandallos. Crea el primero con "+ Nuevo".</p>';
+    return;
+  }
+  grid.innerHTML = entries.map(([id,e])=>{
+    const coste = (e.ingredientes||[]).reduce((s,i)=>s+(parseFloat(i.cantidad)||0)*(parseFloat(i.precioUnitario)||0),0);
+    const pvp = parseFloat(e.precioVenta)||0;
+    const fcObj = parseFloat(e.foodCostObjetivo)||30;
+    const fcReal = pvp>0?(coste/pvp*100):null;
+    const margen = pvp>0?(pvp-coste):null;
+    const margenPct = pvp>0&&margen!==null?(margen/pvp*100):null;
+    let cls='esc-ok';
+    if(fcReal!==null){if(fcReal>fcObj+5)cls='esc-bad';else if(fcReal>fcObj)cls='esc-warn';}
+    return `<div class="esc-card" onclick="escOpenModal('${id}')">
+      <div class="esc-fc-ind ${cls}">${fcReal!==null?fcReal.toFixed(0)+'%':'—'}</div>
+      <span class="esc-badge">${e.categoria||'Otros'}</span>
+      <h4>${e.nombre||'Sin nombre'}</h4>
+      <div class="esc-stats">
+        <div class="esc-stat"><span>Coste</span><strong>${escFmt(coste)}</strong></div>
+        <div class="esc-stat"><span>PVP</span><strong>${pvp>0?escFmt(pvp):'—'}</strong></div>
+        <div class="esc-stat"><span>Margen</span><strong>${margen!==null?escFmt(margen):'—'}</strong></div>
+        <div class="esc-stat"><span>% Margen</span><strong>${margenPct!==null?margenPct.toFixed(1)+'%':'—'}</strong></div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:var(--mut)">${(e.ingredientes||[]).length} ingredientes</div>
+    </div>`;
+  }).join('');
+}
+
+function escOpenModal(id=null){
+  _escEditId=id; _escIngs=[];
+  _escSupsCache=suppliers;
+  document.getElementById('esc-modal-title').textContent=id?'Editar escandallo':'Nuevo escandallo';
+  document.getElementById('esc-btn-del').style.display=id?'':'none';
+  if(id&&_escAllData[id]){
+    const e=_escAllData[id];
+    document.getElementById('esc-nombre').value=e.nombre||'';
+    document.getElementById('esc-categoria').value=e.categoria||'Carnes';
+    document.getElementById('esc-pvp').value=e.precioVenta||'';
+    document.getElementById('esc-fcobj').value=e.foodCostObjetivo||30;
+    document.getElementById('esc-notas').value=e.notas||'';
+    _escIngs=JSON.parse(JSON.stringify(e.ingredientes||[]));
+  } else {
+    document.getElementById('esc-nombre').value='';
+    document.getElementById('esc-categoria').value='Carnes';
+    document.getElementById('esc-pvp').value='';
+    document.getElementById('esc-fcobj').value=30;
+    document.getElementById('esc-notas').value='';
+  }
+  // Poblar proveedores
+  const sel=document.getElementById('esc-sel-prov');
+  sel.innerHTML='<option value="">-- Proveedor --</option>';
+  Object.entries(_escSupsCache).forEach(([pid,prov])=>{
+    const o=document.createElement('option');
+    o.value=pid; o.textContent=(prov.emoji||'')+(prov.name||pid);
+    sel.appendChild(o);
+  });
+  escRenderIngs(); escRecalc();
+  document.getElementById('esc-modal-ov').style.display='flex';
+}
+function escCloseModal(){ document.getElementById('esc-modal-ov').style.display='none'; _escEditId=null; _escIngs=[]; }
+
+function escLoadProds(){
+  const pid=document.getElementById('esc-sel-prov').value;
+  const sel=document.getElementById('esc-sel-prod');
+  sel.innerHTML='<option value="">-- Producto --</option>';
+  if(!pid||!_escSupsCache[pid]) return;
+  const prods=_escSupsCache[pid].products||[];
+  (Array.isArray(prods)?prods:Object.values(prods)).forEach(p=>{
+    const o=document.createElement('option');
+    o.value=p.id||p.name;
+    o.textContent=`${p.name} (${parseFloat(p.price||0).toFixed(2)}€/${p.unit||'u.'})`;
+    o.dataset.price=p.price||0; o.dataset.unit=p.unit||'u.'; o.dataset.name=p.name||'';
+    sel.appendChild(o);
+  });
+}
+
+function escAddIng(){
+  const pid=document.getElementById('esc-sel-prov').value;
+  const sel=document.getElementById('esc-sel-prod');
+  const prodId=sel.value;
+  const qty=parseFloat(document.getElementById('esc-sel-qty').value);
+  if(!pid){toast('Selecciona un proveedor','#dc2626');return;}
+  if(!prodId){toast('Selecciona un producto','#dc2626');return;}
+  if(!qty||qty<=0){toast('Introduce una cantidad válida','#dc2626');return;}
+  const opt=sel.options[sel.selectedIndex];
+  const prov=_escSupsCache[pid];
+  _escIngs.push({proveedorId:pid,proveedorNombre:(prov?.name||pid),productoId:prodId,nombre:opt.dataset.name||opt.textContent,cantidad:qty,unidad:opt.dataset.unit||'u.',precioUnitario:parseFloat(opt.dataset.price)||0});
+  document.getElementById('esc-sel-prov').value='';
+  document.getElementById('esc-sel-prod').innerHTML='<option value="">-- Producto --</option>';
+  document.getElementById('esc-sel-qty').value='';
+  escRenderIngs(); escRecalc();
+}
+
+function escQuitarIng(i){ _escIngs.splice(i,1); escRenderIngs(); escRecalc(); }
+
+function escRenderIngs(){
+  const cont=document.getElementById('esc-ing-list');
+  if(!cont) return;
+  if(!_escIngs.length){cont.innerHTML='<p style="color:var(--mut);font-size:13px">Sin ingredientes</p>';return;}
+  cont.innerHTML=_escIngs.map((ing,i)=>`
+    <div class="esc-ing-row">
+      <span class="in">${ing.nombre}</span>
+      <span class="id">${ing.cantidad} ${ing.unidad} × ${escFmt(ing.precioUnitario)}</span>
+      <span class="ic">${escFmt(ing.cantidad*ing.precioUnitario)}</span>
+      <button onclick="escQuitarIng(${i})" title="Eliminar">✕</button>
+    </div>`).join('');
+}
+
+function escRecalc(){
+  const coste=_escIngs.reduce((s,i)=>s+(parseFloat(i.cantidad)||0)*(parseFloat(i.precioUnitario)||0),0);
+  const pvp=parseFloat(document.getElementById('esc-pvp')?.value)||0;
+  const fcObj=parseFloat(document.getElementById('esc-fcobj')?.value)||30;
+  const fcReal=pvp>0?(coste/pvp*100):null;
+  const pvpSug=coste>0?(coste/(fcObj/100)):null;
+  const margen=pvp>0?(pvp-coste):null;
+  const margenPct=pvp>0&&margen!==null?(margen/pvp*100):null;
+  document.getElementById('ec-coste').textContent=escFmt(coste);
+  const fcEl=document.getElementById('ec-fc');
+  if(fcReal!==null){fcEl.textContent=fcReal.toFixed(1)+'%';fcEl.className=fcReal<=fcObj?'fc-ok':fcReal<=fcObj+5?'fc-warn':'fc-bad';}
+  else{fcEl.textContent='— %';fcEl.className='';}
+  document.getElementById('ec-pvpsug').textContent=pvpSug!==null?escFmt(pvpSug):'— €';
+  document.getElementById('ec-margen').textContent=margen!==null?escFmt(margen):'— €';
+  document.getElementById('ec-margenpct').textContent=margenPct!==null?margenPct.toFixed(1)+'%':'— %';
+}
+
+function escSave(){
+  const nombre=document.getElementById('esc-nombre').value.trim();
+  if(!nombre){toast('Escribe el nombre del plato','#dc2626');return;}
+  const data={nombre,categoria:document.getElementById('esc-categoria').value,precioVenta:parseFloat(document.getElementById('esc-pvp').value)||0,foodCostObjetivo:parseFloat(document.getElementById('esc-fcobj').value)||30,notas:document.getElementById('esc-notas').value.trim(),ingredientes:_escIngs,updatedAt:Date.now()};
+  const ref=_escEditId?fbDb.ref('escandallos/'+_escEditId):fbDb.ref('escandallos').push();
+  if(!_escEditId) data.createdAt=Date.now();
+  ref.set(data).then(()=>{escCloseModal();toast('✅ Escandallo guardado','#16a34a');}).catch(e=>toast('Error: '+e.message,'#dc2626'));
+}
+
+function escDelete(){
+  if(!_escEditId||!confirm('¿Eliminar este escandallo?')) return;
+  fbDb.ref('escandallos/'+_escEditId).remove().then(()=>{escCloseModal();toast('Escandallo eliminado','#888');});
+}
+
+function escFmt(v){ return parseFloat(v||0).toFixed(2).replace('.',',')+' €'; }
+
+/* ═══════════════ NUEVOS PROVEEDORES (tarifas abril 2026) ═══════════════ */
+const NEW_SUPPLIERS = {
+  procarn:{id:'procarn',name:'Procarn',emoji:'🥩',phone:'',products:[
+    {id:'pc1',name:'Alitas de pollo',unit:'KG',price:2.75},
+    {id:'pc2',name:'Alitas de pollo adobadas',unit:'KG',price:5.85},
+    {id:'pc3',name:'Bacon media pieza',unit:'KG',price:7.95},
+    {id:'pc4',name:'Bistec tallado menú (B:10)',unit:'KG',price:13.51},
+    {id:'pc5',name:'Bloc mediana/filet hembra',unit:'KG',price:17.20},
+    {id:'pc6',name:'Bloc mediana/filet macho',unit:'KG',price:13.31},
+    {id:'pc7',name:'Butifarra extra',unit:'KG',price:6.95},
+    {id:'pc8',name:'Bull blanc',unit:'KG',price:11.82},
+    {id:'pc9',name:'Bull negre',unit:'KG',price:12.12},
+    {id:'pc10',name:'Burger meat boví',unit:'KG',price:12.35},
+    {id:'pc11',name:'Burger meat vaca madurada cong.',unit:'KG',price:13.00},
+    {id:'pc12',name:'Panceta ibérica',unit:'KG',price:5.95},
+    {id:'pc13',name:'Conejo',unit:'KG',price:7.45},
+    {id:'pc14',name:'Costilla de cerdo',unit:'KG',price:6.50},
+    {id:'pc15',name:'Costilla de cerdo dados',unit:'KG',price:6.90},
+    {id:'pc16',name:'Cola de ternera fresca',unit:'KG',price:13.80},
+    {id:'pc17',name:'Muslo de pollo deshuesado',unit:'KG',price:7.99},
+    {id:'pc18',name:'Muslo de pollo s/caño',unit:'KG',price:4.25},
+    {id:'pc19',name:'Paletilla de cordero congelada',unit:'KG',price:17.00},
+    {id:'pc20',name:'Entrecot tallado 450g aprox',unit:'KG',price:17.50},
+    {id:'pc21',name:'Entrecot tallado madurado',unit:'KG',price:26.52},
+    {id:'pc22',name:'Estofado ternera',unit:'KG',price:12.57},
+    {id:'pc23',name:'Papada/pecho ternera',unit:'KG',price:11.00},
+    {id:'pc24',name:'Hígado de ternera',unit:'KG',price:7.50},
+    {id:'pc25',name:'Filete de cerdo',unit:'KG',price:9.38},
+    {id:'pc26',name:'Solomillo de ternera',unit:'KG',price:31.00},
+    {id:'pc27',name:'Solomillo ternera cong.',unit:'KG',price:26.90},
+    {id:'pc28',name:'Gallina',unit:'UN',price:4.10},
+    {id:'pc29',name:'Coll de porc',unit:'KG',price:6.76},
+    {id:'pc30',name:'Costilla de cordero congelada',unit:'KG',price:13.00},
+  ]},
+  dispuig:{id:'dispuig',name:'Dispuig',emoji:'🦞',phone:'',products:[
+    {id:'dp1',name:'Almeja blanca Vietnam 60/80',unit:'KG',price:2.25},
+    {id:'dp2',name:'Escárlata 11-15 Nº1',unit:'KG',price:17.43},
+    {id:'dp3',name:'Escárlata 16-20 Nº2',unit:'KG',price:12.42},
+    {id:'dp4',name:'Gamba alistada A-A (48/52) 3 Carabelas',unit:'KG',price:33.99},
+    {id:'dp5',name:'Gamba alistada A2 (42/46)',unit:'KG',price:34.73},
+    {id:'dp6',name:'Gamba alistada A2 (48/52)',unit:'KG',price:27.83},
+    {id:'dp7',name:'Gamba llagostinera (20/30)',unit:'KG',price:11.91},
+    {id:'dp8',name:'Langostino austral pelado 10/20',unit:'ES',price:14.49},
+    {id:'dp9',name:'Langostino Vannamei 50/60',unit:'KG',price:7.13},
+    {id:'dp10',name:'Vieira 1/2 concha 10/20 Chile',unit:'KG',price:18.17},
+    {id:'dp11',name:'Vieira 1/2 concha 20/30 Chile',unit:'KG',price:17.71},
+    {id:'dp12',name:'Vieira nua amb corall 10/20 Escocia',unit:'KG',price:34.50},
+    {id:'dp13',name:'Calamar Marruecos 3P',unit:'KG',price:9.43},
+    {id:'dp14',name:'Calamar Marruecos net troceado',unit:'KG',price:12.65},
+    {id:'dp15',name:'Calamar trozos Indio',unit:'KG',price:5.15},
+    {id:'dp16',name:'Calamar tubo L 26cm+',unit:'KG',price:11.73},
+    {id:'dp17',name:'Calamar tubo M',unit:'KG',price:7.04},
+    {id:'dp18',name:'Gallineta filet con piel 130/200g',unit:'KG',price:8.05},
+    {id:'dp19',name:'Pulpo crudo 4/5kg',unit:'KG',price:15.00},
+    {id:'dp20',name:'Pulpo cocido patas 150/200g',unit:'KG',price:41.35},
+    {id:'dp21',name:'Puntilla Marruecos extra',unit:'ES',price:24.79},
+    {id:'dp22',name:'Puntilla china s/pluma IQF',unit:'ES',price:5.29},
+    {id:'dp23',name:'Sepia limpia 8/12 piezas IQF',unit:'KG',price:8.51},
+    {id:'dp24',name:'Sepia neta Marruecos 200/300g',unit:'KG',price:11.00},
+    {id:'dp25',name:'Cabrito costillas 2kg',unit:'KG',price:20.01},
+    {id:'dp26',name:'Pollo muslo 200/300g IQF',unit:'KG',price:3.22},
+    {id:'dp27',name:'Cerdo ibérico secret',unit:'KG',price:22.03},
+    {id:'dp28',name:'Cerdo Duroc pany costelo',unit:'KG',price:7.22},
+    {id:'dp29',name:'Ternera galtes s/hueso Uruguay',unit:'KG',price:14.95},
+    {id:'dp30',name:'Cordero Chile espalda',unit:'KG',price:12.56},
+    {id:'dp31',name:'Pulpo cocido 1 pata 190g refrig.',unit:'UN',price:8.05},
+    {id:'dp32',name:'Anchoa Cantábrico en aceite',unit:'UN',price:14.95},
+    {id:'dp33',name:'Boquerones en vinagre',unit:'UN',price:8.50},
+    {id:'dp34',name:'Ventresca atún llauna RO-750',unit:'UN',price:15.75},
+  ]},
+  puignau:{id:'puignau',name:'Puignau',emoji:'🐟',phone:'',products:[
+    {id:'pu1',name:'Lenguado europeo 0,2/0,3kg',unit:'KG',price:39.95},
+    {id:'pu2',name:'Lenguado europeo 0,3/0,4kg',unit:'KG',price:40.95},
+    {id:'pu3',name:'Lenguado europeo 0,4/0,6kg',unit:'KG',price:45.95},
+    {id:'pu4',name:'Corvina real 3/4kg',unit:'KG',price:10.95},
+    {id:'pu5',name:'Dorada mediterráneo 0,2/0,3kg',unit:'KG',price:8.60},
+    {id:'pu6',name:'Dorada mediterráneo 0,4/0,6kg',unit:'KG',price:9.05},
+    {id:'pu7',name:'Dorada mediterráneo 0,6/0,8kg',unit:'KG',price:9.35},
+    {id:'pu8',name:'Dorada mediterráneo 0,8/1kg',unit:'KG',price:13.50},
+    {id:'pu9',name:'Dorada nacional 0,4/0,5kg',unit:'KG',price:11.25},
+    {id:'pu10',name:'Dorada nacional 0,6/0,8kg',unit:'KG',price:11.25},
+    {id:'pu11',name:'Dorada nacional 1,1/1,4kg',unit:'KG',price:15.95},
+    {id:'pu12',name:'Lubina semi-salvaje estero 0,8/0,95kg',unit:'KG',price:17.95},
+    {id:'pu13',name:'Lubina mediterráneo 0,4/0,6kg',unit:'KG',price:10.25},
+    {id:'pu14',name:'Lubina mediterráneo 0,6/0,8kg',unit:'KG',price:10.75},
+    {id:'pu15',name:'Lubina mediterráneo 0,8/1kg',unit:'KG',price:16.25},
+    {id:'pu16',name:'Lubina nacional 0,4/0,5kg',unit:'KG',price:12.75},
+    {id:'pu17',name:'Lubina nacional 0,6/0,8kg',unit:'KG',price:12.75},
+    {id:'pu18',name:'Salmón Noruega superior 3/4kg',unit:'KG',price:10.95},
+    {id:'pu19',name:'Salmón Noruega superior 4/5kg',unit:'KG',price:11.50},
+    {id:'pu20',name:'Rodaballo 0,4/0,6kg',unit:'KG',price:18.25},
+    {id:'pu21',name:'Rodaballo 0,6/0,8kg',unit:'KG',price:16.95},
+    {id:'pu22',name:'Rodaballo 1/1,5kg',unit:'KG',price:20.25},
+    {id:'pu23',name:'Rodaballo 2/2,5kg',unit:'KG',price:20.75},
+    {id:'pu24',name:'Rodaballo 3/4kg',unit:'KG',price:25.50},
+    {id:'pu25',name:'Atún bluefin granja Balfego',unit:'KG',price:48.95},
+    {id:'pu26',name:'Atún lomo aleta amarilla Yellowfin',unit:'KG',price:34.50},
+    {id:'pu27',name:'Atún refrigerado 2/3kg',unit:'KG',price:13.50},
+    {id:'pu28',name:'Ventresca atún aleta amarilla',unit:'KG',price:11.75},
+    {id:'pu29',name:'Ventresca atún toro Balfego',unit:'KG',price:59.50},
+    {id:'pu30',name:'Merluza volanta 2/3kg',unit:'KG',price:10.50},
+    {id:'pu31',name:'Rape cola 1/2kg',unit:'KG',price:25.50},
+    {id:'pu32',name:'Rape cola 2/4kg',unit:'KG',price:27.50},
+    {id:'pu33',name:'Rape cola 4/6kg',unit:'KG',price:29.95},
+    {id:'pu34',name:'Rape carrilleras',unit:'KG',price:17.95},
+    {id:'pu35',name:'Rapitos norte 0,5/0,6kg',unit:'KG',price:9.40},
+    {id:'pu36',name:'Bacalao filete',unit:'KG',price:16.50},
+    {id:'pu37',name:'Salmón filete desespinado 3/4kg',unit:'KG',price:18.75},
+    {id:'pu38',name:'Perca filete',unit:'KG',price:19.25},
+    {id:'pu39',name:'Almeja Galicia Nº1',unit:'KG',price:51.95},
+    {id:'pu40',name:'Almeja Galicia Nº2',unit:'KG',price:29.50},
+    {id:'pu41',name:'Almeja Galicia Nº3',unit:'KG',price:27.50},
+    {id:'pu42',name:'Berberechos Cachel G',unit:'KG',price:18.75},
+    {id:'pu43',name:'Mejillón Galicia saco 5kg',unit:'KG',price:2.30},
+    {id:'pu44',name:'Mejillón de roca (saco 5kg)',unit:'KG',price:2.10},
+    {id:'pu45',name:'Navaja Galicia M (30-40u/kg)',unit:'KG',price:35.95},
+    {id:'pu46',name:'Ostra francesa Gillardeau Nº2',unit:'UN',price:2.25},
+    {id:'pu47',name:'Ostra francesa Gillardeau Nº3',unit:'UN',price:1.85},
+    {id:'pu48',name:'Ostra Galicia 25u/caja especial',unit:'UN',price:1.95},
+    {id:'pu49',name:'Buey de mar 0,6/0,8kg',unit:'KG',price:14.95},
+    {id:'pu50',name:'Cigala costa BCN G 25p/kg',unit:'KG',price:68.95},
+    {id:'pu51',name:'Cigala muerta 10/16 Nº1',unit:'KG',price:33.50},
+    {id:'pu52',name:'Cigala muerta 16/21 Nº2',unit:'KG',price:25.95},
+    {id:'pu53',name:'Bogavante país 2 pinzas 0,6/0,8kg',unit:'KG',price:58.95},
+    {id:'pu54',name:'Nécora G',unit:'KG',price:35.50},
+    {id:'pu55',name:'Nécora P',unit:'KG',price:30.50},
+    {id:'pu56',name:'Vieira de carne gorda 19-25u/kg',unit:'KG',price:44.50},
+    {id:'pu57',name:'Calamar 0,5/1kg',unit:'KG',price:25.95},
+    {id:'pu58',name:'Calamar costa 0,1/0,3kg',unit:'KG',price:26.50},
+    {id:'pu59',name:'Pulpo de roca cocido',unit:'KG',price:34.95},
+    {id:'pu60',name:'Sepia limpia M',unit:'KG',price:12.75},
+    {id:'pu61',name:'Sepietas 0,3/0,5kg',unit:'KG',price:19.95},
+    {id:'pu62',name:'Bacalao lomo desalado (5u)',unit:'KG',price:38.95},
+    {id:'pu63',name:'Trucha de río salmonada',unit:'KG',price:7.10},
+    {id:'pu64',name:'Sardina ahumada Santoña 500g',unit:'UN',price:19.95},
+    {id:'pu65',name:'Zamburiña media concha (200g)',unit:'UN',price:5.10},
+  ]},
+  trias:{id:'trias',name:'Carns Trias',emoji:'🥩',phone:'972573474',products:[
+    {id:'tr1',name:'Cap de llom s/hueso cerdo',unit:'KG',price:6.20},
+    {id:'tr2',name:'Costilla tallada cerdo',unit:'KG',price:5.70},
+    {id:'tr3',name:'Costillas cerdo',unit:'KG',price:6.50},
+    {id:'tr4',name:'Filete cerdo',unit:'KG',price:7.90},
+    {id:'tr5',name:'Galtes cerdo',unit:'KG',price:5.35},
+    {id:'tr6',name:'Lomo canya cerdo',unit:'KG',price:5.40},
+    {id:'tr7',name:'Panceta cerdo',unit:'KG',price:5.75},
+    {id:'tr8',name:'Peus cerdo',unit:'KG',price:4.85},
+    {id:'tr9',name:'Ossobuco pernil cerdo',unit:'KG',price:4.30},
+    {id:'tr10',name:'Bonxai tallat (cordero)',unit:'KG',price:15.20},
+    {id:'tr11',name:'Carré Bonxai (cordero)',unit:'KG',price:22.60},
+    {id:'tr12',name:'Muslo Bonxai (cordero)',unit:'KG',price:12.40},
+    {id:'tr13',name:'Espalda Bonxai (cordero)',unit:'KG',price:12.70},
+    {id:'tr14',name:'Entrecot ternera Qualitat Trias',unit:'KG',price:16.80},
+    {id:'tr15',name:'Entrecot ternera tallat Qualitat Trias',unit:'KG',price:17.40},
+    {id:'tr16',name:'Botifarra blanca',unit:'KG',price:8.80},
+    {id:'tr17',name:'Botifarra negra',unit:'KG',price:8.75},
+    {id:'tr18',name:'Beicon extra',unit:'KG',price:8.60},
+    {id:'tr19',name:'Beicon s/pell tallat',unit:'KG',price:9.10},
+    {id:'tr20',name:'Catalana',unit:'KG',price:9.80},
+    {id:'tr21',name:'Fuet',unit:'KG',price:13.80},
+    {id:'tr22',name:'Llonganissa pagès',unit:'KG',price:15.60},
+    {id:'tr23',name:'Sobrassada',unit:'KG',price:13.30},
+    {id:'tr24',name:'Xoriç ibèric',unit:'KG',price:19.20},
+    {id:'tr25',name:'Formatge Holandes',unit:'KG',price:9.40},
+    {id:'tr26',name:'Carn picada vedella',unit:'KG',price:11.90},
+    {id:'tr27',name:'Carn picada porc',unit:'KG',price:6.30},
+    {id:'tr28',name:'Burger meat vedella',unit:'KG',price:10.20},
+    {id:'tr29',name:'Cap de mort vedella',unit:'KG',price:10.75},
+    {id:'tr30',name:'Cola vedella',unit:'KG',price:13.00},
+    {id:'tr31',name:'Culata vedella',unit:'KG',price:13.60},
+    {id:'tr32',name:'Entrecot vedella',unit:'KG',price:13.60},
+    {id:'tr33',name:'Entrecot vedella s/os tallat',unit:'KG',price:15.90},
+    {id:'tr34',name:'Estofat vedella',unit:'KG',price:11.35},
+    {id:'tr35',name:'Fetge vedella',unit:'KG',price:4.55},
+    {id:'tr36',name:'Filet 1ª vedella',unit:'KG',price:29.00},
+    {id:'tr37',name:'Fricandó vedella',unit:'KG',price:12.50},
+    {id:'tr38',name:'Galtes vedella',unit:'KG',price:13.90},
+    {id:'tr39',name:'Ossobuco vedella',unit:'KG',price:15.80},
+    {id:'tr40',name:'Vacío argentino vedella',unit:'KG',price:10.40},
+    {id:'tr41',name:'Xurrasco vedella',unit:'KG',price:11.60},
+    {id:'tr42',name:'Alitas de pollo',unit:'KG',price:3.05},
+    {id:'tr43',name:'Muslo pollo s/hueso (amb pell)',unit:'KG',price:5.30},
+    {id:'tr44',name:'Filete de pollo',unit:'KG',price:7.00},
+    {id:'tr45',name:'Gallina',unit:'KG',price:3.50},
+    {id:'tr46',name:'Pollo entero',unit:'KG',price:3.10},
+    {id:'tr47',name:'Cuartos de pollo',unit:'KG',price:3.90},
+    {id:'tr48',name:'Conejo',unit:'KG',price:7.60},
+    {id:'tr49',name:'Costilla Duroc 100%',unit:'KG',price:7.65},
+    {id:'tr50',name:'Lomo canya Duroc 100%',unit:'KG',price:10.95},
+    {id:'tr51',name:'Pluma Duroc 100%',unit:'KG',price:12.80},
+    {id:'tr52',name:'Secret Duroc 100%',unit:'KG',price:12.10},
+    {id:'tr53',name:'Lagarto Duroc 100%',unit:'KG',price:18.60},
+    {id:'tr54',name:'Panxeta Duroc 100%',unit:'KG',price:5.40},
+    {id:'tr55',name:'Botifarra pagès',unit:'KG',price:6.80},
+    {id:'tr56',name:'Xistorra fresca',unit:'KG',price:7.10},
+  ]},
+  ferrer:{id:'ferrer',name:'Ferrer',emoji:'🧊',phone:'',products:[
+    {id:'fe1',name:'Patata 10mm',unit:'KG',price:1.54},
+    {id:'fe2',name:'Patata brava',unit:'KG',price:1.89},
+    {id:'fe3',name:'Patata juliana 7mm',unit:'KG',price:1.59},
+    {id:'fe4',name:'Alcachofa corazones',unit:'KG',price:7.03},
+    {id:'fe5',name:'Aguacate dados',unit:'KG',price:5.96},
+    {id:'fe6',name:'Almeja blanca Pacífico',unit:'KG',price:2.25},
+    {id:'fe7',name:'Almeja cultivo gallego',unit:'KG',price:26.95},
+    {id:'fe8',name:'Anchoa Cantábrico N.00-25F',unit:'ES',price:14.95},
+    {id:'fe9',name:'Atún lomo extra ATM',unit:'KG',price:19.90},
+    {id:'fe10',name:'Atún lomo Yellowfin',unit:'KG',price:31.56},
+    {id:'fe11',name:'Bacalao ISL desmigado MSC',unit:'ES',price:5.95},
+    {id:'fe12',name:'Bacalao ISL 500-1000 MSC',unit:'KG',price:11.95},
+    {id:'fe13',name:'Bacalao ISL Jumbo MSC',unit:'KG',price:17.90},
+    {id:'fe14',name:'Bacalao lomo taco ISL MSC',unit:'KG',price:19.77},
+    {id:'fe15',name:'Berberecho M',unit:'KG',price:7.80},
+    {id:'fe16',name:'Bogavante 400-450',unit:'KG',price:19.95},
+    {id:'fe17',name:'Boquerón en aceite 500g',unit:'ES',price:16.95},
+    {id:'fe18',name:'Brócoli',unit:'KG',price:1.77},
+    {id:'fe19',name:'Burger dry aged 150g',unit:'UN',price:2.56},
+    {id:'fe20',name:'Calamar 3P (6kg aprox)',unit:'KG',price:10.50},
+    {id:'fe21',name:'Calamar Patagonia limpio',unit:'KG',price:9.75},
+    {id:'fe22',name:'Calamar trozos',unit:'KG',price:5.95},
+    {id:'fe23',name:'Ceps (boletus) cortados',unit:'KG',price:10.50},
+    {id:'fe24',name:'Champiñón entero',unit:'KG',price:2.27},
+    {id:'fe25',name:'Champiñón laminado',unit:'KG',price:1.90},
+    {id:'fe26',name:'Chipiron limpio',unit:'KG',price:5.99},
+    {id:'fe27',name:'Cigala 20-30 (M)',unit:'KG',price:20.75},
+    {id:'fe28',name:'Cigala N.1 (11-15)',unit:'KG',price:16.95},
+    {id:'fe29',name:'Cigala N.2 (16-20)',unit:'KG',price:13.87},
+    {id:'fe30',name:'Cigala N.3 (21-25)',unit:'KG',price:10.17},
+    {id:'fe31',name:'Cigala N.4 (26-35)',unit:'KG',price:9.99},
+    {id:'fe32',name:'Corvina piscina 2-3',unit:'KG',price:10.40},
+    {id:'fe33',name:'Corvina piscina 3-4',unit:'KG',price:11.95},
+    {id:'fe34',name:'Dorada piscina 200-300',unit:'KG',price:9.50},
+    {id:'fe35',name:'Dorada piscina 300-400',unit:'KG',price:10.15},
+    {id:'fe36',name:'Dorada piscina 400-600',unit:'KG',price:10.40},
+    {id:'fe37',name:'Dorada piscina 600-800',unit:'KG',price:11.35},
+    {id:'fe38',name:'Espárrago verde grueso',unit:'KG',price:5.79},
+    {id:'fe39',name:'Espinacas hoja',unit:'KG',price:1.29},
+    {id:'fe40',name:'Frutas del bosque',unit:'KG',price:5.80},
+    {id:'fe41',name:'Gallineta nórdica 130-200g',unit:'KG',price:8.50},
+    {id:'fe42',name:'Gamba alistada extra Ferrer',unit:'KG',price:35.50},
+    {id:'fe43',name:'Gamba alistada Yeye 3 Car 48-52',unit:'KG',price:35.95},
+    {id:'fe44',name:'Gamba cristal',unit:'KG',price:13.65},
+    {id:'fe45',name:'Gambón austral 2 20-30',unit:'KG',price:8.99},
+    {id:'fe46',name:'Gambón austral cola pelado 10-30',unit:'KG',price:13.80},
+    {id:'fe47',name:'Guisante fino',unit:'KG',price:1.75},
+    {id:'fe48',name:'Habas baby',unit:'KG',price:3.20},
+    {id:'fe49',name:'Langosta roja 600-800',unit:'KG',price:29.90},
+    {id:'fe50',name:'Langostino mediterráneo A 20-30',unit:'ES',price:19.80},
+    {id:'fe51',name:'Langostino mediterráneo AA 16-20',unit:'ES',price:20.95},
+    {id:'fe52',name:'Langostino Vannamei 30-40',unit:'KG',price:6.75},
+    {id:'fe53',name:'Lenguado piscina 300-400',unit:'KG',price:25.70},
+    {id:'fe54',name:'Lenguado piscina 400-600',unit:'KG',price:28.80},
+    {id:'fe55',name:'Lomo bajo F +7kg',unit:'KG',price:14.21},
+    {id:'fe56',name:'Lubina piscina 200-300',unit:'KG',price:9.50},
+    {id:'fe57',name:'Lubina piscina 300-400',unit:'KG',price:10.15},
+    {id:'fe58',name:'Lubina piscina 400-600',unit:'KG',price:10.40},
+    {id:'fe59',name:'Lubina piscina 600-800',unit:'KG',price:11.40},
+    {id:'fe60',name:'Mejillón gallego',unit:'KG',price:1.99},
+    {id:'fe61',name:'Mejillón roca',unit:'KG',price:2.33},
+    {id:'fe62',name:'Merluza lomos',unit:'KG',price:11.50},
+    {id:'fe63',name:'Navaja gallega',unit:'KG',price:29.96},
+    {id:'fe64',name:'Navajas MSC',unit:'KG',price:4.77},
+    {id:'fe65',name:'Ostra Gillardeau Nº2',unit:'ES',price:2.29},
+    {id:'fe66',name:'Pechuga pollo',unit:'KG',price:7.25},
+    {id:'fe67',name:'Pulpo cocido entero 450-650',unit:'KG',price:17.50},
+    {id:'fe68',name:'Pulpo cocido patas 300-400',unit:'KG',price:26.05},
+    {id:'fe69',name:'Pulpo patas 200-250',unit:'KG',price:32.00},
+    {id:'fe70',name:'Puntilla india s/pluma IQF',unit:'KG',price:6.00},
+    {id:'fe71',name:'Puntilla marroquí',unit:'ES',price:12.90},
+    {id:'fe72',name:'Rape colita Namibia 100-300g',unit:'KG',price:11.95},
+    {id:'fe73',name:'Rejos IQF',unit:'KG',price:8.75},
+    {id:'fe74',name:'Rodaballo piscina 1,5-2',unit:'KG',price:20.80},
+    {id:'fe75',name:'Rodaballo piscina 2-2,5',unit:'KG',price:23.60},
+    {id:'fe76',name:'Rodaballo piscina 3-4',unit:'KG',price:30.25},
+    {id:'fe77',name:'Salmón ahumado precortado 1,4kg',unit:'KG',price:29.75},
+    {id:'fe78',name:'Salmón con piel (filete)',unit:'KG',price:19.90},
+    {id:'fe79',name:'Salmón noruego 3-4',unit:'KG',price:11.90},
+    {id:'fe80',name:'Salmón noruego 4-5',unit:'KG',price:11.90},
+    {id:'fe81',name:'Salmón noruego 5-6',unit:'KG',price:11.90},
+    {id:'fe82',name:'Sardina',unit:'KG',price:4.70},
+    {id:'fe83',name:'Secreto cerdo ibérico',unit:'KG',price:9.90},
+    {id:'fe84',name:'Sepia limpia 5-7',unit:'KG',price:7.50},
+    {id:'fe85',name:'Setas variado',unit:'KG',price:2.94},
+    {id:'fe86',name:'Solomillo vacuno C +3,5kg',unit:'KG',price:24.50},
+    {id:'fe87',name:'Vieira carne +30',unit:'KG',price:41.00},
+    {id:'fe88',name:'Vieira carne 20-24',unit:'KG',price:42.50},
+    {id:'fe89',name:'Vieira carne 20-30',unit:'KG',price:26.90},
+    {id:'fe90',name:'Zamburiña 1/2 concha 10-20',unit:'KG',price:15.20},
+    {id:'fe91',name:'Zamburiña 1/2 concha 20-30',unit:'KG',price:13.90},
+    {id:'fe92',name:'Edamame',unit:'KG',price:3.60},
+    {id:'fe93',name:'Alcachofa trozos',unit:'KG',price:3.58},
+    {id:'fe94',name:'Espárrago troceado',unit:'KG',price:5.14},
+  ]},
+};
+
+function addMissingSuppliers(){
+  if(!fbDb) return;
+  fbDb.ref('suppliers').once('value', snap=>{
+    const existing = snap.val() || {};
+    const updates = {};
+    Object.entries(NEW_SUPPLIERS).forEach(([id, sup])=>{
+      if(!existing[id]) updates[id] = sup;
+    });
+    if(Object.keys(updates).length > 0){
+      fbDb.ref('suppliers').update(updates).then(()=>{
+        toast('✅ Nuevos proveedores añadidos: '+Object.keys(updates).map(k=>NEW_SUPPLIERS[k].name).join(', '),'#16a34a');
+      });
+    }
+  });
+}
+
+function updateCoreSuppliers(){
+  if(!fbDb) return;
+  fbDb.ref('suppliers').once('value', snap=>{
+    const existing = snap.val() || {};
+    const updates = {};
+    ['bencar','ismael'].forEach(id=>{
+      const cur = existing[id];
+      const def = DEFAULT_SUPS[id];
+      if(!cur || !cur.products || !cur.products[0] || !String(cur.products[0].id).startsWith(id==='bencar'?'bx':'ix')){
+        updates[id] = def;
+      }
+    });
+    if(Object.keys(updates).length > 0){
+      fbDb.ref('suppliers').update(updates).then(()=>{
+        toast('✅ Tarifas de Bencar e Ismael actualizadas','#16a34a');
+      });
+    }
+  });
+}
+
 /* ═══════════════ INIT ═══════════════ */
 window.addEventListener('DOMContentLoaded',()=>{
   try {
@@ -1664,6 +2389,8 @@ window.addEventListener('DOMContentLoaded',()=>{
     console.warn('Firebase init error:', e);
   }
   initFirebaseListeners();
+  addMissingSuppliers();
+  updateCoreSuppliers();
   render();
 });
 </script>
