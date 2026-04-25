@@ -292,10 +292,13 @@ if(!cfg.users) cfg.users=DEFAULT_USERS;
 function saveCfg(){ localStorage.setItem('oc_cfg', JSON.stringify(cfg)); }
 
 /* ═══════════════ FIREBASE DATA (pedidos, proveedores, albaranes, revenue) ═══════════════ */
-let orders   = [];
-let suppliers= JSON.parse(localStorage.getItem('oc_suppliers')||JSON.stringify(DEFAULT_SUPS));
-let albNotes = [];
-let revenue  = {};
+let orders      = [];
+let suppliers   = JSON.parse(localStorage.getItem('oc_suppliers')||JSON.stringify(DEFAULT_SUPS));
+let albNotes    = [];
+let revenue     = {};
+let budgets     = {};
+let priceHistory= [];
+let templates   = {};
 let fbConnected = false;
 
 function supList(){ return Object.values(suppliers); }
@@ -353,6 +356,21 @@ function initFirebaseListeners(){
     revenue = snap.val() || {};
     if(S.view==='admin' && S.adminTab==='foodcost') renderAdminContent();
   });
+  // Budgets
+  fbDb.ref('budgets').on('value', snap => {
+    budgets = snap.val() || {};
+    if(S.view==='admin' && S.adminTab==='budgets') renderAdminContent();
+  });
+  // Price history
+  fbDb.ref('priceHistory').on('value', snap => {
+    const val = snap.val();
+    priceHistory = val ? Object.values(val).sort((a,b)=>new Date(b.changedAt)-new Date(a.changedAt)) : [];
+  });
+  // Templates
+  fbDb.ref('templates').on('value', snap => {
+    templates = snap.val() || {};
+    if(S.view==='order') render();
+  });
 }
 
 /* ═══════════════ SAVE FUNCTIONS ═══════════════ */
@@ -389,6 +407,7 @@ let S={
   pinTarget:null, pinBuf:'',
   albView:'list', albItems:[], albRestaurant:'', albSupId:'', albDate:new Date().toISOString().split('T')[0], albPhoto:null,
   fcPeriod:'month', fcDate:new Date().toISOString().split('T')[0],
+  showSaveTemplate:false,
 };
 let chartInst=null;
 const EMOJIS=['🏠','🌿','⭐','🍽️','🏃','🌅','🎯','🧭','🌊','⚓','🌆','🏙️','🌃'];
@@ -503,6 +522,9 @@ function renderAdminContent(){
   else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='spending') content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
   else if(S.adminTab==='foodcost') content=vFoodCost();
+  else if(S.adminTab==='budgets')  content=vBudgets();
+  else if(S.adminTab==='compare')  content=vCompare();
+  else if(S.adminTab==='prices')   content=vPriceHistory();
   else if(S.adminTab==='albaranes') content=vAlbaranes();
   else if(S.adminTab==='users')    content=vUsers();
   else if(S.adminTab==='suppliers') content=vSuppliers();
@@ -569,8 +591,16 @@ function vOrder(){
       </div>
     </div>`;
   }).join('');
+  const myTpls=Object.values(templates[S.session.userId]||{}).filter(t=>t.supId===S.supId);
+  const tplSection=`<div class="sh" style="margin-top:4px">Plantillas</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      ${myTpls.map(t=>`<div style="display:flex;gap:2px"><button class="btn btn-ghost btn-sm" onclick="loadTemplate('${t.id}')" style="border-radius:6px 0 0 6px">📥 ${t.name}</button><button class="btn btn-no btn-sm" onclick="deleteTpl('${t.id}')" style="border-radius:0 6px 6px 0;padding:0 8px">✕</button></div>`).join('')}
+      ${cnt>0?`<button class="btn btn-ghost btn-sm" onclick="S.showSaveTemplate=!S.showSaveTemplate;render()">💾 Guardar</button>`:''}
+    </div>
+    ${S.showSaveTemplate?`<div style="display:flex;gap:6px;margin-bottom:10px"><input type="text" id="tpl-name" placeholder="Nombre de la plantilla..." style="flex:1;padding:6px 10px;border:1px solid var(--brd);border-radius:6px;font-size:13px"/><button class="btn btn-pri btn-sm" onclick="saveTpl()">Guardar</button></div>`:''}`;
   return `<div class="main">
     ${tabsHtml}${note}
+    ${tplSection}
     <div class="sh">Proveedor</div>
     <div class="sup-tabs">${stabs}</div>
     <div class="sh">Productos — ${sup.emoji} ${sup.name}</div>
@@ -629,6 +659,9 @@ function vAdmin(){
     {id:'consolidated',lbl:`📦 Consolid.`},
     {id:'spending',  lbl:`📊 Gasto`},
     {id:'foodcost',  lbl:`💰 Food Cost`},
+    {id:'budgets',   lbl:`💳 Presupuesto`},
+    {id:'compare',   lbl:`🔍 Comparar`},
+    {id:'prices',    lbl:`📈 Precios`},
     {id:'albaranes', lbl:`📋 Albaranes`},
     {id:'users',     lbl:`👥 Usuarios`},
     {id:'suppliers', lbl:`🏭 Proveed.`},
@@ -641,6 +674,9 @@ function vAdmin(){
   else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='spending') content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
   else if(S.adminTab==='foodcost') content=vFoodCost();
+  else if(S.adminTab==='budgets')  content=vBudgets();
+  else if(S.adminTab==='compare')  content=vCompare();
+  else if(S.adminTab==='prices')   content=vPriceHistory();
   else if(S.adminTab==='albaranes') content=vAlbaranes();
   else if(S.adminTab==='users')    content=vUsers();
   else if(S.adminTab==='suppliers') content=vSuppliers();
@@ -701,12 +737,22 @@ function orderCard(o,showActions){
     </div>`;
   }
   const totLabel=isEditing?`<div class="ptot" id="edit-tot">Total: ${fmt(tot)}</div>`:`<div class="ptot">Total: ${fmt(tot)}</div>`;
+  const threshold=cfg.alertThreshold||300;
+  const isLargeOrder=showActions&&tot>=threshold;
+  const largeAlert=isLargeOrder?`<div class="banner red" style="margin:6px 0 2px">⚠️ Pedido grande — supera ${fmt(threshold)}</div>`:'';
+  // Budget warning
+  const oUser=cfg.users.find(u=>u.restaurant===o.restaurant);
+  const bKey=oUser?oUser.id+'_'+o.createdAt.slice(0,7):null;
+  const bLimit=bKey?(budgets[bKey]||0):0;
+  const bSpent=bKey?orders.filter(x=>x.status==='approved'&&x.restaurant===o.restaurant&&x.createdAt.startsWith(o.createdAt.slice(0,7))).reduce((s,x)=>s+total(x),0):0;
+  const budgetAlert=bLimit>0&&bSpent>bLimit?`<div class="banner red" style="margin:4px 0 2px">💳 Presupuesto superado — ${fmt(bSpent)} de ${fmt(bLimit)}</div>`:'';
   return `<div class="oc" ${isEditing?'style="border-color:var(--pri);box-shadow:0 0 0 2px rgba(26,26,46,.15)"':''}>
     <div class="oc-hd">
       <div><div class="oc-rest">${o.restaurant}${o.autoApproved?` <span class="badge b-f">Auto</span>`:''}${modTag}</div>
       <div class="oc-sub">${sup.emoji} ${sup.name} · ${fmtD(o.createdAt)} · <span class="badge ${bc}">${bl}</span></div></div>
       ${acts}
     </div>
+    ${largeAlert}${budgetAlert}
     ${isEditing?`<div class="banner blue" style="margin-bottom:10px">✏️ Modifica las cantidades y pulsa <strong>Aprobar</strong></div>`:''}
     <div class="pl">${itemsHtml}${totLabel}</div>
   </div>`;
@@ -765,7 +811,8 @@ function albCard(a){
   const sup=suppliers[a.supId]||{name:'?',emoji:'?'};
   const tot=a.items.reduce((s,it)=>s+it.qty*it.price,0);
   const matchOrder=orders.find(o=>o.restaurant===a.restaurant&&o.supId===a.supId&&o.status==='approved');
-  const rows=a.items.map(it=>`<div class="pr"><span class="pn">${it.code?`<small style="color:var(--mut)">[${it.code}]</small> `:''} ${it.name}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
+  const hasIncidents=a.items.some(it=>it.incident);
+  const rows=a.items.map(it=>`<div class="pr" style="${it.incident?'background:#fff5f5;border-radius:6px;padding:4px 6px;margin-bottom:2px':''}"><span class="pn">${it.code?`<small style="color:var(--mut)">[${it.code}]</small> `:''} ${it.name}${it.incident?`<div style="font-size:11px;color:#dc2626;margin-top:2px">⚠️ ${it.incident}</div>`:''}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
   let cmp='';
   if(matchOrder){
     const cmpRows=a.items.map(ai=>{
@@ -780,7 +827,7 @@ function albCard(a){
   return `<div class="alb-card">
     <div class="alb-hd">
       <div><div class="alb-rest">${a.restaurant}</div><div class="alb-info">${sup.emoji} ${sup.name} · ${new Date(a.date+'T00:00:00').toLocaleDateString('es-ES')}</div></div>
-      <div style="display:flex;gap:6px"><button class="btn btn-no btn-xs" onclick="delAlbF('${a.id}')">🗑️</button></div>
+      <div style="display:flex;gap:6px">${hasIncidents?`<span class="badge" style="background:#dc2626;color:#fff">⚠️ Incid.</span>`:''}<button class="btn btn-no btn-xs" onclick="delAlbF('${a.id}')">🗑️</button></div>
     </div>
     ${a.photo?`<img src="${a.photo}" class="alb-photo"/>`:''}
     <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
@@ -805,6 +852,7 @@ function vAlbaranNew(){
         <div class="fg" style="margin-bottom:6px"><label>Unidad</label><select onchange="S.albItems[${i}].unit=this.value"><option ${it.unit==='KG'?'selected':''}>KG</option><option ${it.unit==='UN'?'selected':''}>UN</option><option ${it.unit==='L'?'selected':''}>L</option><option ${it.unit==='Caja'?'selected':''}>Caja</option></select></div>
         <div class="fg" style="margin-bottom:0"><label>Cantidad</label><input type="number" value="${it.qty}" step="0.1" min="0" onchange="S.albItems[${i}].qty=parseFloat(this.value)||0"/></div>
         <div class="fg" style="margin-bottom:0"><label>Precio €</label><input type="number" value="${it.price}" step="0.01" min="0" onchange="S.albItems[${i}].price=parseFloat(this.value)||0"/></div>
+        <div class="fg" style="margin-bottom:0;grid-column:1/-1"><label style="color:${it.incident?'#dc2626':'var(--mut)'}">⚠️ Incidencia (opcional)</label><input type="text" value="${it.incident||''}" placeholder="Ej: Faltaban 2kg, producto en mal estado..." onchange="S.albItems[${i}].incident=this.value" style="${it.incident?'border-color:#dc2626;background:#fff5f5':''}"/></div>
         <div class="fg" style="margin-bottom:0"><label>Total</label><input type="text" readonly value="${fmt(it.qty*it.price)}" style="background:var(--bg)"/></div>
       </div>
     </div>`).join('');
@@ -817,7 +865,7 @@ function vAlbaranNew(){
         <div class="file-input-wrap"><div class="file-input-btn">📷 Fotografiar o subir imagen</div><input type="file" accept="image/*" capture="environment" onchange="handleAlbPhoto(this)"/></div>
         <img id="alb-img-preview" class="img-preview" style="${S.albPhoto?'display:block':'display:none'}" src="${S.albPhoto||''}"/>
         <div id="ocr-progress" class="ocr-progress">🔍 Reconociendo texto...</div>
-        ${S.albPhoto?`<button class="btn btn-blue btn-sm" style="margin-top:8px" onclick="runOCR()">🔍 Reconocer productos (OCR)</button>`:''}
+        ${S.albPhoto?`<button class="btn btn-blue btn-sm" style="margin-top:8px" onclick="runOCR()">${cfg.geminiKey?'🤖 Reconocer con IA (Gemini)':'🔍 Reconocer productos (OCR)'}</button>`:''}
       </div>
     </div>
     <div class="sh">Productos del albarán</div>
@@ -841,19 +889,49 @@ function albDelItem(i){ S.albItems.splice(i,1);render(); }
 
 async function runOCR(){
   if(!S.albPhoto){toast('Añade una foto primero','#dc2626');return;}
-  document.getElementById('ocr-progress').style.display='block';
+  const prog=document.getElementById('ocr-progress');
+  if(prog){prog.style.display='block';prog.textContent=cfg.geminiKey?'🤖 Analizando con IA...':'🔍 Reconociendo texto...';}
   try{
-    if(!window.Tesseract){
-      await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+    if(cfg.geminiKey){
+      // Gemini Vision
+      const base64=S.albPhoto.split(',')[1];
+      const mime=S.albPhoto.split(';')[0].split(':')[1]||'image/jpeg';
+      const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${cfg.geminiKey}`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:[{parts:[
+          {inline_data:{mime_type:mime,data:base64}},
+          {text:`Eres un asistente que lee albaranes de restaurante. Extrae TODOS los productos con sus cantidades y precios unitarios. Responde ÚNICAMENTE con un JSON array, sin ningún texto adicional antes ni después:\n[{"name":"Entrecot de ternera","qty":5.5,"unit":"KG","price":28.50}]\nUnidades posibles: KG, UN, L, Caja. Si no hay precio usa 0. Solo el JSON array.`}
+        ]}]})
+      });
+      const data=await resp.json();
+      if(data.error){toast('Error Gemini: '+data.error.message,'#dc2626');return;}
+      const text=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+      const match=text.match(/\[[\s\S]*\]/);
+      if(match){
+        const parsed=JSON.parse(match[0]);
+        if(parsed.length>0){
+          S.albItems=[...S.albItems,...parsed.map(p=>({code:'',name:p.name||'',unit:p.unit||'KG',qty:parseFloat(p.qty)||1,price:parseFloat(p.price)||0}))];
+          toast(`🤖 Gemini reconoció ${parsed.length} productos. Revisa y corrige.`,'#16a34a');return;
+        }
+      }
+      toast('Gemini no encontró productos. Prueba con mejor foto o añade manualmente.','#d97706');
+    } else {
+      // Tesseract fallback
+      try{
+        if(!window.Tesseract){await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+        const worker=await Tesseract.createWorker('spa+eng');
+        const {data:{text}}=await worker.recognize(S.albPhoto);
+        await worker.terminate();
+        const parsed=parseOCRText(text);
+        if(parsed.length>0){S.albItems=[...S.albItems,...parsed];toast(`✅ ${parsed.length} líneas reconocidas. Revisa y corrige.`,'#16a34a');}
+        else toast('No se reconocieron productos. Añádelos manualmente.','#d97706');
+      }catch(te){
+        console.warn('Tesseract error:',te);
+        toast('OCR básico no disponible aquí. Configura Gemini IA en ⚙️ Config para reconocimiento con IA gratuita.','#d97706');
+      }
     }
-    const worker=await Tesseract.createWorker('spa+eng');
-    const {data:{text}}=await worker.recognize(S.albPhoto);
-    await worker.terminate();
-    const parsed=parseOCRText(text);
-    if(parsed.length>0){ S.albItems=[...S.albItems,...parsed];toast(`✅ ${parsed.length} líneas reconocidas. Revisa y corrige.`,'#16a34a'); }
-    else toast('No se reconocieron productos. Añádelos manualmente.','#d97706');
-  }catch(e){ toast('Error OCR. Añade los productos manualmente.','#dc2626'); }
-  finally{ document.getElementById('ocr-progress').style.display='none';render(); }
+  }catch(e){console.error(e);toast('Error al analizar la imagen.','#dc2626');}
+  finally{if(prog)prog.style.display='none';render();}
 }
 
 function parseOCRText(text){
@@ -987,6 +1065,7 @@ function delUser(id){ if(!confirm('¿Eliminar?'))return;cfg.users=cfg.users.filt
 function vSuppliers(){
   const newF=S.editSupId==='new'?supForm(null):`<button class="btn btn-pri btn-sm" onclick="S.editSupId='new';render()" style="margin-bottom:14px">+ Añadir proveedor</button>`;
   const list=supList().map(sup=>{
+    if(!sup.products) sup.products=[];
     const open=S.openSupId===sup.id;
     return `<div class="sup-card"><div class="sc-hd"><div><div class="sc-name">${sup.emoji} ${sup.name}</div><div class="sc-info">${sup.products.length} productos · ${sup.phone||'Sin número'}</div></div>
       <div class="sc-acts"><button class="btn btn-ghost btn-sm" onclick="S.openSupId=S.openSupId==='${sup.id}'?null:'${sup.id}';render()">${open?'▲ Cerrar':'✏️ Editar'}</button>
@@ -1009,7 +1088,7 @@ function supForm(sup){
   </div>`;
 }
 function supDetailForm(sup){
-  const prods=sup.products.map(p=>`<div class="prod-row"><div class="prod-info" style="flex:1"><div class="prod-name-t">${p.name}</div><div style="display:flex;gap:6px;align-items:center;margin-top:4px"><span style="font-size:12px;color:var(--mut);min-width:30px">${p.unit}</span><input type="number" value="${p.price.toFixed(2)}" step="0.01" min="0" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sup.id}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">€</span></div></div><button class="btn btn-no btn-xs" style="align-self:center" onclick="delProd('${sup.id}','${p.id}')">✕</button></div>`).join('');
+  const prods=(sup.products||[]).map(p=>`<div class="prod-row"><div class="prod-info" style="flex:1"><div class="prod-name-t">${p.name}</div><div style="display:flex;gap:6px;align-items:center;margin-top:4px"><span style="font-size:12px;color:var(--mut);min-width:30px">${p.unit||'KG'}</span><input type="number" value="${parseFloat(p.price||0).toFixed(2)}" step="0.01" min="0" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sup.id}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">€</span></div></div><button class="btn btn-no btn-xs" style="align-self:center" onclick="delProd('${sup.id}','${p.id}')">✕</button></div>`).join('');
   return `<div class="sh">Información del proveedor</div>
   <div class="two-col">
     <div class="fg"><label>Nombre</label><input type="text" id="sf-name-${sup.id}" value="${sup.name}" placeholder="Bencar"/></div>
@@ -1054,7 +1133,16 @@ function editProdPrice(sid,pid,val){
   const price=parseFloat(val);
   if(!suppliers[sid]||isNaN(price)||price<0){toast('Precio no válido','#dc2626');return;}
   const prod=suppliers[sid].products.find(p=>p.id===pid);
-  if(prod){prod.price=price;saveSups();toast('Precio actualizado','#16a34a');}
+  if(prod){
+    const oldPrice=parseFloat(prod.price)||0;
+    prod.price=price;
+    saveSups();
+    if(fbDb && Math.abs(oldPrice-price)>0.001){
+      const h={id:uid(),supId:sid,supName:suppliers[sid].name,prodId:pid,prodName:prod.name,oldPrice,newPrice:price,changedAt:new Date().toISOString()};
+      fbDb.ref('priceHistory/'+h.id).set(h);
+    }
+    toast('Precio actualizado','#16a34a');
+  }
 }
 function addProd(sid){
   const name=document.getElementById('pf-name-'+sid)?.value.trim();
@@ -1065,6 +1153,134 @@ function addProd(sid){
   saveSups();render();toast('Producto añadido','#16a34a');
 }
 function delProd(sid,pid){ if(!suppliers[sid])return;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups();render(); }
+
+/* ═══════════════ PLANTILLAS ═══════════════ */
+function saveTpl(){
+  const name=document.getElementById('tpl-name')?.value.trim();
+  if(!name){toast('Pon un nombre','#dc2626');return;}
+  const uid2=S.session.userId;
+  const sup=suppliers[S.supId];
+  const items=sup.products.filter(p=>S.cart[p.id]).map(p=>({prodId:p.id,prodName:p.name,qty:S.cart[p.id],unit:p.unit,price:p.price}));
+  if(!items.length){toast('Añade productos primero','#dc2626');return;}
+  const tpl={id:uid(),name,supId:S.supId,items,createdAt:new Date().toISOString()};
+  if(!templates[uid2])templates[uid2]={};
+  templates[uid2][tpl.id]=tpl;
+  if(fbDb)fbDb.ref('templates/'+uid2+'/'+tpl.id).set(tpl);
+  S.showSaveTemplate=false;
+  toast('Plantilla guardada','#16a34a');render();
+}
+function loadTemplate(tplId){
+  const uid2=S.session.userId;
+  const tpl=templates[uid2]?.[tplId];if(!tpl)return;
+  S.supId=tpl.supId;S.cart={};
+  tpl.items.forEach(it=>{S.cart[it.prodId]=it.qty;});
+  render();toast('Plantilla cargada — revisa cantidades','#16a34a');
+}
+function deleteTpl(tplId){
+  const uid2=S.session.userId;
+  if(!confirm('¿Eliminar plantilla?'))return;
+  if(templates[uid2])delete templates[uid2][tplId];
+  if(fbDb)fbDb.ref('templates/'+uid2+'/'+tplId).remove();
+  render();
+}
+
+/* ═══════════════ PRESUPUESTOS ═══════════════ */
+function saveBudget(key,val){
+  const v=parseFloat(val)||0;
+  budgets[key]=v;
+  if(fbDb)fbDb.ref('budgets/'+key).set(v);
+}
+function vBudgets(){
+  const now=new Date();
+  const curKey=now.toISOString().slice(0,7);
+  const curLabel=now.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+  const spendByRest={};
+  orders.filter(o=>o.status==='approved'&&o.createdAt.startsWith(curKey)).forEach(o=>{spendByRest[o.restaurant]=(spendByRest[o.restaurant]||0)+total(o);});
+  const cards=cfg.users.map(u=>{
+    const bKey=u.id+'_'+curKey;
+    const limit=budgets[bKey]||0;
+    const spent=spendByRest[u.restaurant]||0;
+    const pct=limit>0?Math.min((spent/limit)*100,100):0;
+    const over=limit>0&&spent>limit;
+    const barCol=over?'#dc2626':pct>80?'#ca8a04':'#16a34a';
+    const status=limit>0?(over?`<span style="color:#dc2626;font-weight:700">⚠️ +${fmt(spent-limit)}</span>`:`<span style="color:#16a34a">${Math.round(pct)}%</span>`):'';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--brd)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.restaurant}</div>
+        <div style="font-size:12px;color:var(--mut);margin-top:2px">${fmt(spent)} gastado${limit>0?' de '+fmt(limit):''} ${status}</div>
+        ${limit>0?`<div style="background:var(--brd);border-radius:3px;height:4px;margin-top:5px"><div style="background:${barCol};width:${pct}%;height:4px;border-radius:3px"></div></div>`:''}
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+        <input type="number" value="${limit||''}" placeholder="—" step="50" min="0"
+          style="width:80px;padding:4px 6px;border:1px solid var(--brd);border-radius:6px;font-size:13px;text-align:right"
+          onchange="saveBudget('${bKey}',this.value)"/>
+        <span style="font-size:11px;color:var(--mut)">€</span>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="card">
+    <div class="card-t">Presupuesto mensual — <span style="text-transform:capitalize">${curLabel}</span></div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:8px">Introduce el límite de compras para cada local. Se avisa si se supera al aprobar pedidos.</div>
+    ${cards}
+  </div>`;
+}
+
+/* ═══════════════ COMPARATIVA PROVEEDORES ═══════════════ */
+function vCompare(){
+  const sups=supList();
+  if(sups.length<2)return`<div class="empty"><div class="ei">🔍</div><div class="et">Necesitas al menos 2 proveedores para comparar</div></div>`;
+  const groups={};
+  sups.forEach(sup=>{
+    (sup.products||[]).forEach(p=>{
+      const key=p.name.toLowerCase().trim();
+      if(!groups[key])groups[key]={name:p.name,entries:{}};
+      groups[key].entries[sup.id]={price:parseFloat(p.price)||0,unit:p.unit};
+    });
+  });
+  const multi=Object.values(groups).filter(g=>Object.keys(g.entries).length>=2).sort((a,b)=>a.name.localeCompare(b.name,'es'));
+  if(!multi.length)return`<div class="empty"><div class="ei">🔍</div><div class="et">No hay productos con el mismo nombre en varios proveedores</div></div>`;
+  const headers=sups.map(s=>`<th style="text-align:right;padding:4px 8px 10px;font-size:11px;color:var(--mut);white-space:nowrap">${s.emoji} ${s.name}</th>`).join('');
+  const rows=multi.map(g=>{
+    const prices=Object.values(g.entries).map(e=>e.price).filter(p=>p>0);
+    const minP=prices.length?Math.min(...prices):0;
+    const cells=sups.map(sup=>{
+      const e=g.entries[sup.id];
+      if(!e)return`<td style="padding:6px 8px;text-align:right;color:var(--brd)">—</td>`;
+      const cheap=e.price>0&&e.price===minP&&prices.filter(p=>p===minP).length<prices.length;
+      return`<td style="padding:6px 8px;text-align:right;font-size:13px;${cheap?'color:#16a34a;font-weight:700':''}">${cheap?'✅ ':''}${fmt(e.price)}<span style="font-size:10px;color:var(--mut)">/${e.unit}</span></td>`;
+    }).join('');
+    return`<tr style="border-top:1px solid var(--brd)"><td style="padding:6px 4px 6px 0;font-size:13px">${g.name}</td>${cells}</tr>`;
+  }).join('');
+  return`<div class="card"><div class="card-t">Comparativa de precios entre proveedores</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:12px">✅ = precio más bajo. Solo aparecen productos presentes en 2+ proveedores.</div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr><th style="text-align:left;padding:4px 0 10px;font-size:11px;color:var(--mut)">Producto</th>${headers}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></div>`;
+}
+
+/* ═══════════════ HISTORIAL DE PRECIOS ═══════════════ */
+function vPriceHistory(){
+  if(!priceHistory.length)return`<div class="empty"><div class="ei">📈</div><div class="et">Aún no hay cambios de precios registrados</div></div>`;
+  const rows=priceHistory.slice(0,80).map(h=>{
+    const diff=h.newPrice-h.oldPrice;
+    const pct=h.oldPrice>0?((diff/h.oldPrice)*100):0;
+    const col=diff>0?'#dc2626':'#16a34a';
+    const ico=diff>0?'↑':'↓';
+    return`<tr style="border-top:1px solid var(--brd)">
+      <td style="padding:7px 4px 7px 0;font-size:13px"><div>${h.prodName}</div><div style="font-size:11px;color:var(--mut)">${h.supName}</div></td>
+      <td style="padding:7px 6px;text-align:right;font-size:12px;color:var(--mut)">${fmt(h.oldPrice)}</td>
+      <td style="padding:7px 6px;text-align:right;font-size:13px;font-weight:700">${fmt(h.newPrice)}</td>
+      <td style="padding:7px 0;text-align:right;font-size:13px;color:${col};font-weight:700">${ico} ${Math.abs(pct).toFixed(1)}%</td>
+      <td style="padding:7px 0 7px 8px;font-size:11px;color:var(--mut);white-space:nowrap">${new Date(h.changedAt).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit'})}</td>
+    </tr>`;
+  }).join('');
+  return`<div class="card"><div class="card-t">Historial de cambios de precios</div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">
+      <thead><tr style="font-size:11px;color:var(--mut)"><th style="text-align:left;padding:4px 0 8px">Producto</th><th style="text-align:right;padding:4px 6px 8px">Antes</th><th style="text-align:right;padding:4px 6px 8px">Ahora</th><th style="text-align:right;padding:4px 0 8px">Var.</th><th style="padding:4px 0 8px 8px">Fecha</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div></div>`;
+}
 
 /* ═══════════════ FOOD COST ═══════════════ */
 function fcKey(){
@@ -1202,6 +1418,18 @@ function vSettings(){
       <label>📱 Tu WhatsApp — para recibir notificaciones de pedidos</label>
       <input type="tel" value="${cfg.adminPhone||''}" placeholder="34612345678" onchange="cfg.adminPhone=this.value.replace(/\\D/g,'');saveCfg()"/>
       ${!cfg.adminPhone?`<div style="color:#dc2626;font-size:12px;margin-top:4px">⚠️ Sin número — los restaurantes no podrán notificarte</div>`:`<div style="color:#16a34a;font-size:12px;margin-top:4px">✅ Número configurado</div>`}
+    </div>
+    <div class="card-t" style="margin-top:20px">⚠️ Alertas</div>
+    <div class="fg">
+      <label>Alerta pedidos grandes (€)</label>
+      <input type="number" value="${cfg.alertThreshold||300}" min="0" step="10" onchange="cfg.alertThreshold=parseFloat(this.value)||300;saveCfg()"/>
+      <div style="font-size:12px;color:var(--mut);margin-top:4px">Se marca en rojo cualquier pedido que supere este importe</div>
+    </div>
+    <div class="card-t" style="margin-top:20px">🤖 IA para albaranes — Google Gemini</div>
+    <div class="fg">
+      <label>API Key de Gemini (gratis)</label>
+      <input type="password" value="${cfg.geminiKey||''}" placeholder="AIzaSy..." onchange="cfg.geminiKey=this.value.trim();saveCfg()"/>
+      <div style="font-size:12px;color:var(--mut);margin-top:4px">${cfg.geminiKey?'✅ Configurada — el OCR usará Gemini IA':'⚪ Sin configurar — se usa OCR básico. Consigue tu key gratuita en <a href="https://aistudio.google.com" target="_blank" style="color:var(--pri)">aistudio.google.com</a>'}</div>
     </div>
     <div class="card-t" style="margin-top:20px">🔥 Firebase</div>
     <div class="banner green">✅ Conectado a Firebase — los pedidos se sincronizan en tiempo real entre todos los dispositivos.</div>
