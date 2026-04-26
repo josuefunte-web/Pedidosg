@@ -21,11 +21,13 @@
   --pri:#1a1a2e;--acc:#e94560;--grn:#25D366;--grnd:#1da851;
   --bg:#f0f2f5;--card:#fff;--brd:#e0e0e0;
   --txt:#222;--mut:#888;--r:12px;--sh:0 2px 14px rgba(0,0,0,.08);
+  --srf:#f8fafc;
 }
 body.dark{
   --pri:#e94560;--acc:#ff6b8a;
   --bg:#0f0f1a;--card:#1a1a2e;--brd:#2d2d4e;
   --txt:#e8e8f0;--mut:#8888aa;--sh:0 2px 14px rgba(0,0,0,.4);
+  --srf:#242442;
 }
 body.dark .hdr{background:#0a0a14}
 body.dark .tab.act{background:#2d2d4e;color:#e8e8f0}
@@ -322,6 +324,21 @@ select:focus,input:focus{border-color:var(--pri)}
 <div id="app"></div>
 
 <script>
+/* ═══════════════ GLOBAL ERROR HANDLER ═══════════════ */
+window.onerror = function(msg, src, line, col, err){
+  console.error('App error:', msg, 'at', src, line, col, err);
+  const app = document.getElementById('app');
+  if(app && !app.innerHTML.includes('error-banner')){
+    const banner = document.createElement('div');
+    banner.id = 'error-banner';
+    banner.style.cssText = 'background:#fef2f2;border:1.5px solid #fca5a5;color:#991b1b;padding:12px 16px;margin:12px 14px;border-radius:10px;font-size:13px;font-weight:600';
+    banner.innerHTML = '⚠️ Error inesperado. Recarga la página si algo no funciona.';
+    app.prepend(banner);
+    setTimeout(()=>banner.remove(), 5000);
+  }
+  return false;
+};
+
 /* ═══════════════ FIREBASE CONFIG ═══════════════ */
 const FB_URL = 'https://pedidos-835a1-default-rtdb.europe-west1.firebasedatabase.app';
 let fbApp, fbDb;
@@ -660,8 +677,8 @@ const EMOJIS=['🏠','🌿','⭐','🍽️','🏃','🌅','🎯','🧭','🌊','
 /* ═══════════════ HELPERS ═══════════════ */
 const WA_SVG=`<svg class="wa-ic" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
 
-function fmt(n){ return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
-function fmtD(iso){ return new Date(iso).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+function fmt(n){ return (parseFloat(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+function fmtD(iso){ try{return new Date(iso).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return iso||'—';} }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function total(o){ return (o.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0); }
 function toast(msg,col='#222',dur=3500){
@@ -673,11 +690,11 @@ function waURL(phone,text){ return `https://wa.me/${phone.replace(/\D/g,'')}?tex
 
 function msgAdmin(o){
   const sup=suppliers[o.supId];
-  const lines=o.items.map(it=>`• ${it.name}: ${it.qty} ${it.unit}`).join('\n');
+  const lines=(o.items||[]).map(it=>`• ${it.name}: ${it.qty} ${it.unit}`).join('\n');
   return `📋 *SOLICITUD PEDIDO — O'Carro*\n🏪 ${o.restaurant}\n🏭 Proveedor: ${sup?sup.emoji+' '+sup.name:'?'}\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n\n${lines}\n\n*Total: ${fmt(total(o))}*\n\n_App O'Carro Pedidos_`;
 }
 function msgSupplier(o){
-  const lines=o.items.map(it=>`• ${it.name} (${it.unit}): ${it.qty}  →  ${fmt(it.qty*it.price)}`).join('\n');
+  const lines=(o.items||[]).map(it=>`• ${it.name} (${it.unit}): ${it.qty}  →  ${fmt((it.qty||0)*(it.price||0))}`).join('\n');
   const rest=o.restaurant&&o.restaurant.includes('Consolidado')?o.restaurant:`🏪 ${o.restaurant}`;
   return `🛒 *PEDIDO O'CARRO*\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n${rest}\n\n*Productos:*\n${lines}\n\n*TOTAL: ${fmt(total(o))}*\n\n_${cfg.adminName} — Jefe de Compras_`;
 }
@@ -853,7 +870,7 @@ function vOrder(){
   // Auto-suggest: most ordered products for this restaurant+supplier
   const myHistory=orders.filter(o=>o.restaurant===S.session.restaurant&&o.supId===S.supId&&o.status!=='rejected');
   const autoSuggest={};
-  myHistory.forEach(o=>o.items.forEach(it=>{if(!autoSuggest[it.id])autoSuggest[it.id]={...it,count:0,totalQty:0};autoSuggest[it.id].count++;autoSuggest[it.id].totalQty+=it.qty;}));
+  myHistory.forEach(o=>(o.items||[]).forEach(it=>{if(!autoSuggest[it.id])autoSuggest[it.id]={...it,count:0,totalQty:0};autoSuggest[it.id].count++;autoSuggest[it.id].totalQty+=it.qty;}));
   const topProds=Object.values(autoSuggest).sort((a,b)=>b.count-a.count).slice(0,5);
   const autoBtn=topProds.length&&!Object.keys(S.cart).length?`<button class="btn btn-blue btn-sm" onclick="loadAutoSuggest()" style="white-space:nowrap">🤖 Pedido típico</button>`:'';
   const tplSection=`<div class="sh" style="margin-top:4px">Plantillas</div>
@@ -914,7 +931,7 @@ function vMyOrders(){
       <div class="oc-hd">
         <div>
           <div class="oc-rest">${sup.emoji} ${sup.name}${modTag}${urgTag}</div>
-          <div class="oc-sub">${fmtD(o.createdAt)} · <span class="badge ${s.cls}">${s.lbl}</span>${delTag}</div>
+          <div class="oc-sub">${fmtD(o.createdAt||'')} · <span class="badge ${s.cls}">${s.lbl}</span>${delTag}</div>
         </div>
       </div>
       <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
@@ -1020,8 +1037,8 @@ function vAdmin(){
 function orderCard(o,showActions){
   const sup=suppliers[o.supId]||{name:'?',emoji:'?',phone:''};
   const isEditing=S.editOrderId===o.id;
-  const editItems=isEditing?S.editItems:o.items;
-  const tot=editItems.reduce((s,it)=>s+it.qty*it.price,0);
+  const editItems=isEditing?S.editItems:(o.items||[]);
+  const tot=(editItems||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
   const bc={pending:'b-p',approved:'b-a',rejected:'b-r',received:'b-recv'}[o.status]||'b-p';
   const bl={pending:'Pendiente',approved:'Aprobado',rejected:'Rechazado',received:'✔ Recibido'}[o.status]||o.status;
   const modTag=o.modifiedByAdmin?` <span class="badge b-f">✏️ Modificado</span>`:'';
@@ -1070,9 +1087,10 @@ function orderCard(o,showActions){
   const largeAlert=isLargeOrder?`<div class="banner red" style="margin:6px 0 2px">⚠️ Pedido grande — supera ${fmt(threshold)}</div>`:'';
   // Budget warning
   const oUser=cfg.users.find(u=>u.restaurant===o.restaurant);
-  const bKey=oUser?oUser.id+'_'+o.createdAt.slice(0,7):null;
+  const oCreatedAt=o.createdAt||'';
+  const bKey=oUser?oUser.id+'_'+oCreatedAt.slice(0,7):null;
   const bLimit=bKey?(budgets[bKey]||0):0;
-  const bSpent=bKey?orders.filter(x=>x.status==='approved'&&x.restaurant===o.restaurant&&x.createdAt.startsWith(o.createdAt.slice(0,7))).reduce((s,x)=>s+total(x),0):0;
+  const bSpent=bKey?orders.filter(x=>x.status==='approved'&&x.restaurant===o.restaurant&&(x.createdAt||'').startsWith(oCreatedAt.slice(0,7))).reduce((s,x)=>s+total(x),0):0;
   const budgetAlert=bLimit>0&&bSpent>bLimit?`<div class="banner red" style="margin:4px 0 2px">💳 Presupuesto superado — ${fmt(bSpent)} de ${fmt(bLimit)}</div>`:'';
   return `<div class="oc" ${isEditing?'style="border-color:var(--pri);box-shadow:0 0 0 2px rgba(26,26,46,.15)"':o.urgent?'style="border-color:#dc2626"':''}>
     <div class="oc-hd">
@@ -1094,11 +1112,11 @@ function vConsolidated(){
   const pend=orders.filter(o=>o.status==='pending');
   if(!pend.length) return `<div class="empty"><div class="ei">📦</div><div class="et">No hay pedidos pendientes</div></div>`;
   const bySup={};
-  pend.forEach(o=>{ if(!bySup[o.supId])bySup[o.supId]={}; o.items.forEach(it=>{ if(!bySup[o.supId][it.id])bySup[o.supId][it.id]={...it,qty:0,rests:[]}; bySup[o.supId][it.id].qty+=it.qty; bySup[o.supId][it.id].rests.push(o.restaurant.replace("O'Carro ",'')); }); });
+  pend.forEach(o=>{ if(!bySup[o.supId])bySup[o.supId]={}; (o.items||[]).forEach(it=>{ if(!bySup[o.supId][it.id])bySup[o.supId][it.id]={...it,qty:0,rests:[]}; bySup[o.supId][it.id].qty+=it.qty; bySup[o.supId][it.id].rests.push((o.restaurant||'').replace("O'Carro ",'')); }); });
   return Object.entries(bySup).map(([sid,items])=>{
     const sup=suppliers[sid]||{name:sid,emoji:'📦',phone:''};
     const arr=Object.values(items);
-    const tot=arr.reduce((s,it)=>s+it.qty*it.price,0);
+    const tot=arr.reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
     const co={supId:sid,restaurant:`Consolidado`,items:arr,createdAt:new Date().toISOString()};
     const rows=arr.map(it=>`<div class="pr"><span class="pn">${it.name} <small style="color:var(--mut)">(${[...new Set(it.rests)].length}r)</small></span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
     return `<div class="cc"><div class="cc-hd"><div class="cc-name">${sup.emoji} ${sup.name}</div>
@@ -1111,7 +1129,7 @@ function renderChart(){
   const ctx=document.getElementById('chart');if(!ctx)return;
   if(chartInst){chartInst.destroy();chartInst=null;}
   const byR={};
-  orders.filter(o=>o.status==='approved').forEach(o=>{ const k=o.restaurant.replace("O'Carro ",'');byR[k]=(byR[k]||0)+total(o); });
+  orders.filter(o=>o.status==='approved').forEach(o=>{ const k=(o.restaurant||'Sin nombre').replace("O'Carro ",'');byR[k]=(byR[k]||0)+total(o); });
   const ent=Object.entries(byR).filter(([,v])=>v>0).sort(([,a],[,b])=>b-a);
   if(!ent.length){ ctx.parentNode.innerHTML=`<div class="empty" style="height:260px;display:flex;flex-direction:column;justify-content:center"><div class="ei">📊</div><div class="et">Aprueba pedidos para ver el gasto</div></div>`;return; }
   chartInst=new Chart(ctx,{type:'bar',data:{labels:ent.map(([k])=>k),datasets:[{data:ent.map(([,v])=>v),backgroundColor:'#1a1a2e',borderRadius:6,hoverBackgroundColor:'#e94560'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},scales:{y:{ticks:{callback:v=>v.toLocaleString('es-ES',{maximumFractionDigits:0})+' €'},grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}});
@@ -1122,12 +1140,12 @@ function vAlbaranes(){
   const btn=`<button class="btn btn-pri btn-sm" onclick="goAlbaranAdmin()" style="margin-bottom:14px">+ Nuevo albarán</button>`;
   const byRest={};
   orders.filter(o=>o.status==='approved').forEach(o=>{ if(!byRest[o.restaurant])byRest[o.restaurant]={ordered:0,received:0}; byRest[o.restaurant].ordered+=total(o); });
-  albNotes.forEach(a=>{ if(!byRest[a.restaurant])byRest[a.restaurant]={ordered:0,received:0}; byRest[a.restaurant].received+=a.items.reduce((s,it)=>s+it.qty*it.price,0); });
+  albNotes.forEach(a=>{ if(!byRest[a.restaurant])byRest[a.restaurant]={ordered:0,received:0}; byRest[a.restaurant].received+=(a.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0); });
   const tableRows=Object.entries(byRest).map(([rest,d])=>{
     const diff=d.received-d.ordered;
     const pct=d.ordered>0?((diff/d.ordered)*100).toFixed(1):'-';
     const cls=Math.abs(diff)<1?'diff-ok':diff>0?'diff-err':'diff-warn';
-    return `<tr><td>${rest.replace("O'Carro ",'')}</td><td>${fmt(d.ordered)}</td><td>${fmt(d.received)}</td><td class="${cls}">${diff>=0?'+':''}${fmt(diff)}${pct!=='-'?' ('+pct+'%)':''}</td></tr>`;
+    return `<tr><td>${(rest||'').replace("O'Carro ",'')}</td><td>${fmt(d.ordered)}</td><td>${fmt(d.received)}</td><td class="${cls}">${diff>=0?'+':''}${fmt(diff)}${pct!=='-'?' ('+pct+'%)':''}</td></tr>`;
   }).join('');
   const table=tableRows?`<div class="card"><div class="card-t">📊 Pedido vs Recibido por local</div><div style="overflow-x:auto"><table class="spend-table"><tr><th>Local</th><th>Pedido</th><th>Recibido</th><th>Diferencia</th></tr>${tableRows}</table></div></div>`:'';
   const notes=albNotes.length?albNotes.map(a=>albCard(a)).join(''):`<div class="empty"><div class="ei">📋</div><div class="et">Sin albaranes registrados</div></div>`;
@@ -1138,14 +1156,14 @@ function goAlbaranAdmin(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=''
 
 function albCard(a){
   const sup=suppliers[a.supId]||{name:'?',emoji:'?'};
-  const tot=a.items.reduce((s,it)=>s+it.qty*it.price,0);
+  const tot=(a.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
   const matchOrder=orders.find(o=>o.restaurant===a.restaurant&&o.supId===a.supId&&o.status==='approved');
-  const hasIncidents=a.items.some(it=>it.incident);
-  const rows=a.items.map(it=>`<div class="pr" style="${it.incident?'background:#fff5f5;border-radius:6px;padding:4px 6px;margin-bottom:2px':''}"><span class="pn">${it.code?`<small style="color:var(--mut)">[${it.code}]</small> `:''} ${it.name}${it.incident?`<div style="font-size:11px;color:#dc2626;margin-top:2px">⚠️ ${it.incident}</div>`:''}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
+  const hasIncidents=(a.items||[]).some(it=>it.incident);
+  const rows=(a.items||[]).map(it=>`<div class="pr" style="${it.incident?'background:#fff5f5;border-radius:6px;padding:4px 6px;margin-bottom:2px':''}"><span class="pn">${it.code?`<small style="color:var(--mut)">[${it.code}]</small> `:''} ${it.name}${it.incident?`<div style="font-size:11px;color:#dc2626;margin-top:2px">⚠️ ${it.incident}</div>`:''}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt((parseFloat(it.qty)||0)*(parseFloat(it.price)||0))}</span></div>`).join('');
   let cmp='';
   if(matchOrder){
-    const cmpRows=a.items.map(ai=>{
-      const oi=matchOrder.items.find(x=>x.name.toLowerCase()===ai.name.toLowerCase());
+    const cmpRows=(a.items||[]).map(ai=>{
+      const oi=(matchOrder.items||[]).find(x=>x.name.toLowerCase()===ai.name.toLowerCase());
       if(!oi) return `<div class="cmp-cell cmp-warn"><div class="cmp-name">${ai.name}</div><div class="cmp-val">⚠️ No estaba en el pedido</div></div>`;
       const qDiff=ai.qty-oi.qty;
       const cls=qDiff===0?'cmp-ok':Math.abs(qDiff/oi.qty)<0.05?'cmp-warn':'cmp-err';
@@ -1470,8 +1488,8 @@ function vSuppliers(){
     if(!sup.products) sup.products=[];
     const open=S.openSupId===sup.id;
     const supOrders=orders.filter(o=>o.supId===sup.id&&o.status!=='rejected');
-    const mesActual=supOrders.filter(o=>o.createdAt.startsWith(curMonth)).reduce((s,o)=>s+total(o),0);
-    const anoActual=supOrders.filter(o=>o.createdAt.startsWith(curYear)).reduce((s,o)=>s+total(o),0);
+    const mesActual=supOrders.filter(o=>(o.createdAt||'').startsWith(curMonth)).reduce((s,o)=>s+total(o),0);
+    const anoActual=supOrders.filter(o=>(o.createdAt||'').startsWith(curYear)).reduce((s,o)=>s+total(o),0);
     const balanceHtml=`<div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
       <span style="font-size:11px;background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:6px;font-weight:600">Este mes: ${fmt(mesActual)}</span>
       <span style="font-size:11px;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:6px;font-weight:600">Este año: ${fmt(anoActual)}</span>
@@ -1602,7 +1620,7 @@ function loadAutoSuggest(){
   if(!S.session) return;
   const myHistory=orders.filter(o=>o.restaurant===S.session.restaurant&&o.supId===S.supId&&o.status!=='rejected');
   const acc={};
-  myHistory.forEach(o=>o.items.forEach(it=>{if(!acc[it.id])acc[it.id]={prodId:it.id,totalQty:0,count:0};acc[it.id].count++;acc[it.id].totalQty+=it.qty;}));
+  myHistory.forEach(o=>(o.items||[]).forEach(it=>{if(!acc[it.id])acc[it.id]={prodId:it.id,totalQty:0,count:0};acc[it.id].count++;acc[it.id].totalQty+=it.qty;}));
   S.cart={};
   Object.values(acc).sort((a,b)=>b.count-a.count).slice(0,5).forEach(it=>{
     S.cart[it.prodId]=Math.round(it.totalQty/it.count)||1;
@@ -1621,7 +1639,7 @@ function vBudgets(){
   const curKey=now.toISOString().slice(0,7);
   const curLabel=now.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
   const spendByRest={};
-  orders.filter(o=>o.status==='approved'&&o.createdAt.startsWith(curKey)).forEach(o=>{spendByRest[o.restaurant]=(spendByRest[o.restaurant]||0)+total(o);});
+  orders.filter(o=>o.status==='approved'&&(o.createdAt||'').startsWith(curKey)).forEach(o=>{spendByRest[o.restaurant]=(spendByRest[o.restaurant]||0)+total(o);});
   const cards=cfg.users.map(u=>{
     const bKey=u.id+'_'+curKey;
     const limit=budgets[bKey]||0;
@@ -1743,7 +1761,7 @@ function fcNavDate(dir){
 }
 function fcOrders(){
   const {s,e}=fcRange();
-  return orders.filter(o=>o.status==='approved'&&new Date(o.createdAt)>=s&&new Date(o.createdAt)<=e);
+  return orders.filter(o=>o.status==='approved'&&o.createdAt&&new Date(o.createdAt)>=s&&new Date(o.createdAt)<=e);
 }
 function saveRevenue(key,val){
   const v=parseFloat(val);
@@ -2006,11 +2024,11 @@ function renderMonthlyChart(){
     const d=new Date(now.getFullYear(),now.getMonth()-i,1);
     months.push(d.toISOString().slice(0,7));
   }
-  const rests=[...new Set(orders.map(o=>o.restaurant))].sort();
+  const rests=[...new Set(orders.map(o=>o.restaurant).filter(Boolean))].sort();
   const colors=['#e94560','#1a1a2e','#16a34a','#d97706','#7c3aed','#0891b2','#db2777','#059669','#dc2626','#2563eb','#9333ea','#ea580c'];
   const datasets=rests.map((r,i)=>({
     label:r.replace("O'Carro ",''),
-    data:months.map(m=>orders.filter(o=>o.status!=='rejected'&&o.restaurant===r&&o.createdAt.startsWith(m)).reduce((s,o)=>s+total(o),0)),
+    data:months.map(m=>orders.filter(o=>o.status!=='rejected'&&o.restaurant===r&&(o.createdAt||'').startsWith(m)).reduce((s,o)=>s+total(o),0)),
     backgroundColor:colors[i%colors.length]+'99',
     borderColor:colors[i%colors.length],
     borderWidth:1.5,
@@ -2026,11 +2044,11 @@ function exportExcel(type){
   let filename='pedidos';
   if(type==='all'||type==='monthly'||!type){
     filename='pedidos_ocarro_'+new Date().toISOString().slice(0,10);
-    rows=[['ID','Fecha','Local','Proveedor','Estado','Total €','Urgente','Entrega'],...orders.map(o=>[o.id,o.createdAt.slice(0,10),o.restaurant,(suppliers[o.supId]||{name:o.supId}).name,o.status,total(o).toFixed(2),o.urgent?'Sí':'No',o.deliveryDate||''])];
+    rows=[['ID','Fecha','Local','Proveedor','Estado','Total €','Urgente','Entrega'],...orders.map(o=>[o.id,(o.createdAt||'').slice(0,10),o.restaurant||'',(suppliers[o.supId]||{name:o.supId||'?'}).name,o.status,total(o).toFixed(2),o.urgent?'Sí':'No',o.deliveryDate||''])];
   } else if(type==='received'){
     filename='pedidos_recibidos_'+new Date().toISOString().slice(0,10);
     const rec=orders.filter(o=>o.status==='received');
-    rows=[['ID','Fecha pedido','Fecha recepción','Local','Proveedor','Total €'],...rec.map(o=>[o.id,o.createdAt.slice(0,10),(o.receivedAt||'').slice(0,10),o.restaurant,(suppliers[o.supId]||{name:o.supId}).name,total(o).toFixed(2)])];
+    rows=[['ID','Fecha pedido','Fecha recepción','Local','Proveedor','Total €'],...rec.map(o=>[o.id,(o.createdAt||'').slice(0,10),(o.receivedAt||'').slice(0,10),o.restaurant||'',(suppliers[o.supId]||{name:o.supId||'?'}).name,total(o).toFixed(2)])];
   }
   const ws=XLSX.utils.aoa_to_sheet(rows);
   const wb=XLSX.utils.book_new();
