@@ -12,6 +12,7 @@
 <!-- Firebase -->
 <script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-app-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-auth-compat.js"></script>
 <!-- Charts -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <!-- Excel export -->
@@ -142,6 +143,16 @@ select:focus,input:focus{border-color:var(--pri)}
 .uc-name,.sc-name{font-size:15px;font-weight:700;color:var(--pri)}
 .uc-info,.sc-info{font-size:12px;color:var(--mut);margin-top:2px}
 .uc-acts,.sc-acts{display:flex;gap:6px}
+.perm-editor{margin-top:12px;padding-top:12px;border-top:1px solid var(--brd)}
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:6px;margin:10px 0}
+.perm-check{display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid var(--brd);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:.15s;user-select:none}
+.perm-check input{width:15px;height:15px;accent-color:var(--pri);cursor:pointer;flex-shrink:0}
+.perm-check:has(input:checked){border-color:var(--pri);background:#f5f5ff}
+body.dark .user-card{background:var(--card)}
+body.dark .perm-check:has(input:checked){background:#1a1a40}
+.rest-pill{display:inline-block;background:var(--bg);border:1px solid var(--brd);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;margin:2px 2px 0 0}
+.rest-picker{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:var(--srf);border-radius:10px;border:1.5px solid var(--brd)}
+.rest-picker-lbl{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;width:100%;margin-bottom:4px}
 .uc-body,.sc-body{margin-top:12px;padding-top:12px;border-top:1px solid var(--brd)}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .three-col{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
@@ -341,7 +352,8 @@ window.onerror = function(msg, src, line, col, err){
 
 /* ═══════════════ FIREBASE CONFIG ═══════════════ */
 const FB_URL = 'https://pedidos-835a1-default-rtdb.europe-west1.firebasedatabase.app';
-let fbApp, fbDb;
+let fbApp, fbDb, fbAuth;
+let authUsers = {};
 
 /* ═══════════════ DEFAULT DATA ═══════════════ */
 const DEFAULT_USERS=[
@@ -521,7 +533,8 @@ const DEFAULT_SUPS={
 };
 
 /* ═══════════════ LOCAL STORAGE (config, users, PINs) ═══════════════ */
-let cfg      = JSON.parse(localStorage.getItem('oc_cfg') || JSON.stringify({adminPIN:'0000',adminName:'Josué',adminPhone:'',users:DEFAULT_USERS}));
+let cfg      = JSON.parse(localStorage.getItem('oc_cfg') || JSON.stringify({adminPIN:'0000',adminName:'Josué',adminPhone:'',adminEmail:'josue.funte@gmail.com',users:DEFAULT_USERS}));
+if(!cfg.adminEmail) cfg.adminEmail='josue.funte@gmail.com';
 if(!cfg.users) cfg.users=DEFAULT_USERS;
 function saveCfg(){ localStorage.setItem('oc_cfg', JSON.stringify(cfg)); }
 
@@ -567,7 +580,8 @@ function initFirebaseListeners(){
             if(S.session?.isAdmin) pushNotify(`Nuevo pedido — ${o.restaurant}`,`${(suppliers[o.supId]||{name:o.supId}).name} · ${fmt(total(o))}${o.urgent?' 🚨 URGENTE':''}`,o.urgent?'🚨':'🛒');
           } else {
             const old=orders.find(x=>x.id===o.id);
-            if(old&&old.status!==o.status&&S.session&&!S.session.isAdmin&&o.restaurant===S.session.restaurant){
+            const myRests=S.session?.restaurants||[S.session?.restaurant];
+            if(old&&old.status!==o.status&&S.session&&!S.session.isAdmin&&myRests.includes(o.restaurant)){
               if(o.status==='approved') pushNotify('Pedido aprobado ✅',`Tu pedido a ${(suppliers[o.supId]||{name:o.supId}).name} ha sido aprobado`,'✅');
               else if(o.status==='rejected') pushNotify('Pedido rechazado ✗',o.rejectReason||'Contacta con el administrador','❌');
             }
@@ -625,6 +639,222 @@ function initFirebaseListeners(){
     templates = snap.val() || {};
     if(S.view==='order') render();
   });
+
+  // Auth users (registrations)
+  fbDb.ref('authUsers').on('value', snap => {
+    authUsers = snap.val() || {};
+    if(S.view==='admin' && S.adminTab==='solicitudes') renderAdminContent();
+    // Update sidebar badge
+    const badge=document.getElementById('sb-sol-badge');
+    if(badge){ const n=Object.values(authUsers).filter(u=>u.status==='pending').length; badge.textContent=n; badge.style.display=n?'':'none'; }
+    // If current user just got approved/rejected, update their session
+    if(S.session?.uid && !S.session?.isAdmin){
+      const me=authUsers[S.session.uid];
+      if(me && me.status==='approved' && S.view==='pending-approval'){
+        const myRests=me.restaurants||[me.restaurant];
+        S.session={uid:me.uid,email:me.email,name:me.name||me.restaurant,restaurant:myRests[0]||me.restaurant,restaurants:myRests,isAdmin:false,needsApproval:me.needsApproval!==false};
+        goOrder();
+        toast('✅ Tu acceso ha sido aprobado. ¡Bienvenido!','#16a34a',5000);
+      } else if(me && me.status==='approved' && S.view==='order'){
+        // Actualización en tiempo real de permisos (admin cambió accesos)
+        const myRests=me.restaurants||[me.restaurant];
+        const changed=JSON.stringify(myRests)!==JSON.stringify(S.session.restaurants||[]);
+        if(changed){
+          S.session.restaurants=myRests;
+          // Si el restaurante activo ya no está permitido, cambiar al primero
+          if(!myRests.includes(S.session.restaurant)) S.session.restaurant=myRests[0];
+          S.session.needsApproval=me.needsApproval!==false;
+          render();
+        }
+      } else if(me && me.status==='rejected' && S.view!=='pending-approval'){
+        S.session={...S.session,pendingStatus:'rejected'};
+        S.view='pending-approval';
+        document.getElementById('hdr').style.display='none';
+        render();
+      }
+    }
+  });
+}
+
+/* ═══════════════ AUTH FUNCTIONS ═══════════════ */
+async function loginWithEmail(){
+  if(!fbAuth){toast('Sin conexión Firebase. Recarga la página.','#dc2626');return;}
+  const email=(document.getElementById('login-email')?.value||'').trim();
+  const pass=document.getElementById('login-pass')?.value||'';
+  const errEl=document.getElementById('login-err');
+  const showErr=msg=>{if(errEl){errEl.textContent=msg;errEl.style.display='block';}else toast(msg,'#dc2626');};
+  if(!email||!pass){showErr('Introduce email y contraseña');return;}
+  // Disable button to prevent double-click
+  const btn=document.querySelector('#app .btn-pri');
+  if(btn){btn.disabled=true;btn.textContent='Entrando...';}
+  try{
+    await fbAuth.signInWithEmailAndPassword(email,pass);
+    // onAuthStateChanged handles navigation
+  }catch(e){
+    const msgs={'auth/user-not-found':'Usuario no encontrado','auth/wrong-password':'Contraseña incorrecta','auth/invalid-email':'Email no válido','auth/too-many-requests':'Demasiados intentos. Espera unos minutos.','auth/invalid-credential':'Email o contraseña incorrectos'};
+    showErr(msgs[e.code]||e.message);
+    if(btn){btn.disabled=false;btn.textContent='Entrar →';}
+  }
+}
+
+async function registerUser(){
+  if(!fbAuth){toast('Sin conexión Firebase','#dc2626');return;}
+  const email=(document.getElementById('reg-email')?.value||'').trim();
+  const pass=document.getElementById('reg-pass')?.value||'';
+  const pass2=document.getElementById('reg-pass2')?.value||'';
+  const rest=document.getElementById('reg-rest')?.value||'';
+  const name=(document.getElementById('reg-name')?.value||'').trim();
+  const errEl=document.getElementById('reg-err');
+  const showErr=msg=>{if(errEl){errEl.textContent=msg;errEl.style.display='block';}else toast(msg,'#dc2626');};
+  if(errEl) errEl.style.display='none';
+  if(!email||!pass){showErr('Rellena todos los campos obligatorios');return;}
+  if(pass.length<6){showErr('La contraseña debe tener al menos 6 caracteres');return;}
+  if(pass!==pass2){showErr('Las contraseñas no coinciden');return;}
+  if(!rest){showErr('Selecciona tu restaurante');return;}
+  const btn=document.querySelector('#app .btn-pri');
+  if(btn){btn.disabled=true;btn.textContent='Enviando...';}
+  try{
+    const cred=await fbAuth.createUserWithEmailAndPassword(email,pass);
+    await fbDb.ref('authUsers/'+cred.user.uid).set({
+      uid:cred.user.uid,email,name:name||email,restaurant:rest,
+      status:'pending',needsApproval:true,
+      createdAt:new Date().toISOString()
+    });
+    toast('✅ Solicitud enviada. '+cfg.adminName+' la revisará pronto.','#16a34a',6000);
+    // onAuthStateChanged → pending-approval screen
+  }catch(e){
+    const msgs={'auth/email-already-in-use':'Este email ya está registrado','auth/invalid-email':'Email no válido','auth/weak-password':'Contraseña demasiado débil (mín. 6 caracteres)'};
+    showErr(msgs[e.code]||e.message);
+    if(btn){btn.disabled=false;btn.textContent='Solicitar acceso';}
+  }
+}
+
+function doResetPassword(){
+  const email=(document.getElementById('login-email')?.value||'').trim();
+  if(!email){toast('Introduce tu email primero en el campo de arriba','#dc2626');return;}
+  if(!fbAuth){toast('Sin conexión','#dc2626');return;}
+  fbAuth.sendPasswordResetEmail(email)
+    .then(()=>toast('📧 Email de recuperación enviado a '+email,'#16a34a',5000))
+    .catch(e=>toast('Error: '+e.message,'#dc2626'));
+}
+
+/* ═══════════════ ADMIN: SOLICITUDES ═══════════════ */
+function vSolicitudes(){
+  const all=Object.values(authUsers);
+  const pending=all.filter(u=>u.status==='pending').sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const approved=all.filter(u=>u.status==='approved').sort((a,b)=>(a.restaurant||'').localeCompare(b.restaurant||'','es'));
+  const rejected=all.filter(u=>u.status==='rejected');
+  const allRests=cfg.users.map(u=>u.restaurant);
+
+  const pendHtml=pending.length?pending.map(u=>`
+    <div class="user-card">
+      <div class="uc-hd">
+        <div>
+          <div class="uc-name">📧 ${u.email}</div>
+          <div class="uc-info">🏪 ${u.restaurant}${u.name&&u.name!==u.email?' · '+u.name:''} · ${fmtD(u.createdAt)}</div>
+        </div>
+        <div class="uc-acts" style="flex-wrap:wrap;gap:4px">
+          <button class="btn btn-ok btn-sm" onclick="approveRegistration('${u.uid}')">✅ Aprobar</button>
+          <button class="btn btn-no btn-sm" onclick="rejectRegistration('${u.uid}')">✗ Rechazar</button>
+        </div>
+      </div>
+    </div>`).join('')
+    :`<div class="empty" style="padding:28px 20px"><div class="ei">✅</div><div class="et">Sin solicitudes pendientes</div></div>`;
+
+  function permEditor(u){
+    const curRests=u.restaurants||[u.restaurant];
+    const checks=allRests.map(r=>`
+      <label class="perm-check">
+        <input type="checkbox" class="perm-cb-${u.uid}" value="${r}" ${curRests.includes(r)?'checked':''}>
+        ${r}
+      </label>`).join('');
+    return `<div class="perm-editor">
+      <div style="font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🏪 Locales con acceso</div>
+      <div class="perm-grid">${checks}</div>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button class="btn btn-pri btn-sm" onclick="saveUserRestaurants('${u.uid}')">💾 Guardar permisos</button>
+        <button class="btn btn-ghost btn-sm" onclick="S.editingPermsUid=null;render()">Cancelar</button>
+      </div>
+    </div>`;
+  }
+
+  function restBadges(u){
+    const rests=u.restaurants||[u.restaurant];
+    return rests.map(r=>`<span class="rest-pill">${r}</span>`).join('');
+  }
+
+  const apprHtml=approved.length?`
+    <div class="sh" style="margin-top:20px">Usuarios activos (${approved.length})</div>
+    ${approved.map(u=>{
+      const isEditing=S.editingPermsUid===u.uid;
+      return `
+      <div class="user-card" style="${isEditing?'border-color:var(--pri);box-shadow:0 0 0 2px rgba(26,26,46,.12)':''}">
+        <div class="uc-hd">
+          <div style="flex:1;min-width:0">
+            <div class="uc-name">📧 ${u.email}${u.name&&u.name!==u.email?` <span style="font-weight:400;font-size:13px;color:var(--mut)">· ${u.name}</span>`:''}</div>
+            <div class="uc-info" style="margin-top:4px">${restBadges(u)} · ${u.needsApproval?'🔒 Aprobación manual':'🔓 Auto-aprobado'}</div>
+          </div>
+          <div class="uc-acts" style="flex-wrap:wrap;gap:4px">
+            <button class="btn btn-blue btn-sm" onclick="S.editingPermsUid='${isEditing?'':u.uid}';render()">✏️ ${isEditing?'Cerrar':'Permisos'}</button>
+            <button class="btn btn-ghost btn-sm" title="${u.needsApproval?'Cambiar a auto-aprobado':'Cambiar a requiere aprobación'}" onclick="toggleNeedsApprovalAuth('${u.uid}',${!u.needsApproval})">${u.needsApproval?'🔓 Auto':'🔒 Manual'}</button>
+            <button class="btn btn-no btn-xs" title="Revocar acceso" onclick="revokeUser('${u.uid}')">🚫</button>
+          </div>
+        </div>
+        ${isEditing?permEditor(u):''}
+      </div>`}).join('')}`:'';
+
+  const rejHtml=rejected.length?`
+    <div class="sh" style="margin-top:20px">Rechazados (${rejected.length})</div>
+    ${rejected.map(u=>`
+    <div class="user-card" style="opacity:.55">
+      <div class="uc-hd">
+        <div>
+          <div class="uc-name" style="text-decoration:line-through">📧 ${u.email}</div>
+          <div class="uc-info">🏪 ${u.restaurant}</div>
+        </div>
+        <div class="uc-acts">
+          <button class="btn btn-ok btn-xs" onclick="approveRegistration('${u.uid}')">↩ Re-aprobar</button>
+        </div>
+      </div>
+    </div>`).join('')}`:'';
+
+  const pendingBadge=pending.length?`<span style="background:var(--acc);color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:800;margin-left:6px">${pending.length}</span>`:'';
+  return `<div class="sh">Solicitudes de acceso${pendingBadge}</div>${pendHtml}${apprHtml}${rejHtml}`;
+}
+
+function approveRegistration(uid){
+  const u=authUsers[uid]; if(!u)return;
+  const updates={status:'approved',approvedAt:new Date().toISOString(),approvedBy:cfg.adminName};
+  if(!u.restaurants||!u.restaurants.length) updates.restaurants=[u.restaurant];
+  fbDb.ref('authUsers/'+uid).update(updates)
+    .then(()=>toast('✅ Acceso concedido: '+u.email,'#16a34a'));
+}
+function rejectRegistration(uid){
+  const u=authUsers[uid]; if(!u)return;
+  const reason=prompt('Motivo del rechazo (opcional):');
+  if(reason===null)return;
+  fbDb.ref('authUsers/'+uid).update({status:'rejected',rejectedAt:new Date().toISOString(),rejectReason:reason||''})
+    .then(()=>toast('Usuario rechazado','#888'));
+}
+function toggleNeedsApprovalAuth(uid,val){
+  fbDb.ref('authUsers/'+uid).update({needsApproval:val})
+    .then(()=>toast(val?'Ahora requiere aprobación manual':'Ahora se aprueba automáticamente','#16a34a'));
+}
+function revokeUser(uid){
+  const u=authUsers[uid]; if(!u)return;
+  if(!confirm('¿Revocar acceso a '+u.email+'? El usuario no podrá entrar.'))return;
+  fbDb.ref('authUsers/'+uid).update({status:'rejected',revokedAt:new Date().toISOString()})
+    .then(()=>toast('Acceso revocado','#888'));
+}
+function saveUserRestaurants(uid){
+  const boxes=document.querySelectorAll(`.perm-cb-${uid}`);
+  const selected=[...boxes].filter(cb=>cb.checked).map(cb=>cb.value);
+  if(!selected.length){toast('⚠️ Selecciona al menos un local','#dc2626');return;}
+  const u=authUsers[uid]; if(!u)return;
+  // Primary restaurant = first checked (or keep original if still in list)
+  const primary=selected.includes(u.restaurant)?u.restaurant:selected[0];
+  fbDb.ref('authUsers/'+uid).update({restaurants:selected,restaurant:primary})
+    .then(()=>{ S.editingPermsUid=null; toast('✅ Permisos actualizados','#16a34a'); });
 }
 
 /* ═══════════════ SAVE FUNCTIONS ═══════════════ */
@@ -665,10 +895,12 @@ let S={
   albCropping:false,
   sidebarOpen:false,
   sbGroups:{pedidos:true,analisis:false,gestion:false},
+  editingPermsUid:null,
   orderUrgent:false,
   orderDeliveryDate:'',
   prodSearch:'',
   darkMode:localStorage.getItem('oc_dark')==='1',
+  loginTab:'login',
 };
 let cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
 let chartInst=null;
@@ -754,15 +986,23 @@ document.addEventListener('keydown',e=>{
 /* ═══════════════ NAVIGATION ═══════════════ */
 function showHdr(isAdmin){
   document.getElementById('hdr').style.display='flex';
-  document.getElementById('ses-info').textContent=S.session?(S.session.isAdmin?'⚙️ '+cfg.adminName:S.session.restaurant):'';
+  const sesLabel=S.session?(S.session.isAdmin?'⚙️ '+cfg.adminName:S.session.restaurant):'';
+  document.getElementById('ses-info').textContent=sesLabel;
   document.getElementById('btn-np').style.display=!isAdmin?'':'none';
   document.getElementById('btn-alb-r').style.display=!isAdmin?'':'none';
   document.getElementById('btn-adm').style.display=isAdmin?'':'none';
 }
 function handleLogo(){ if(S.session){S.session.isAdmin?goAdmin():goOrder();} }
-function logout(){ if(!confirm('¿Cerrar sesión?'))return;S.session=null;S.view='login';document.getElementById('hdr').style.display='none';render(); }
+function logout(){
+  if(!confirm('¿Cerrar sesión?'))return;
+  localStorage.removeItem('oc_admin_session');
+  S.session=null;S.view='login';S.loginTab='login';
+  document.getElementById('hdr').style.display='none';
+  if(fbAuth) fbAuth.signOut().catch(()=>{});
+  render();
+}
 function goOrder(){ S.view='order';S.cart={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
-function goAdmin(){ S.view='admin';showHdr(true);render(); }
+function goAdmin(){ S.view='admin';S.session={isAdmin:true,name:cfg.adminName};localStorage.setItem('oc_admin_session','1');showHdr(true);render(); }
 function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albDate=new Date().toISOString().split('T')[0];showHdr(false);render(); }
 function setTab(t){ S.adminTab=t;render();if(t==='spending')setTimeout(renderChart,50);if(t==='monthly')setTimeout(renderMonthlyChart,50); }
 function setTabSb(t){ S.adminTab=t;S.sidebarOpen=false;render();if(t==='spending')setTimeout(renderChart,50);if(t==='monthly')setTimeout(renderMonthlyChart,50); }
@@ -771,9 +1011,10 @@ function toggleSbGroup(g){ S.sbGroups[g]=!S.sbGroups[g];render(); }
 /* ═══════════════ RENDER ═══════════════ */
 function render(){
   const app=document.getElementById('app');
-  if(S.view==='login')         app.innerHTML=vLogin();
-  else if(S.view==='order')    app.innerHTML=vOrder();
-  else if(S.view==='admin'){   app.innerHTML=vAdmin();
+  if(S.view==='login')              app.innerHTML=vLogin();
+  else if(S.view==='pending-approval') app.innerHTML=vPendingApproval();
+  else if(S.view==='order')         app.innerHTML=vOrder();
+  else if(S.view==='admin'){        app.innerHTML=vAdmin();
     if(S.adminTab==='spending') setTimeout(renderChart,50);
     if(S.adminTab==='monthly')  setTimeout(renderMonthlyChart,50);
     if(S.adminTab==='escandallos') setTimeout(initEscandallos,50);
@@ -796,6 +1037,7 @@ function renderAdminContent(){
   else if(S.adminTab==='compare')  content=vCompare();
   else if(S.adminTab==='prices')   content=vPriceHistory();
   else if(S.adminTab==='albaranes') content=vAlbaranes();
+  else if(S.adminTab==='solicitudes') content=vSolicitudes();
   else if(S.adminTab==='users')    content=vUsers();
   else if(S.adminTab==='suppliers') content=vSuppliers();
   else if(S.adminTab==='settings') content=vSettings();
@@ -816,31 +1058,106 @@ function renderAdminContent(){
 
 /* ═══════════════ LOGIN ═══════════════ */
 function vLogin(){
-  const cards=cfg.users.map((u,i)=>`
-    <div class="rest-card" onclick="openPIN('user','${u.id}')">
-      <div class="rest-emoji">${EMOJIS[i%EMOJIS.length]}</div>
-      <div class="rest-name">${u.restaurant}</div>
-    </div>`).join('');
+  const isReg=S.loginTab==='register';
   return `<div class="login-wrap">
-    <div class="login-title">O'<span style="color:var(--acc)">Carro</span> Pedidos</div>
-    <div class="login-sub">Selecciona tu restaurante</div>
-    <div class="rest-grid">${cards}</div>
-    <div class="admin-row"><button class="admin-btn" onclick="openPIN('admin')">⚙️ Administrador</button></div>
+    <div class="login-title" style="margin-bottom:4px">O'<span style="color:var(--acc)">Carro</span> Pedidos</div>
+    <div class="login-sub" style="margin-bottom:22px">Gestión de compras del grupo</div>
+    <div style="max-width:400px;margin:0 auto">
+      <div class="tabs" style="margin-bottom:18px">
+        <button class="tab ${!isReg?'act':''}" onclick="S.loginTab='login';render()">🔑 Iniciar sesión</button>
+        <button class="tab ${isReg?'act':''}" onclick="S.loginTab='register';render()">📝 Solicitar acceso</button>
+      </div>
+      ${isReg ? vRegisterForm() : vLoginForm()}
+    </div>
+  </div>`;
+}
+
+function vLoginForm(){
+  return `<div class="card">
+    <div class="fg">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="tucorreo@email.com" autocomplete="email"
+        onkeydown="if(event.key==='Enter')loginWithEmail()"/>
+    </div>
+    <div class="fg">
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')loginWithEmail()"/>
+    </div>
+    <div id="login-err" style="color:#dc2626;font-size:13px;margin-bottom:10px;display:none;font-weight:600"></div>
+    <button class="btn btn-pri" style="width:100%;justify-content:center;padding:11px" onclick="loginWithEmail()">Entrar →</button>
+    <div style="text-align:center;margin-top:12px">
+      <button class="btn btn-ghost btn-sm" onclick="doResetPassword()" style="font-size:12px;color:var(--mut)">¿Olvidaste tu contraseña?</button>
+    </div>
+  </div>`;
+}
+
+function vRegisterForm(){
+  const restOpts=cfg.users.map(u=>`<option value="${u.restaurant}">${u.restaurant}</option>`).join('');
+  return `<div class="card">
+    <div class="banner blue" style="margin-bottom:14px">📋 Tu solicitud será revisada por <strong>${cfg.adminName}</strong>. Recibirás acceso en cuanto la apruebe.</div>
+    <div class="fg">
+      <label>Email</label>
+      <input type="email" id="reg-email" placeholder="tucorreo@email.com" autocomplete="email"/>
+    </div>
+    <div class="fg">
+      <label>Contraseña <span style="font-weight:400;text-transform:none;letter-spacing:0">(mínimo 6 caracteres)</span></label>
+      <input type="password" id="reg-pass" placeholder="••••••"/>
+    </div>
+    <div class="fg">
+      <label>Confirmar contraseña</label>
+      <input type="password" id="reg-pass2" placeholder="••••••"/>
+    </div>
+    <div class="fg">
+      <label>Tu restaurante</label>
+      <select id="reg-rest">${restOpts}</select>
+    </div>
+    <div class="fg">
+      <label>Tu nombre</label>
+      <input type="text" id="reg-name" placeholder="Juan García"/>
+    </div>
+    <div id="reg-err" style="color:#dc2626;font-size:13px;margin-bottom:10px;display:none;font-weight:600"></div>
+    <button class="btn btn-pri" style="width:100%;justify-content:center;padding:11px" onclick="registerUser()">Solicitar acceso</button>
+  </div>`;
+}
+
+function vPendingApproval(){
+  const email=S.session?.email||'';
+  const status=S.session?.pendingStatus||'pending';
+  const isRejected=status==='rejected';
+  return `<div class="login-wrap" style="text-align:center;padding-top:50px">
+    <div style="font-size:58px;margin-bottom:16px">${isRejected?'❌':'⏳'}</div>
+    <div class="login-title" style="font-size:20px">${isRejected?'Acceso denegado':'Solicitud pendiente'}</div>
+    <div style="color:var(--mut);font-size:14px;margin:12px 0 24px;line-height:1.5">
+      ${isRejected
+        ?`Tu cuenta <strong>${email}</strong> no ha sido aprobada.<br>Contacta con ${cfg.adminName}.`
+        :`Tu cuenta <strong>${email}</strong><br>está esperando aprobación.`}
+    </div>
+    ${!isRejected?`<div class="banner blue" style="max-width:380px;margin:0 auto 20px;text-align:left">
+      💬 Cuando <strong>${cfg.adminName}</strong> apruebe tu solicitud, la sesión se activará automáticamente. No hace falta que hagas nada.
+    </div>`:''}
+    <button class="btn btn-ghost" onclick="logout()">↩ Cerrar sesión</button>
   </div>`;
 }
 
 /* ═══════════════ ORDER VIEW ═══════════════ */
 function vOrder(){
+  const myRests=S.session.restaurants||[S.session.restaurant];
+  // Ensure active restaurant is valid
+  if(!myRests.includes(S.session.restaurant)) S.session.restaurant=myRests[0];
   const myPending=orders.filter(o=>o.restaurant===S.session.restaurant&&o.status==='pending').length;
-  const myApproved=orders.filter(o=>o.restaurant===S.session.restaurant&&o.status==='approved').length;
   const histBadge=myPending?` <span style="background:var(--acc);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px">${myPending}</span>`:'';
   const tabsHtml=`<div class="tabs" style="margin-bottom:16px">
     <button class="tab ${S.orderTab!=='history'?'act':''}" onclick="S.orderTab='new';render()">🛒 Hacer pedido</button>
     <button class="tab ${S.orderTab==='history'?'act':''}" onclick="S.orderTab='history';render()">📋 Mis pedidos${histBadge}</button>
   </div>`;
+  const restPickerHtml=myRests.length>1?`<div class="rest-picker">
+    <div class="rest-picker-lbl">🏪 Pedido para</div>
+    ${myRests.map(r=>`<button class="stab ${S.session.restaurant===r?'act':''}" onclick="S.session.restaurant='${r.replace(/'/g,"\\'")}';S.cart={};S.orderTab='new';render()">${r}</button>`).join('')}
+  </div>`:'';
 
   if(S.orderTab==='history'){
-    return `<div class="main">${tabsHtml}${vMyOrders()}</div>`;
+    return `<div class="main">${tabsHtml}${myRests.length>1?restPickerHtml:''}${vMyOrders()}</div>`;
   }
 
   const sups=visibleSups();
@@ -881,7 +1198,7 @@ function vOrder(){
     </div>
     ${S.showSaveTemplate?`<div style="display:flex;gap:6px;margin-bottom:10px"><input type="text" id="tpl-name" placeholder="Nombre de la plantilla..." style="flex:1;padding:6px 10px;border:1px solid var(--brd);border-radius:6px;font-size:13px"/><button class="btn btn-pri btn-sm" onclick="saveTpl()">Guardar</button></div>`:''}`;
   return `<div class="main">
-    ${tabsHtml}${note}
+    ${tabsHtml}${restPickerHtml}${note}
     ${tplSection}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 0 6px">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 14px;border-radius:10px;border:2px solid ${S.orderUrgent?'#dc2626':'var(--brd)'};background:${S.orderUrgent?'#fff1f2':'var(--card)'};transition:.2s">
@@ -908,7 +1225,10 @@ function vOrder(){
 }
 
 function vMyOrders(){
-  const mine=orders.filter(o=>o.restaurant===S.session.restaurant)
+  const myRests=S.session.restaurants||[S.session.restaurant];
+  // When filtering history: show orders for the active restaurant (if picker used) or all allowed restaurants
+  const filterRest=myRests.length>1?S.session.restaurant:S.session.restaurant;
+  const mine=orders.filter(o=>o.restaurant===filterRest)
     .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
   if(!mine.length) return `<div class="empty"><div class="ei">📋</div><div class="et">Aún no has hecho ningún pedido</div></div>`;
   return mine.map(o=>{
@@ -961,16 +1281,19 @@ function vAdmin(){
   const pend=orders.filter(o=>o.status==='pending');
   const appr=orders.filter(o=>o.status==='approved');
 
+  const pendingSol=Object.values(authUsers).filter(u=>u.status==='pending').length;
   function sbItem(id,lbl,badgeId){
     const act=S.adminTab===id;
     const badge=badgeId==='sb-pend-badge'
       ? `<span class="sb-badge" id="sb-pend-badge" style="${pend.length?'':'display:none'}">${pend.length}</span>`
+      : badgeId==='sb-sol-badge'
+      ? `<span class="sb-badge" id="sb-sol-badge" style="${pendingSol?'':'display:none'}">${pendingSol}</span>`
       : '';
     return `<div class="sg-item${act?' act':''}" onclick="setTabSb('${id}')"><span>${lbl}</span>${badge}</div>`;
   }
   function grpHd(g,emoji,lbl){
     const open=S.sbGroups[g];
-    const childTabs={pedidos:['pending','approved','consolidated','received'],analisis:['spending','monthly','foodcost','budgets','compare','prices'],gestion:['users','suppliers','settings','escandallos']};
+    const childTabs={pedidos:['pending','approved','consolidated','received'],analisis:['spending','monthly','foodcost','budgets','compare','prices'],gestion:['users','suppliers','settings','escandallos','solicitudes']};
     const hasAct=(childTabs[g]||[]).includes(S.adminTab);
     return `<div class="sg-hd${hasAct&&!open?' has-act':''}" onclick="toggleSbGroup('${g}')"><span>${emoji} ${lbl}</span><span class="sg-arrow">${open?'▲':'▼'}</span></div>`;
   }
@@ -996,6 +1319,7 @@ function vAdmin(){
     <div class="sg-direct${S.adminTab==='albaranes'?' act':''}" onclick="setTabSb('albaranes')">📋 Albaranes</div>
     ${grpHd('gestion','⚙️','Gestión')}
     ${S.sbGroups.gestion?`
+      ${sbItem('solicitudes','👥 Solicitudes','sb-sol-badge')}
       ${sbItem('users','Usuarios')}
       ${sbItem('suppliers','Proveedores')}
       ${sbItem('settings','Configuración')}
@@ -1015,6 +1339,7 @@ function vAdmin(){
   else if(S.adminTab==='compare')   content=vCompare();
   else if(S.adminTab==='prices')    content=vPriceHistory();
   else if(S.adminTab==='albaranes') content=vAlbaranes();
+  else if(S.adminTab==='solicitudes') content=vSolicitudes();
   else if(S.adminTab==='users')     content=vUsers();
   else if(S.adminTab==='suppliers') content=vSuppliers();
   else if(S.adminTab==='settings')  content=vSettings();
@@ -1857,7 +2182,8 @@ function vSettings(){
   return `<div class="card">
     <div class="card-t">Administrador</div>
     <div class="fg"><label>Nombre</label><input type="text" value="${cfg.adminName}" onchange="cfg.adminName=this.value;saveCfg()"/></div>
-    <div class="fg"><label>PIN administrador (4 dígitos)</label><input type="password" value="${cfg.adminPIN}" maxlength="4" onchange="cfg.adminPIN=this.value;saveCfg()"/></div>
+    <div class="fg"><label>Email administrador</label><input type="email" value="${cfg.adminEmail||'josue.funte@gmail.com'}" onchange="cfg.adminEmail=this.value.trim();saveCfg()"/><div style="font-size:12px;color:var(--mut);margin-top:4px">Usa este correo para iniciar sesión como administrador</div></div>
+    <div class="fg"><label>PIN administrador (acceso rápido, 4 dígitos)</label><input type="password" value="${cfg.adminPIN}" maxlength="4" onchange="cfg.adminPIN=this.value;saveCfg()"/></div>
     <div class="fg">
       <label>📱 Tu WhatsApp — para recibir notificaciones de pedidos</label>
       <input type="tel" value="${cfg.adminPhone||''}" placeholder="34612345678" onchange="cfg.adminPhone=this.value.replace(/\\D/g,'');saveCfg()"/>
@@ -2655,11 +2981,52 @@ function updateCoreSuppliers(){
   });
 }
 
+/* ═══════════════ ADMIN ACCOUNT SETUP ═══════════════ */
+function initAdminAccount(){
+  if(!fbAuth||!fbDb) return;
+  // Si ya se creó en esta sesión, no repetir
+  if(localStorage.getItem('oc_admin_init')==='1') return;
+  const adminEmail=cfg.adminEmail||'josue.funte@gmail.com';
+  fbAuth.createUserWithEmailAndPassword(adminEmail,'Josue1998')
+    .then(cred=>{
+      const uid=cred.user.uid;
+      fbDb.ref('authUsers/'+uid).set({
+        uid, email:adminEmail, name:cfg.adminName||'Josué',
+        isAdmin:true, status:'approved', createdAt:new Date().toISOString()
+      }).then(()=>{
+        localStorage.setItem('oc_admin_init','1');
+        // Cerrar sesión inmediatamente — el admin iniciará sesión de forma normal
+        fbAuth.signOut().catch(()=>{});
+      });
+    })
+    .catch(e=>{
+      // Ya existe → marcar como inicializado
+      if(e.code==='auth/email-already-in-use'){
+        localStorage.setItem('oc_admin_init','1');
+        // Asegurarse de que el nodo de DB esté marcado como admin
+        // (por si la cuenta existía antes de esta versión)
+        fbAuth.signInWithEmailAndPassword(adminEmail,'Josue1998')
+          .then(cred=>{
+            fbDb.ref('authUsers/'+cred.user.uid).once('value',snap=>{
+              const u=snap.val()||{};
+              if(!u.isAdmin){
+                fbDb.ref('authUsers/'+cred.user.uid).update({isAdmin:true,status:'approved',email:adminEmail,name:cfg.adminName||'Josué'});
+              }
+            });
+            // No dejar sesión iniciada — se volvera a iniciar cuando el admin entre manualmente
+            fbAuth.signOut().catch(()=>{});
+          })
+          .catch(()=>{}); // contraseña diferente → no hacer nada, el admin puede ingresar con la suya
+      }
+    });
+}
+
 /* ═══════════════ INIT ═══════════════ */
 window.addEventListener('DOMContentLoaded',()=>{
   try {
     fbApp = firebase.initializeApp({ databaseURL: FB_URL });
     fbDb  = firebase.database();
+    fbAuth= firebase.auth();
   } catch(e) {
     console.warn('Firebase init error:', e);
   }
@@ -2677,7 +3044,53 @@ window.addEventListener('DOMContentLoaded',()=>{
   initFirebaseListeners();
   addMissingSuppliers();
   updateCoreSuppliers();
-  render();
+  initAdminAccount(); // Crea / verifica la cuenta de admin en Firebase Auth
+
+  // ── Restaurar sesión de administrador (localStorage) ──
+  if(localStorage.getItem('oc_admin_session')==='1'){
+    S.session={isAdmin:true,name:cfg.adminName};
+    showHdr(true);
+    S.view='admin';
+    render();
+  } else {
+    // ── Firebase Auth: sesión persistente para restaurantes ──
+    if(fbAuth){
+      fbAuth.onAuthStateChanged(user=>{
+        if(S.session?.isAdmin) return; // admin ya activo, ignorar
+        if(user){
+          fbDb.ref('authUsers/'+user.uid).once('value',snap=>{
+            const u=snap.val();
+            // Detectar admin por email o flag isAdmin en DB
+            const isAdminUser=(user.email && user.email.toLowerCase()===(cfg.adminEmail||'josue.funte@gmail.com').toLowerCase()) || (u && u.isAdmin===true);
+            if(isAdminUser){
+              goAdmin(); return;
+            }
+            if(u && u.status==='approved'){
+              const myRests=u.restaurants||[u.restaurant];
+              S.session={uid:user.uid,email:user.email,name:u.name||u.restaurant,restaurant:myRests[0]||u.restaurant,restaurants:myRests,isAdmin:false,needsApproval:u.needsApproval!==false};
+              showHdr(false);
+              S.view='order';
+              const sl=visibleSups(); if(sl.length) S.supId=sl[0].id;
+              render();
+            } else if(u && (u.status==='pending'||u.status==='rejected')){
+              S.session={uid:user.uid,email:user.email,pendingStatus:u.status};
+              document.getElementById('hdr').style.display='none';
+              S.view='pending-approval';
+              render();
+            } else {
+              // Sin registro en DB → mostrar login
+              S.view='login'; render();
+            }
+          });
+        } else {
+          // No hay sesión activa → login
+          if(!S.session){ S.view='login'; render(); }
+        }
+      });
+    } else {
+      render(); // Firebase Auth no disponible → mostrar login
+    }
+  }
 });
 </script>
 </body>
