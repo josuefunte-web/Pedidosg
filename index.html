@@ -352,7 +352,16 @@ window.onerror = function(msg, src, line, col, err){
 };
 
 /* ═══════════════ FIREBASE CONFIG ═══════════════ */
-const FB_URL = 'https://pedidos-835a1-default-rtdb.europe-west1.firebasedatabase.app';
+const FB_CONFIG = {
+  apiKey: "AIzaSyCJIF3BsWdWnB59idnxCRlYbWixTp1sGb8",
+  authDomain: "pedidos-835a1.firebaseapp.com",
+  databaseURL: "https://pedidos-835a1-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "pedidos-835a1",
+  storageBucket: "pedidos-835a1.firebasestorage.app",
+  messagingSenderId: "236536249236",
+  appId: "1:236536249236:web:6a2cad24995a1bc57cad81"
+};
+const FB_URL = FB_CONFIG.databaseURL;
 let fbApp, fbDb, fbAuth;
 let authUsers = {};
 
@@ -681,7 +690,7 @@ function initFirebaseListeners(){
 async function loginWithEmail(){
   // Lazy init: si Firebase cargó pero fbAuth no se asignó, intentar de nuevo
   if(!fbAuth && typeof firebase !== 'undefined'){
-    try{ fbApp=fbApp||firebase.initializeApp({databaseURL:FB_URL}); fbAuth=firebase.auth(); fbDb=fbDb||firebase.database(); }catch(e){}
+    try{ fbApp=fbApp||firebase.initializeApp(FB_CONFIG); fbAuth=firebase.auth(); fbDb=fbDb||firebase.database(); }catch(e){}
   }
   if(!fbAuth){
     toast('Sin conexión. Comprueba tu internet y recarga la página.','#dc2626',7000);return;
@@ -706,7 +715,7 @@ async function loginWithEmail(){
 
 async function registerUser(){
   if(!fbAuth && typeof firebase !== 'undefined'){
-    try{ fbApp=fbApp||firebase.initializeApp({databaseURL:FB_URL}); fbAuth=firebase.auth(); fbDb=fbDb||firebase.database(); }catch(e){}
+    try{ fbApp=fbApp||firebase.initializeApp(FB_CONFIG); fbAuth=firebase.auth(); fbDb=fbDb||firebase.database(); }catch(e){}
   }
   if(!fbAuth){toast('Sin conexión. Comprueba tu internet y recarga la página.','#dc2626',7000);return;}
   const email=(document.getElementById('reg-email')?.value||'').trim();
@@ -3026,7 +3035,7 @@ function initAdminAccount(){
 /* ═══════════════ INIT ═══════════════ */
 window.addEventListener('DOMContentLoaded',()=>{
   try {
-    fbApp = firebase.initializeApp({ databaseURL: FB_URL });
+    fbApp = firebase.initializeApp(FB_CONFIG);
     fbDb  = firebase.database();
     fbAuth= firebase.auth();
   } catch(e) {
@@ -3036,7 +3045,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!fbAuth){
     setTimeout(()=>{
       if(!fbAuth && typeof firebase !== 'undefined'){
-        try{ fbApp=firebase.initializeApp({databaseURL:FB_URL}); fbDb=firebase.database(); fbAuth=firebase.auth(); initFirebaseListeners(); initAdminAccount(); }catch(e){}
+        try{ fbApp=firebase.initializeApp(FB_CONFIG); fbDb=firebase.database(); fbAuth=firebase.auth(); initFirebaseListeners(); initAdminAccount(); }catch(e){}
         // Re-renderizar para quitar el spinner de "Conectando"
         if(S.view==='login') render();
       }
