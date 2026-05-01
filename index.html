@@ -339,8 +339,11 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
 /* ═══════════════ GLOBAL ERROR HANDLER ═══════════════ */
 window.onerror = function(msg, src, line, col, err){
   console.error('App error:', msg, 'at', src, line, col, err);
+  // Solo mostrar banner para errores críticos visibles al usuario, no errores de init
+  const ignore = ['initAdminAccount','Script error','ResizeObserver','fbAuth','fbDb'];
+  if(ignore.some(k => String(msg).includes(k) || String(src).includes(k))) return true;
   const app = document.getElementById('app');
-  if(app && !app.innerHTML.includes('error-banner')){
+  if(app && !app.innerHTML.includes('error-banner') && S && S.view !== 'login'){
     const banner = document.createElement('div');
     banner.id = 'error-banner';
     banner.style.cssText = 'background:#fef2f2;border:1.5px solid #fca5a5;color:#991b1b;padding:12px 16px;margin:12px 14px;border-radius:10px;font-size:13px;font-weight:600';
@@ -382,73 +385,42 @@ const DEFAULT_USERS=[
 ];
 const DEFAULT_SUPS={
   bencar:{id:'bencar',name:'Bencar',emoji:'🥩',phone:'',products:[
-    {id:'bx1',name:'AGUJA DE TERNERA',unit:'Kg',price:12.99},
-    {id:'bx2',name:'ALETA DE TERNERA',unit:'Kg',price:11.99},
-    {id:'bx3',name:'CADERA O BABILLA DE TERNERA',unit:'Kg',price:14.99},
-    {id:'bx4',name:'CARNE PARA GUISAR (MAGRA) O RAGOUT',unit:'Kg',price:11.99},
-    {id:'bx5',name:'CARNE PICAR/PICADA (BURGUER MEAT)',unit:'Kg',price:11.99},
-    {id:'bx6',name:'CARNE PICADA DE VACA (BURGUER MEAT)',unit:'Kg',price:11.99},
-    {id:'bx7',name:'CARNE PICADA MIXTA (BURGUER MEAT)',unit:'Kg',price:9.5},
-    {id:'bx8',name:'CARRILLADA DE TERNERA',unit:'Kg',price:14.99},
-    {id:'bx9',name:'CHULETON DE TERNERA',unit:'Kg',price:18.99},
-    {id:'bx10',name:'CHULETÓN TERNERA ANGUS',unit:'Kg',price:19.99},
-    {id:'bx11',name:'CHURRASCO DE TERNERA',unit:'Kg',price:9.5},
-    {id:'bx12',name:'CONTRA O CULATA DE TERNERA',unit:'Kg',price:14.99},
-    {id:'bx13',name:'COSTILLAR DE VACA',unit:'Kg',price:9.5},
-    {id:'bx14',name:'ENTRAÑA DE AÑOJO',unit:'Kg',price:13.99},
-    {id:'bx15',name:'FALDA DE TERNERA',unit:'Kg',price:9.5},
-    {id:'bx16',name:'FILETES DE TERNERA',unit:'Kg',price:14.99},
-    {id:'bx17',name:'HAMBURGUESA (BURGUER MEAT)',unit:'Kg',price:11.99},
-    {id:'bx18',name:'LOMO ALTO O BAJO TERNERA SIN HUESO',unit:'Kg',price:19.99},
-    {id:'bx19',name:'LOMO TERNERA ENTERO',unit:'Kg',price:18.99},
-    {id:'bx20',name:'LOMO DE VACA SELECCIÓN',unit:'Kg',price:15.99},
-    {id:'bx21',name:'MORCILLO DE TERNERA',unit:'Kg',price:13.5},
-    {id:'bx22',name:'OSSOBUCO DE TERNERA',unit:'Kg',price:10.9},
-    {id:'bx23',name:'RABO DE TERNERA',unit:'Kg',price:13.99},
-    {id:'bx24',name:'SOLOMILLO DE TERNERA LIMPIO',unit:'Kg',price:28.99},
-    {id:'bx25',name:'T BONE TERNERA ANGUS',unit:'Kg',price:21.99},
-    {id:'bx26',name:'TAPA O REDONDO O ESPALDILLA',unit:'Kg',price:14.99},
-    {id:'bx27',name:'TAPILLA DE TERNERA',unit:'Kg',price:15.99},
-    {id:'bx28',name:'TIRAS DE ASADO DE TERNERA',unit:'Kg',price:9.5},
-    {id:'bx29',name:'TOMAHAWK',unit:'Kg',price:27.06},
-    {id:'bx30',name:'VACIO DE TERNERA',unit:'Kg',price:13.99},
-    {id:'bx31',name:'CHULETA T-BONE DE VACA',unit:'Kg',price:24.64},
-    {id:'bx32',name:'CHULETON DE VACA LUX',unit:'Kg',price:27.06},
-    {id:'bx33',name:'HAMBURGUESAS DE BUEY',unit:'Kg',price:13.99},
-    {id:'bx34',name:'SOLOMILLO DE VACA PREMIUM',unit:'Kg',price:24.99},
-    {id:'bx35',name:'FILETE DE LOMO DE AÑOJO 1/1',unit:'Kg',price:17.49},
-    {id:'bx36',name:'CADERA Y BABILLA DE CERDO',unit:'Kg',price:6.49},
-    {id:'bx37',name:'CARNE PICADA DE CERDO',unit:'Kg',price:5.63},
-    {id:'bx38',name:'CARNE PICADA DE PRESA DUROC',unit:'Kg',price:8.99},
-    {id:'bx39',name:'CARRILLADA DE CERDO congelada',unit:'Kg',price:10.99},
-    {id:'bx40',name:'CHULETAS DE CERDO AGUJA',unit:'Kg',price:5.99},
-    {id:'bx41',name:'CHULETAS DE CERDO DE PALO',unit:'Kg',price:6.99},
-    {id:'bx42',name:'CINTA FRESCA, ADOBADA, AJILLO',unit:'Kg',price:6.5},
-    {id:'bx43',name:'CODILLO DE JAMON NATURAL',unit:'Kg',price:4.99},
-    {id:'bx44',name:'CODILLO DE PALETA',unit:'Kg',price:4.99},
-    {id:'bx45',name:'CONTRA DE CERDO',unit:'Kg',price:6.5},
-    {id:'bx46',name:'COSTILLAR DE CERDO',unit:'Kg',price:6.99},
-    {id:'bx47',name:'COSTILLAS FRESCAS (PUNTAS)',unit:'Kg',price:6.99},
-    {id:'bx48',name:'FILETES DE CERDO',unit:'Kg',price:6.5},
-    {id:'bx49',name:'HAMBURGUESA DE CERDO (BURGUER MEAT)',unit:'Kg',price:5.99},
-    {id:'bx50',name:'JAMON DE CERDO PARA ASAR (SIN HUESO)',unit:'Kg',price:6.4},
-    {id:'bx51',name:'MAGRO DE CERDO',unit:'Kg',price:5.63},
-    {id:'bx52',name:'MANOS Y OREJAS DE CERDO',unit:'Kg',price:4.5},
-    {id:'bx53',name:'PALETA CON PIEL',unit:'Kg',price:4.5},
-    {id:'bx54',name:'PALETA S/H',unit:'Kg',price:6.5},
-    {id:'bx55',name:'PANCETA FRESCA (SIN HUESO)',unit:'Kg',price:6.99},
-    {id:'bx56',name:'PAPADA DE CERDO SIN CORTEZA',unit:'Kg',price:2.5},
-    {id:'bx57',name:'PRESA DUROC',unit:'Kg',price:8.99},
-    {id:'bx58',name:'SECRETO DE CERDO BLANCO',unit:'Kg',price:8.72},
-    {id:'bx59',name:'SOLOMILLO DUROC',unit:'Kg',price:7.5},
-    {id:'bx60',name:'SOLOMILLO DE CERDO CONGELADO',unit:'Kg',price:7.08},
-    {id:'bx61',name:'TIRAS DE COSTILLA',unit:'Kg',price:6.3},
-    {id:'bx62',name:'RAGOUT DE CERDO',unit:'Kg',price:8.38},
-    {id:'bx63',name:'ALBONDIGA MIXTA',unit:'Kg',price:8.99},
-    {id:'bx64',name:'CARNE PICADA DE SECRETO IBÉRICO',unit:'Kg',price:9.99},
-    {id:'bx65',name:'PRESA IBERICA EXTRA CONGELADA',unit:'Kg',price:23.99},
-    {id:'bx66',name:'SECRETO DE CERDO IBERICO 2ª CONGELADO',unit:'Kg',price:12.99},
-    {id:'bx67',name:'SECRETO IBERICO EXTRA CONGELADO',unit:'Kg',price:21.99},
+    {id:'benca1',name:'BURGER MEET DE CERDO(ZORZA)',unit:'KG',price:6.193},
+    {id:'benca2',name:'BURGER MEET MIXTA',unit:'KG',price:10.56},
+    {id:'benca3',name:'CALDERETA DE CORDERO',unit:'KG',price:9.99},
+    {id:'benca4',name:'CALDERETA DE CORDERO DE CUELLO',unit:'KG',price:4.43},
+    {id:'benca5',name:'CALLOS DE TERNERA',unit:'KG',price:7.73},
+    {id:'benca6',name:'CANAL DE CORDERO LECHAL',unit:'KG',price:21.989},
+    {id:'benca7',name:'CARRILLADA DE AÑOJO',unit:'KG',price:17.77},
+    {id:'benca8',name:'CHORIZO CASERO DE PUEBLO',unit:'KG',price:7.689},
+    {id:'benca9',name:'CHULETAS DE SANJONIA',unit:'KG',price:9.889},
+    {id:'benca10',name:'CHULETON DE TERNERA',unit:'KG',price:20.889},
+    {id:'benca11',name:'CINTA DE LOMO ADOBADA',unit:'KG',price:7.15},
+    {id:'benca12',name:'CODORNICES',unit:'UD',price:2.53},
+    {id:'benca13',name:'CONTRA DE TERNERA AL VACIO',unit:'KG',price:16.66},
+    {id:'benca14',name:'ESPINAZO',unit:'KG',price:5.54},
+    {id:'benca15',name:'FALDA DE TERNERA',unit:'KG',price:10.56},
+    {id:'benca16',name:'GALLINA PESADA',unit:'KG',price:5.489},
+    {id:'benca17',name:'HUESOS DE JAMON',unit:'KG',price:5.54},
+    {id:'benca18',name:'JAMONCITOS DE POLLO',unit:'KG',price:3.85},
+    {id:'benca19',name:'LOMO DE VACA SELECCIÓN CONG',unit:'KG',price:17.589},
+    {id:'benca20',name:'LONGANIZA BLANCA',unit:'KG',price:7.689},
+    {id:'benca21',name:'MAGRO DE CERDO',unit:'KG',price:6.25},
+    {id:'benca22',name:'MORCILLA DE BURGOS',unit:'KG',price:7.689},
+    {id:'benca23',name:'MORCILLO DE TERNERA',unit:'KG',price:15.0},
+    {id:'benca24',name:'OSOBUCO DE TERNERA',unit:'KG',price:11.1},
+    {id:'benca25',name:'PANCETA DE CERDO',unit:'KG',price:7.77},
+    {id:'benca26',name:'PASTA DE MORCILLA',unit:'KG',price:6.589},
+    {id:'benca27',name:'PECHUGA DE POLLO ENTERA',unit:'KG',price:8.525},
+    {id:'benca28',name:'PICANTONES',unit:'KG',price:5.0},
+    {id:'benca29',name:'POLLO ENTERO',unit:'KG',price:3.61},
+    {id:'benca30',name:'PRESA IBERICA',unit:'KG',price:27.489},
+    {id:'benca31',name:'RABO DE VACA',unit:'KG',price:15.54},
+    {id:'benca32',name:'RAGOUT DE TERNERA',unit:'KG',price:13.189},
+    {id:'benca33',name:'SOLOMILLO DE CERDO',unit:'KG',price:7.788},
+    {id:'benca34',name:'SOLOMILLO DE VACA',unit:'KG',price:27.489},
+    {id:'benca35',name:'TAPA DE TERNERA',unit:'KG',price:16.66},
+    {id:'benca36',name:'UNTO',unit:'KG',price:8.88}
   ]},
   g1012:{id:'g1012',name:'1012 Gourmet',emoji:'🌟',phone:'',products:[
     {id:'g1',name:'Foie gras de pato fresco',unit:'KG',price:85.00},
@@ -1188,16 +1160,17 @@ function vOrder(){
   if(!sups.length) return `<div class="main">${tabsHtml}<div class="empty"><div class="ei">🏭</div><div class="et">No hay proveedores activos para este local.</div></div></div>`;
   if(!suppliers[S.supId]||!(sups.find(s=>s.id===S.supId))) S.supId=sups[0].id;
   const sup=suppliers[S.supId];
-  const cnt=Object.values(S.cart).reduce((s,v)=>s+v,0);
-  const tot=sup.products.reduce((s,p)=>s+(S.cart[p.id]||0)*p.price,0);
+  const cnt=Object.values(S.cart).reduce((s,sc2)=>s+Object.values(sc2).reduce((a,v)=>a+v,0),0);
+  const tot=Object.entries(S.cart).reduce((s,[sid,sc2])=>{const sp=suppliers[sid];if(!sp)return s;return s+sp.products.reduce((a,p)=>a+(sc2[p.id]||0)*p.price,0);},0);
+  const supCnt=Object.keys(S.cart).length;
   const note=S.session.needsApproval
     ?`<div class="banner">📋 Tu pedido irá a <strong>${cfg.adminName}</strong> para aprobación antes de enviarse al proveedor.</div>`
     :`<div class="banner blue">⚡ Tus pedidos se aprueban automáticamente y van directo al proveedor.</div>`;
-  const stabs=sups.map(s=>`<button class="stab ${S.supId===s.id?'act':''}" onclick="setSup('${s.id}')">${s.emoji} ${s.name}</button>`).join('');
+  const stabs=sups.map(s=>{const sc2=S.cart[s.id]||{};const n=Object.values(sc2).reduce((a,v)=>a+v,0);return `<button class="stab ${S.supId===s.id?'act':''}" onclick="setSup('${s.id}')">${s.emoji} ${s.name}${n>0?` <span style="background:#3b82f6;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:700">${n}</span>`:''}</button>`;}).join('');
   const searchTerm=(S.prodSearch||'').toLowerCase().trim();
   const filteredProds=sup.products.filter(p=>!searchTerm||p.name.toLowerCase().includes(searchTerm));
   const prods=filteredProds.map(p=>{
-    const q=S.cart[p.id]||0;
+    const q=(S.cart[S.supId]||{})[p.id]||0;
     return `<div class="pi ${q>0?'ic':''}" id="pi-${p.id}">
       <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${fmt(p.price)} / ${p.unit}</div></div>
       <div class="qc">
@@ -1213,12 +1186,12 @@ function vOrder(){
   const autoSuggest={};
   myHistory.forEach(o=>(o.items||[]).forEach(it=>{if(!autoSuggest[it.id])autoSuggest[it.id]={...it,count:0,totalQty:0};autoSuggest[it.id].count++;autoSuggest[it.id].totalQty+=it.qty;}));
   const topProds=Object.values(autoSuggest).sort((a,b)=>b.count-a.count).slice(0,5);
-  const autoBtn=topProds.length&&!Object.keys(S.cart).length?`<button class="btn btn-blue btn-sm" onclick="loadAutoSuggest()" style="white-space:nowrap">🤖 Pedido típico</button>`:'';
+  const autoBtn=topProds.length&&!Object.keys(S.cart[S.supId]||{}).length?`<button class="btn btn-blue btn-sm" onclick="loadAutoSuggest()" style="white-space:nowrap">🤖 Pedido típico</button>`:'';
   const tplSection=`<div class="sh" style="margin-top:4px">Plantillas</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
       ${autoBtn}
       ${myTpls.map(t=>`<div style="display:flex;gap:2px"><button class="btn btn-ghost btn-sm" onclick="loadTemplate('${t.id}')" style="border-radius:6px 0 0 6px">📥 ${t.name}</button><button class="btn btn-no btn-sm" onclick="deleteTpl('${t.id}')" style="border-radius:0 6px 6px 0;padding:0 8px">✕</button></div>`).join('')}
-      ${cnt>0?`<button class="btn btn-ghost btn-sm" onclick="S.showSaveTemplate=!S.showSaveTemplate;render()">💾 Guardar</button>`:''}
+      ${Object.keys(S.cart[S.supId]||{}).length>0?`<button class="btn btn-ghost btn-sm" onclick="S.showSaveTemplate=!S.showSaveTemplate;render()">💾 Guardar</button>`:''}
     </div>
     ${S.showSaveTemplate?`<div style="display:flex;gap:6px;margin-bottom:10px"><input type="text" id="tpl-name" placeholder="Nombre de la plantilla..." style="flex:1;padding:6px 10px;border:1px solid var(--brd);border-radius:6px;font-size:13px"/><button class="btn btn-pri btn-sm" onclick="saveTpl()">Guardar</button></div>`:''}`;
   return `<div class="main">
@@ -1243,8 +1216,8 @@ function vOrder(){
     ${filteredProds.length?`<div class="pgrid">${prods}</div>`:`<div class="empty"><div class="ei">🔍</div><div class="et">Sin resultados para "${S.prodSearch}"</div></div>`}
   </div>
   <div class="cbar ${cnt>0?'up':''}" id="cbar">
-    <div><div class="cb-v" id="cb-v">${cnt} artículos</div><div class="cb-s" id="cb-s">${fmt(tot)}</div></div>
-    <button class="btn btn-acc" onclick="submitOrder()">📤 Enviar pedido</button>
+    <div><div class="cb-v" id="cb-v">${cnt} art.${supCnt>1?` · ${supCnt} prov.`:''}</div><div class="cb-s" id="cb-s">${fmt(tot)}</div></div>
+    <button class="btn btn-acc" onclick="submitOrder()">📤 Enviar${supCnt>1?` (${supCnt} pedidos)`:' pedido'}</button>
   </div>`;
 }
 
@@ -1942,7 +1915,8 @@ function saveTpl(){
   if(!name){toast('Pon un nombre','#dc2626');return;}
   const uid2=S.session.userId;
   const sup=suppliers[S.supId];
-  const items=sup.products.filter(p=>S.cart[p.id]).map(p=>({prodId:p.id,prodName:p.name,qty:S.cart[p.id],unit:p.unit,price:p.price}));
+  const sc=S.cart[S.supId]||{};
+  const items=sup.products.filter(p=>sc[p.id]).map(p=>({prodId:p.id,prodName:p.name,qty:sc[p.id],unit:p.unit,price:p.price}));
   if(!items.length){toast('Añade productos primero','#dc2626');return;}
   const tpl={id:uid(),name,supId:S.supId,items,createdAt:new Date().toISOString()};
   if(!templates[uid2])templates[uid2]={};
@@ -1954,8 +1928,9 @@ function saveTpl(){
 function loadTemplate(tplId){
   const uid2=S.session.userId;
   const tpl=templates[uid2]?.[tplId];if(!tpl)return;
-  S.supId=tpl.supId;S.cart={};
-  tpl.items.forEach(it=>{S.cart[it.prodId]=it.qty;});
+  S.supId=tpl.supId;
+  if(!S.cart[tpl.supId])S.cart[tpl.supId]={};
+  tpl.items.forEach(it=>{S.cart[tpl.supId][it.prodId]=it.qty;});
   render();toast('Plantilla cargada — revisa cantidades','#16a34a');
 }
 function deleteTpl(tplId){
@@ -1970,9 +1945,9 @@ function loadAutoSuggest(){
   const myHistory=orders.filter(o=>o.restaurant===S.session.restaurant&&o.supId===S.supId&&o.status!=='rejected');
   const acc={};
   myHistory.forEach(o=>(o.items||[]).forEach(it=>{if(!acc[it.id])acc[it.id]={prodId:it.id,totalQty:0,count:0};acc[it.id].count++;acc[it.id].totalQty+=it.qty;}));
-  S.cart={};
+  if(!S.cart[S.supId])S.cart[S.supId]={};
   Object.values(acc).sort((a,b)=>b.count-a.count).slice(0,5).forEach(it=>{
-    S.cart[it.prodId]=Math.round(it.totalQty/it.count)||1;
+    S.cart[S.supId][it.prodId]=Math.round(it.totalQty/it.count)||1;
   });
   render();toast('🤖 Pedido típico cargado — ajusta cantidades','#7c3aed');
 }
@@ -2266,35 +2241,53 @@ function pushNotify(title,body,icon='🛒'){
 }
 
 /* ═══════════════ ORDER ACTIONS ═══════════════ */
-function setSup(id){ S.supId=id;S.cart={};S.prodSearch='';render(); }
+function setSup(id){ S.supId=id;S.prodSearch='';render(); }
 function chgQ(id,d){
-  const q=S.cart[id]||0,nq=Math.max(0,q+d);
-  if(nq===0)delete S.cart[id];else S.cart[id]=nq;
+  if(!S.cart[S.supId])S.cart[S.supId]={};
+  const sc=S.cart[S.supId];
+  const q=sc[id]||0,nq=Math.max(0,q+d);
+  if(nq===0)delete sc[id];else sc[id]=nq;
+  if(Object.keys(sc).length===0)delete S.cart[S.supId];
   const el=document.getElementById('qd-'+id);if(el)el.textContent=nq;
   const pi=document.getElementById('pi-'+id);if(pi)pi.className='pi'+(nq>0?' ic':'');
-  const sup=suppliers[S.supId];
-  const cnt=Object.values(S.cart).reduce((s,v)=>s+v,0);
-  const tot=(sup?sup.products:[]).reduce((s,p)=>s+(S.cart[p.id]||0)*p.price,0);
+  // Grand total across all suppliers
+  const cnt=Object.values(S.cart).reduce((s,sc2)=>s+Object.values(sc2).reduce((a,v)=>a+v,0),0);
+  const tot=Object.entries(S.cart).reduce((s,[sid,sc2])=>{const sp=suppliers[sid];if(!sp)return s;return s+sp.products.reduce((a,p)=>a+(sc2[p.id]||0)*p.price,0);},0);
   const bar=document.getElementById('cbar');if(bar)bar.className='cbar'+(cnt>0?' up':'');
-  const cv=document.getElementById('cb-v');if(cv)cv.textContent=`${cnt} artículos`;
+  const cv=document.getElementById('cb-v');if(cv)cv.textContent=`${cnt} art. · ${Object.keys(S.cart).length} prov.`;
   const cs=document.getElementById('cb-s');if(cs)cs.textContent=fmt(tot);
 }
 
 function submitOrder(){
   if(!S.session){toast('Sin sesión','#dc2626');return;}
-  const sup=suppliers[S.supId];
-  if(!sup||!Object.keys(S.cart).length){toast('Añade productos al pedido','#dc2626');return;}
-  const items=sup.products.filter(p=>S.cart[p.id]).map(p=>({...p,qty:S.cart[p.id]}));
+  const activeSups=Object.keys(S.cart).filter(sid=>Object.keys(S.cart[sid]||{}).length>0);
+  if(!activeSups.length){toast('Añade productos al pedido','#dc2626');return;}
   const needApproval=S.session.needsApproval;
-  const o={id:uid(),restaurant:S.session.restaurant,supId:S.supId,items,status:needApproval?'pending':'approved',autoApproved:!needApproval,createdAt:new Date().toISOString(),urgent:S.orderUrgent||false,deliveryDate:S.orderDeliveryDate||null};
-  saveOrder(o);
+  const orders2send=[];
+  activeSups.forEach(sid=>{
+    const sup=suppliers[sid];if(!sup)return;
+    const sc=S.cart[sid]||{};
+    const items=sup.products.filter(p=>sc[p.id]).map(p=>({...p,qty:sc[p.id]}));
+    if(!items.length)return;
+    const o={id:uid(),restaurant:S.session.restaurant,supId:sid,items,status:needApproval?'pending':'approved',autoApproved:!needApproval,createdAt:new Date().toISOString(),urgent:S.orderUrgent||false,deliveryDate:S.orderDeliveryDate||null};
+    saveOrder(o);
+    orders2send.push(o);
+  });
+  if(!orders2send.length){toast('Añade productos al pedido','#dc2626');return;}
   S.cart={};S.orderUrgent=false;S.orderDeliveryDate='';S.prodSearch='';
   if(needApproval){
-    showWA(cfg.adminPhone||'',msgAdmin(o),`Pedido de ${o.restaurant} — envíalo a ${cfg.adminName} para que lo apruebe`);
-    toast('✅ Pedido enviado — notifica al jefe por WhatsApp','#d97706');
+    // Show WA for admin with summary of all orders
+    const totalAmt=orders2send.reduce((s,o)=>s+total(o),0);
+    const supNames=orders2send.map(o=>(suppliers[o.supId]||{name:o.supId}).name).join(', ');
+    const msgMulti=`🛒 Nuevo pedido de ${orders2send[0].restaurant}\n${orders2send.map(o=>`• ${(suppliers[o.supId]||{name:o.supId}).name}: ${fmt(total(o))}`).join('\n')}\n💰 Total: ${fmt(totalAmt)}`;
+    showWA(cfg.adminPhone||'',msgMulti,`${orders2send.length} pedido(s) de ${orders2send[0].restaurant} — apruébalos`);
+    toast(`✅ ${orders2send.length} pedido(s) enviado(s) para aprobación`,'#d97706');
   } else {
-    showWA(sup.phone||'',msgSupplier(o),`Pedido aprobado — envíalo a ${sup.name}`);
-    toast('⚡ Pedido aprobado — envía al proveedor','#16a34a');
+    // Auto-approved: one WA per supplier
+    orders2send.forEach(o=>{
+      const sup=suppliers[o.supId];if(sup?.phone)showWA(sup.phone,msgSupplier(o),`Pedido aprobado — envíalo a ${sup.name}`);
+    });
+    toast(`⚡ ${orders2send.length} pedido(s) aprobado(s) — envía a cada proveedor`,'#16a34a');
   }
   render();
 }
@@ -2967,6 +2960,365 @@ const NEW_SUPPLIERS = {
     {id:'fe93',name:'Alcachofa trozos',unit:'KG',price:3.58},
     {id:'fe94',name:'Espárrago troceado',unit:'KG',price:5.14},
   ]},
+  ferrer_oc:{id:'ferrer_oc',name:'Ferrer',emoji:'🐟',phone:'',products:[
+    {id:'ferre1',name:'ALMEJA BLANCA',unit:'KG',price:2.4255},
+    {id:'ferre2',name:'BOGAVANTE 3-4',unit:'KG',price:21.72},
+    {id:'ferre3',name:'BROCOLI',unit:'KG',price:1.8},
+    {id:'ferre4',name:'BUEY',unit:'KG',price:15.092},
+    {id:'ferre5',name:'CABEZA DE BOGAVANTE',unit:'KG',price:6.02},
+    {id:'ferre6',name:'CALABACIN EN DADOS',unit:'KG',price:1.53},
+    {id:'ferre7',name:'CALAMAR TROCEADO',unit:'KG',price:6.4141},
+    {id:'ferre8',name:'CARNE PICADA DE TERNERA',unit:'KG',price:8.51},
+    {id:'ferre9',name:'CHAMPIÑON LAMINADO',unit:'KG',price:2.57},
+    {id:'ferre10',name:'CIGALA 1',unit:'KG',price:22.71},
+    {id:'ferre11',name:'CIGALA GRILLO',unit:'KG',price:10.5754},
+    {id:'ferre12',name:'CIGALA NUMERO 2',unit:'KG',price:14.95},
+    {id:'ferre13',name:'COCHIFRITO',unit:'KG',price:5.88},
+    {id:'ferre14',name:'COLA DE RAPE 2-3',unit:'KG',price:5.22},
+    {id:'ferre15',name:'COLIFLOR',unit:'KG',price:1.559},
+    {id:'ferre16',name:'ENSALADILLA',unit:'KG',price:1.533},
+    {id:'ferre17',name:'FOGONERO',unit:'KG',price:6.55},
+    {id:'ferre18',name:'GAMBA BLANCA',unit:'KG',price:42.45},
+    {id:'ferre19',name:'GAMBON NUMERO 2',unit:'KG',price:9.691},
+    {id:'ferre20',name:'GUISANTE FINO',unit:'KG',price:1.8865},
+    {id:'ferre21',name:'GULAS',unit:'KG',price:2.069},
+    {id:'ferre22',name:'JUDIA PLANA',unit:'KG',price:1.78},
+    {id:'ferre23',name:'LANGOSTINO BANAMEY DE 30-40',unit:'KG',price:7.2765},
+    {id:'ferre24',name:'LOMO BAJO',unit:'KG',price:15.62},
+    {id:'ferre25',name:'LUBINA',unit:'KG',price:11.54},
+    {id:'ferre26',name:'MEJILLON GALLEGO',unit:'KG',price:3.773},
+    {id:'ferre27',name:'MEJILLON GALLEGO SACO',unit:'KG',price:2.145},
+    {id:'ferre28',name:'MEJILLON MEDIA CONCHA',unit:'KG',price:9.44},
+    {id:'ferre29',name:'MENESTRA IMPERIAL',unit:'KG',price:2.669},
+    {id:'ferre30',name:'MORRALLA',unit:'KG',price:6.4834},
+    {id:'ferre31',name:'PANGA',unit:'KG',price:5.33},
+    {id:'ferre32',name:'PARROCHA',unit:'KG',price:5.2822},
+    {id:'ferre33',name:'PUNTILLA INDIA',unit:'KG',price:6.53},
+    {id:'ferre34',name:'RODABALLO DE 8-10',unit:'KG',price:21.78},
+    {id:'ferre35',name:'SALPICON DE MARISCO',unit:'KG',price:8.3138},
+    {id:'ferre36',name:'SARDINA PEQUEÑA',unit:'KG',price:8.17},
+    {id:'ferre37',name:'SECRETO DE CERDO',unit:'KG',price:10.07},
+    {id:'ferre38',name:'SEPIA DE 2-4',unit:'KG',price:12.2342},
+    {id:'ferre39',name:'SOLOMILLO DE CERDO 50 %',unit:'KG',price:9.9715},
+    {id:'ferre40',name:'SOLOMILLO VACUNO',unit:'KG',price:28.86},
+    {id:'ferre41',name:'TIRA  DE COSTILLA DUROC',unit:'KG',price:7.6},
+    {id:'ferre42',name:'TUBO LIMPIO ILLEX',unit:'KG',price:7.007},
+    {id:'ferre43',name:'ZAMBURIÑAS',unit:'KG',price:14.9842}
+  ]},
+  disbesa_c:{id:'disbesa_c',name:'Disbesa Cocina',emoji:'🥘',phone:'',products:[
+    {id:'disbe1',name:'AJO GRANULADO',unit:'KG',price:7.124},
+    {id:'disbe2',name:'AJO MOLIDO',unit:'KG',price:3.193},
+    {id:'disbe3',name:'ALUBIA BLANCA COCIDA',unit:'KG',price:3.39},
+    {id:'disbe4',name:'ARROZ LARGO',unit:'KG',price:6.503},
+    {id:'disbe5',name:'ARROZ SOS',unit:'KG',price:2.03},
+    {id:'disbe6',name:'ARROZ VAPORIZADO',unit:'KG',price:8.351},
+    {id:'disbe7',name:'ATUN DE 950 GR',unit:'KG',price:6.6},
+    {id:'disbe8',name:'AZUCAR BLANCA',unit:'KG',price:11.484},
+    {id:'disbe9',name:'CALDO DE CARNE KNORR',unit:'KG',price:12.089},
+    {id:'disbe10',name:'CANELA EN RAMA',unit:'BOTE',price:12.35},
+    {id:'disbe11',name:'CHIMICHURRI SECO',unit:'KG',price:5.61},
+    {id:'disbe12',name:'ESPAGUETI',unit:'KG',price:13.0},
+    {id:'disbe13',name:'ESPARRAGOS BLANCOS 17/24',unit:'CAJA',price:25.74},
+    {id:'disbe14',name:'FIAMBRE DE YORK',unit:'KG',price:4.01},
+    {id:'disbe15',name:'FIDEO N2',unit:'KG',price:6.94},
+    {id:'disbe16',name:'FLAN NATILLA',unit:'KG',price:6.28},
+    {id:'disbe17',name:'GELATINA NEUTRA ROYAL',unit:'KG',price:18.601},
+    {id:'disbe18',name:'HARINA DE TRIGO',unit:'KG',price:8.05},
+    {id:'disbe19',name:'HIERBAS PROVENZALES',unit:'BOTE',price:4.12},
+    {id:'disbe20',name:'KETCHUP PRIMA 1,8 KG',unit:'KG',price:7.807},
+    {id:'disbe21',name:'LECHE CONDENSADA',unit:'BOTE',price:2.83},
+    {id:'disbe22',name:'LECHE HOSTELERIA',unit:'L',price:8.4656},
+    {id:'disbe23',name:'MACARRONES',unit:'KG',price:13.59},
+    {id:'disbe24',name:'MARGARINA',unit:'KG',price:5.08},
+    {id:'disbe25',name:'MAYONESA HELMANS',unit:'KG',price:25.16},
+    {id:'disbe26',name:'MAYONESA MONODOSIS',unit:'CAJA',price:14.23},
+    {id:'disbe27',name:'MOSTAZA PRIMA  1,8 KG',unit:'KG',price:7.438},
+    {id:'disbe28',name:'NATA DE COCINA 18%',unit:'L',price:4.1},
+    {id:'disbe29',name:'PAJARITAS VEGETALES',unit:'BOLSA',price:7.59},
+    {id:'disbe30',name:'PAN RALLADO',unit:'KG',price:8.9856},
+    {id:'disbe31',name:'PIÑA EN SU JUGO',unit:'KG',price:8.33},
+    {id:'disbe32',name:'QUESO CREMA',unit:'KG',price:22.73},
+    {id:'disbe33',name:'QUESO EDAN BARRA',unit:'KG',price:5.89},
+    {id:'disbe34',name:'QUESO RALLADO PARA GRAT',unit:'KG',price:5.96},
+    {id:'disbe35',name:'QUESO SEMICURADO',unit:'KG',price:9.07},
+    {id:'disbe36',name:'SAL COSTA GRUESA',unit:'KG',price:3.267},
+    {id:'disbe37',name:'SAL EN ESCAMAS',unit:'KG',price:18.601},
+    {id:'disbe38',name:'SAL FINA',unit:'KG',price:0.41},
+    {id:'disbe39',name:'SAL GRUESA',unit:'KG',price:4.136},
+    {id:'disbe40',name:'TALLARINES',unit:'KG',price:6.87},
+    {id:'disbe41',name:'TOMATE CONCENTRADO',unit:'KG',price:7.483},
+    {id:'disbe42',name:'ZANAHORIA RALLADA',unit:'KG',price:2.91}
+  ]},
+  disbesa_s:{id:'disbesa_s',name:'Disbesa Sala',emoji:'🍷',phone:'',products:[
+    {id:'disbe1',name:'BITTER KAS',unit:'CAJA',price:23.668},
+    {id:'disbe2',name:'COLA CAO 50 S',unit:'KG',price:17.77},
+    {id:'disbe3',name:'LECHE DE AVENA',unit:'CAJA',price:14.62},
+    {id:'disbe4',name:'MANTEQUILLA MONODOSIS 100 UD',unit:'KG',price:12.89},
+    {id:'disbe5',name:'MANZANILLA',unit:'UD',price:5.863},
+    {id:'disbe6',name:'MERMELADA MONODOSIS 80 UD',unit:'CAJA',price:9.29},
+    {id:'disbe7',name:'NESCAFE DESCAFEINADO',unit:'UD',price:15.95},
+    {id:'disbe8',name:'REFRESCO LIMON 2 L',unit:'CAJA',price:5.401},
+    {id:'disbe9',name:'TRINARANJUS 33CL',unit:'KG',price:15.38},
+    {id:'disbe10',name:'ZACARINA 150S',unit:'CAJA',price:2.06}
+  ]},
+  novafrigo:{id:'novafrigo',name:'Novafrigo',emoji:'❄️',phone:'',products:[
+    {id:'novaf1',name:'BOQUERON EN TEMPURA',unit:'KG',price:8.624},
+    {id:'novaf2',name:'CAELLA EN TACOS',unit:'KG',price:3.85},
+    {id:'novaf3',name:'EMPANADILLAS DE ATUN',unit:'UD',price:0.4587},
+    {id:'novaf4',name:'FILETE DE MERLUZA',unit:'KG',price:9.77},
+    {id:'novaf5',name:'GAMBON N 2',unit:'KG',price:10.89},
+    {id:'novaf6',name:'MANITAS DE CERDO CORTADAS',unit:'KG',price:2.695},
+    {id:'novaf7',name:'MAYONESA HELLMANS',unit:'KG',price:3.71},
+    {id:'novaf8',name:'ÑOQUIS',unit:'KG',price:5.55},
+    {id:'novaf9',name:'PECHUGA DE POLLO EMPANADA',unit:'KG',price:9.9},
+    {id:'novaf10',name:'PINTXO DONOSTIARRA',unit:'KG',price:7.99},
+    {id:'novaf11',name:'POLLO CUARTOS TRASEROS',unit:'KG',price:3.685},
+    {id:'novaf12',name:'RAVIOLIS DE CARNE',unit:'KG',price:8.33},
+    {id:'novaf13',name:'TARTA DE SANTIAGO',unit:'KG',price:61.7},
+    {id:'novaf14',name:'TORREZNOS APERITIVO',unit:'KG',price:5.5},
+    {id:'novaf15',name:'TORTELLONI DE RICOTA Y ESPINACA',unit:'KG',price:6.875}
+  ]},
+  munoz_m:{id:'munoz_m',name:'Muñoz María',emoji:'🌾',phone:'',products:[
+    {id:'munoz1',name:'ALUBIA PINTA',unit:'KG',price:3.02},
+    {id:'munoz2',name:'ALUBIA RIÑON',unit:'KG',price:4.68},
+    {id:'munoz3',name:'ARROZ CANAROLI',unit:'KG',price:3.64},
+    {id:'munoz4',name:'BACALAO AHUMADO',unit:'KG',price:29.59},
+    {id:'munoz5',name:'GARBANZOS PEQUEÑOS',unit:'KG',price:2.288},
+    {id:'munoz6',name:'HARINA DE FRITURA',unit:'KG',price:2.178},
+    {id:'munoz7',name:'JUDION DE AVILA',unit:'KG',price:4.1},
+    {id:'munoz8',name:'LENTEJA',unit:'KG',price:2.29},
+    {id:'munoz9',name:'MORCILLO DE AÑOJO',unit:'KG',price:13.09}
+  ]},
+  pan_pr:{id:'pan_pr',name:'Pan',emoji:'🍞',phone:'',products:[
+    {id:'pan_p1',name:'GRAN ARTESANA',unit:'UD',price:1.716},
+    {id:'pan_p2',name:'PISTOLA',unit:'UD',price:0.3952}
+  ]},
+  frutas_sanz:{id:'frutas_sanz',name:'Frutas Sanz',emoji:'🥦',phone:'',products:[
+    {id:'fruta1',name:'AJOS PELADOS',unit:'KG',price:5.72},
+    {id:'fruta2',name:'ALBAHACA',unit:'MANOJO',price:1.93},
+    {id:'fruta3',name:'BERENJENAS',unit:'KG',price:3.07},
+    {id:'fruta4',name:'BROTES TIERNOS',unit:'KG',price:3.85},
+    {id:'fruta5',name:'CEBOLLA MORADA',unit:'KG',price:1.82},
+    {id:'fruta6',name:'CEBOLLA NORMAL',unit:'KG',price:0.832},
+    {id:'fruta7',name:'CEBOLLINO',unit:'MANOJO',price:1.89},
+    {id:'fruta8',name:'GRELOS',unit:'KG',price:2.6},
+    {id:'fruta9',name:'HUEVOS',unit:'DOCENA',price:2.548},
+    {id:'fruta10',name:'LECHUGA ROMANA',unit:'KG',price:1.82},
+    {id:'fruta11',name:'LIMONES',unit:'KG',price:1.82},
+    {id:'fruta12',name:'LIMONES DE 1º',unit:'KG',price:1.82},
+    {id:'fruta13',name:'MANDARINAS CLEMENTINAS',unit:'KG',price:2.028},
+    {id:'fruta14',name:'MELON',unit:'KG',price:2.34},
+    {id:'fruta15',name:'NABOS',unit:'KG',price:1.82},
+    {id:'fruta16',name:'NARANJA DE ZUMO',unit:'KG',price:0.884},
+    {id:'fruta17',name:'PATATA GAJO',unit:'KG',price:1.875},
+    {id:'fruta18',name:'PATATA MONALISA',unit:'KG',price:0.55},
+    {id:'fruta19',name:'PATATA PELADA BASTON',unit:'KG',price:1.664},
+    {id:'fruta20',name:'PATATA PELADA BRAVA',unit:'KG',price:1.664},
+    {id:'fruta21',name:'PATATA PELADA PANADERA',unit:'KG',price:1.664},
+    {id:'fruta22',name:'PIMIENTO DE PADRON',unit:'KG',price:3.245},
+    {id:'fruta23',name:'PIMIENTO ITALIANO',unit:'KG',price:2.6},
+    {id:'fruta24',name:'PIMIENTO ROJO DE 1º',unit:'KG',price:3.245},
+    {id:'fruta25',name:'PIMIENTO ROJO DE 2º',unit:'KG',price:2.028},
+    {id:'fruta26',name:'PIMIENTO VERDE DE SEGUNDA',unit:'KG',price:1.82},
+    {id:'fruta27',name:'PIMIENTOS SECOS',unit:'TIRA',price:39.52},
+    {id:'fruta28',name:'PIÑA',unit:'KG',price:1.82},
+    {id:'fruta29',name:'PUERROS',unit:'KG',price:1.82},
+    {id:'fruta30',name:'REPOLLO RIZADO',unit:'KG',price:1.4},
+    {id:'fruta31',name:'RUCULA',unit:'BOLSA',price:1.41},
+    {id:'fruta32',name:'TOMATE DE ENSALADA',unit:'KG',price:3.245},
+    {id:'fruta33',name:'TOMATE PERA',unit:'KG',price:2.86},
+    {id:'fruta34',name:'ZANAHORIAS',unit:'KG',price:1.196}
+  ]},
+  fuentesmar:{id:'fuentesmar',name:'Fuentesmar',emoji:'🐓',phone:'',products:[
+    {id:'fuent1',name:'ALAS DE POLLO',unit:'KG',price:3.289},
+    {id:'fuent2',name:'BACALAO EN PORCIONES',unit:'KG',price:8.569},
+    {id:'fuent3',name:'CAELLA',unit:'KG',price:4.43},
+    {id:'fuent4',name:'CANELON DE CARNE',unit:'UD',price:0.2},
+    {id:'fuent5',name:'CHULETA DE AGUJA DE CERDO',unit:'KG',price:5.027},
+    {id:'fuent6',name:'COSTILLAS DE CERDO TROCEADAS',unit:'KG',price:3.92},
+    {id:'fuent7',name:'ESTOFADO DE CERDO',unit:'KG',price:5.31},
+    {id:'fuent8',name:'FILETE DE CABALLA',unit:'KG',price:7.77},
+    {id:'fuent9',name:'FOGONERO SUPREMAS',unit:'KG',price:6.29},
+    {id:'fuent10',name:'LOMO DE CERSO NATURAL',unit:'KG',price:5.76},
+    {id:'fuent11',name:'PANCETA FILETEADA',unit:'KG',price:6.11},
+    {id:'fuent12',name:'POLLO KTK',unit:'KG',price:7.1},
+    {id:'fuent13',name:'POLLO TROCEADO',unit:'KG',price:3.333},
+    {id:'fuent14',name:'SECRETO DE CERDO',unit:'KG',price:5.775},
+    {id:'fuent15',name:'VENTRESCA DE ATUN MENU',unit:'KG',price:8.657}
+  ]},
+  nestle_ice:{id:'nestle_ice',name:'Nestlé Helados',emoji:'🍦',phone:'',products:[
+    {id:'nestl1',name:'CAROLINA NATA',unit:'CAJA',price:16.68},
+    {id:'nestl2',name:'CREMA CATALANA',unit:'CAJA',price:35.9},
+    {id:'nestl3',name:'EXTRA VAINILLA',unit:'CAJA',price:28.32},
+    {id:'nestl4',name:'FANTASMIKOS',unit:'CAJA',price:24.84},
+    {id:'nestl5',name:'LIMON HELADO',unit:'CAJA',price:22.5},
+    {id:'nestl6',name:'LION',unit:'CAJA',price:27.6},
+    {id:'nestl7',name:'MAXIBON CLASIC',unit:'CAJA',price:49.68},
+    {id:'nestl8',name:'NUII DE ALMENDRAS',unit:'CAJA',price:45.4},
+    {id:'nestl9',name:'SENSACION CHOCOLATE',unit:'CAJA',price:25.52},
+    {id:'nestl10',name:'SENSACION CHSSK FRB',unit:'CAJA',price:25.52},
+    {id:'nestl11',name:'SENSACION TURRON',unit:'CAJA',price:26.4},
+    {id:'nestl12',name:'SMARTIES FUNCUP',unit:'CAJA',price:31.2},
+    {id:'nestl13',name:'TARRINA WISKY',unit:'CAJA',price:23.94}
+  ]},
+  obrador_isa:{id:'obrador_isa',name:'Obrador de Isa',emoji:'🎂',phone:'',products:[
+    {id:'obrad1',name:'TARTA MILHOJAS',unit:'TARTA',price:35.09}
+  ]},
+  bodus_em:{id:'bodus_em',name:'Bodus (Emilio)',emoji:'🥓',phone:'',products:[
+    {id:'bodus1',name:'BACON',unit:'KG',price:7.78},
+    {id:'bodus2',name:'CHICHARRON FRITO',unit:'KG',price:7.095},
+    {id:'bodus3',name:'CHORIZO ASTURIANO',unit:'KG',price:9.35},
+    {id:'bodus4',name:'CODILLO SALMUERA',unit:'KG',price:3.52},
+    {id:'bodus5',name:'LACON SALMUERIZADO',unit:'KG',price:5.225},
+    {id:'bodus6',name:'PANCETA DE CERDO ADOBADA',unit:'KG',price:6.6},
+    {id:'bodus7',name:'PANCETA SALADA',unit:'KG',price:6.82},
+    {id:'bodus8',name:'TOCINO IBERICO',unit:'KG',price:3.85}
+  ]},
+  la_emilita:{id:'la_emilita',name:'La Emilita',emoji:'🍰',phone:'',products:[
+    {id:'la_em1',name:'PLANCHA DE MANZANA DE MENU',unit:'KG',price:17.325},
+    {id:'la_em2',name:'PLANCHA DE MILHOJA MENU',unit:'KG',price:17.325}
+  ]},
+  tajomar:{id:'tajomar',name:'Tajomar (Lucas)',emoji:'🦞',phone:'',products:[
+    {id:'tajom1',name:'ALISTADO',unit:'KG',price:33.33},
+    {id:'tajom2',name:'BACALAITOS',unit:'KG',price:7.22},
+    {id:'tajom3',name:'CARABINEROS 18-20',unit:'KG',price:53.33},
+    {id:'tajom4',name:'CARNE DE MEJILLON',unit:'KG',price:8.66},
+    {id:'tajom5',name:'CIGALA',unit:'KG',price:20.56},
+    {id:'tajom6',name:'EMPERADOR',unit:'KG',price:8.0},
+    {id:'tajom7',name:'GALLO - LENGUADINAS',unit:'KG',price:9.78},
+    {id:'tajom8',name:'GAMBA ARROCERA',unit:'KG',price:23.33},
+    {id:'tajom9',name:'GAMBA COCIDA',unit:'KG',price:15.0},
+    {id:'tajom10',name:'GAMBON',unit:'KG',price:11.67},
+    {id:'tajom11',name:'LANGOSTINO SALVAJE',unit:'KG',price:21.11},
+    {id:'tajom12',name:'LUBINA CARTA',unit:'KG',price:11.55},
+    {id:'tajom13',name:'MEJILLON MEDIA CONCHA',unit:'KG',price:8.14},
+    {id:'tajom14',name:'MERLUZA VOLANTA',unit:'KG',price:10.56},
+    {id:'tajom15',name:'NAVAJAS',unit:'KG',price:12.65},
+    {id:'tajom16',name:'PANGA',unit:'KG',price:4.67},
+    {id:'tajom17',name:'PARROCHAS',unit:'KG',price:5.28},
+    {id:'tajom18',name:'PESCADILLAS',unit:'KG',price:7.5},
+    {id:'tajom19',name:'PREPARADO PARA PAELLA',unit:'KG',price:5.28},
+    {id:'tajom20',name:'REJOS DE POTA',unit:'KG',price:9.17},
+    {id:'tajom21',name:'RODABALLO',unit:'KG',price:19.58},
+    {id:'tajom22',name:'SALMON',unit:'KG',price:11.67},
+    {id:'tajom23',name:'SALMON CONGELADO',unit:'KG',price:7.56},
+    {id:'tajom24',name:'TRUCHA',unit:'KG',price:7.67},
+    {id:'tajom25',name:'TUBO DE CALAMAR',unit:'KG',price:8.33}
+  ]},
+  pousada:{id:'pousada',name:'Pousada (David)',emoji:'🍷',phone:'',products:[
+    {id:'pousa1',name:'ALBARIÑO VIÑA GALEGA',unit:'CAJA',price:39.8574},
+    {id:'pousa2',name:'BARRIL DE RIBEIRO',unit:'L',price:2.904},
+    {id:'pousa3',name:'CREMA DE ORUJO',unit:'L',price:6.0258},
+    {id:'pousa4',name:'LICOR DE CAFÉ',unit:'L',price:6.0258},
+    {id:'pousa5',name:'LICOR DE HIERBAS',unit:'L',price:6.0258},
+    {id:'pousa6',name:'PACHARAN',unit:'L',price:6.0258}
+  ]},
+  el_jamoncito:{id:'el_jamoncito',name:'El Jamoncito',emoji:'🍖',phone:'',products:[
+    {id:'el_ja1',name:'CHULETAS DE SANJONIA',unit:'KG',price:7.051},
+    {id:'el_ja2',name:'LONGANIZA CRIOLLA',unit:'KG',price:6.985}
+  ]},
+  berzal:{id:'berzal',name:'Berzal',emoji:'🧀',phone:'',products:[
+    {id:'berza1',name:'QUESO CABRALES',unit:'KG',price:19.344},
+    {id:'berza2',name:'QUESO DE OVEJA CURADO',unit:'KG',price:17.95}
+  ]},
+  alcahuz:{id:'alcahuz',name:'Alcahuz (Heineken)',emoji:'🍺',phone:'',products:[
+    {id:'alcah1',name:'AMSTEL TOSTADA 1/3 00',unit:'CAJA',price:44.61},
+    {id:'alcah2',name:'BARRIL DE AGUILA 50L',unit:'BARRIL',price:198.11},
+    {id:'alcah3',name:'CRUZ CAMPO GRAN RESERVA',unit:'CAJA',price:47.59},
+    {id:'alcah4',name:'CRUZ CAMPO SIN GLUTEN',unit:'CAJA',price:20.86},
+    {id:'alcah5',name:'HEINEKEN 1/3',unit:'CAJA',price:46.24},
+    {id:'alcah6',name:'HEINEKEN 1/3 00',unit:'CAJA',price:46.4},
+    {id:'alcah7',name:'HEINEKEN 250 ML',unit:'CAJA',price:34.33},
+    {id:'alcah8',name:'VERMUT BANDARRA ROJO',unit:'KG',price:54.8009}
+  ]},
+  jamones_sl:{id:'jamones_sl',name:'Jamones S.L. (Mercedes)',emoji:'🥩',phone:'',products:[
+    {id:'jamon1',name:'CHORIZO IBERICO',unit:'KG',price:11.165},
+    {id:'jamon2',name:'SALCHICHON IBERICO',unit:'KG',price:11.165}
+  ]},
+  tres_pulpo:{id:'tres_pulpo',name:'3 de Pulpo',emoji:'🐙',phone:'',products:[
+    {id:'tres_1',name:'PULPO COCIDO T3',unit:'KG',price:27.995}
+  ]},
+  oleo_salgado:{id:'oleo_salgado',name:'Oleo Salgado',emoji:'🫒',phone:'',products:[
+    {id:'oleo_1',name:'ACEITE DE GIRASOL ALTO OLEICO',unit:'L',price:2.101},
+    {id:'oleo_2',name:'ACEITE DE ORUJO',unit:'L',price:2.808},
+    {id:'oleo_3',name:'ACEITE VIRGEN EXTRA',unit:'L',price:4.58},
+    {id:'oleo_4',name:'ACEITE VIRGEN EXTRA 250 ML',unit:'BOT',price:2.292},
+    {id:'oleo_5',name:'ATUN EN ACEITE DE GIRASOL',unit:'L',price:20.69},
+    {id:'oleo_6',name:'TOMATE TRITURADO',unit:'L',price:9.14},
+    {id:'oleo_7',name:'VINAGRE DE JEREZ  250 ML',unit:'BOT',price:1.51}
+  ]},
+  tupinamba:{id:'tupinamba',name:'Tupinamba (Café)',emoji:'☕',phone:'',products:[
+    {id:'tupin1',name:'AZUCAR BLANCO',unit:'CAJA',price:19.734},
+    {id:'tupin2',name:'CAFÉ DESCAFEINADO',unit:'KG',price:20.78},
+    {id:'tupin3',name:'CAFÉ NATURAL',unit:'KG',price:17.875}
+  ]},
+  corralejo:{id:'corralejo',name:'Corralejo',emoji:'🫒',phone:'',products:[
+    {id:'corra1',name:'ACEITUNA MACHACADA',unit:'KG',price:37.4},
+    {id:'corra2',name:'ACEITUNA SIN HUESO VERDE',unit:'KG',price:46.2},
+    {id:'corra3',name:'PICOS',unit:'KG',price:5.0},
+    {id:'corra4',name:'PIPARRA',unit:'KG',price:17.22}
+  ]},
+  dmc_host:{id:'dmc_host',name:'DMC Hostelería',emoji:'🛒',phone:'',products:[
+    {id:'dmc_h1',name:'ENSALADA DE P. DE PIQUILLO',unit:'KG',price:14.43},
+    {id:'dmc_h2',name:'PAN DE MOLDE SAND',unit:'BOLSA',price:1.86},
+    {id:'dmc_h3',name:'TARTA DE GALLETA Y CHOCOLATE',unit:'TARTA',price:12.089}
+  ]},
+  bodegas_mont:{id:'bodegas_mont',name:'Bodegas Montenoble',emoji:'🍾',phone:'',products:[
+    {id:'bodeg1',name:'MONTENOBLE BLANCO',unit:'CAJA',price:15.73},
+    {id:'bodeg2',name:'MONTENOBLE TINTO 0,75',unit:'CAJA',price:15.73},
+    {id:'bodeg3',name:'VINAGRE 5L',unit:'KG',price:4.36}
+  ]},
+  asle_esp:{id:'asle_esp',name:'Asle Esencia Pura',emoji:'🥩',phone:'',products:[
+    {id:'asle_1',name:'CENTRO DE PALETA CURADA',unit:'KG',price:30.0},
+    {id:'asle_2',name:'JAMON IBERICO CEBO',unit:'KG',price:53.22},
+    {id:'asle_3',name:'PICADILLO DE JAMON SERRANO',unit:'KG',price:11.67},
+    {id:'asle_4',name:'PICADILLO IBERICO',unit:'KG',price:20.0}
+  ]},
+  barroso:{id:'barroso',name:'Barroso',emoji:'🐷',phone:'',products:[
+    {id:'barro1',name:'LACON AHUMADO TIPO BOLA',unit:'KG',price:6.44},
+    {id:'barro2',name:'OREJAS DE 2 KG',unit:'KG',price:5.67}
+  ]},
+  coca_cola:{id:'coca_cola',name:'Coca Cola',emoji:'🥤',phone:'',products:[
+    {id:'coca_1',name:'AQUABONA   AGUA 50 CL',unit:'CAJA',price:22.93},
+    {id:'coca_2',name:'AQUABONA CON GAS 36 CL',unit:'CAJA',price:26.67},
+    {id:'coca_3',name:'AQUABONA DE IL',unit:'CAJA',price:21.47},
+    {id:'coca_4',name:'AQUARIUS 30 CL',unit:'CAJA',price:44.35},
+    {id:'coca_5',name:'AQUARIUS DE LATA 33CL',unit:'CAJA',price:51.95},
+    {id:'coca_6',name:'COCA COLA LATA 33 CL',unit:'CAJA',price:49.82},
+    {id:'coca_7',name:'COCA COLA ORIGINAL DE 237 ML',unit:'CAJA',price:32.2},
+    {id:'coca_8',name:'COCA COLA ORIGINAL DE 35 CL',unit:'CAJA',price:37.06},
+    {id:'coca_9',name:'COCA COLA ZERO 35 CL',unit:'CAJA',price:37.06},
+    {id:'coca_10',name:'COCA COLA ZERO DE 237 ML',unit:'CAJA',price:32.2},
+    {id:'coca_11',name:'COCA COLA ZERO LATA',unit:'CAJA',price:49.82},
+    {id:'coca_12',name:'FANTA DE LIMON DE 35 CL',unit:'CAJA',price:37.06},
+    {id:'coca_13',name:'FUZE LIMON 30 CL',unit:'CAJA',price:41.92},
+    {id:'coca_14',name:'LIMCA DE 50 CL( GASEOSA)',unit:'CAJA',price:39.44},
+    {id:'coca_15',name:'ROYAL BLISS LEMON',unit:'CAJA',price:36.46},
+    {id:'coca_16',name:'ROYAL BLISS SIGNATURE',unit:'CAJA',price:40.4},
+    {id:'coca_17',name:'ROYAL BLISS TONICA NORMAL',unit:'CAJA',price:40.39},
+    {id:'coca_18',name:'SPRITE DE 20CL',unit:'CAJA',price:31.59}
+  ]},
+  discarlux:{id:'discarlux',name:'Discarlux',emoji:'🥩',phone:'',products:[
+    {id:'disca1',name:'CHULETON DE VACA',unit:'KG',price:33.0},
+    {id:'disca2',name:'T-BONE',unit:'KG',price:33.0},
+    {id:'disca3',name:'TOMAHAWK',unit:'KG',price:32.44}
+  ]},
+  c_alvarez:{id:'c_alvarez',name:'C. Álvarez',emoji:'🍸',phone:'',products:[
+    {id:'c_alv1',name:'4 CAMINOS ROBLE',unit:'BOTELLA',price:7.67},
+    {id:'c_alv2',name:'ANIS CASTELLANA',unit:'BOTELLA',price:9.34},
+    {id:'c_alv3',name:'CONDE DE LLANGUAS CRIANZA',unit:'BOTELLA',price:6.49},
+    {id:'c_alv4',name:'GINEBRA SEAGRAMS',unit:'BOTELLA',price:16.57},
+    {id:'c_alv5',name:'HABANA CLUB 7 AÑOS',unit:'BOTELLA',price:22.72},
+    {id:'c_alv6',name:'HIERBAS RUA VIEJA',unit:'BOTELLA',price:8.89},
+    {id:'c_alv7',name:'LA PLANTA ROBLE',unit:'BOTELLA',price:8.62},
+    {id:'c_alv8',name:'MARTINI ROJO 1 L',unit:'BOTELLA',price:10.43},
+    {id:'c_alv9',name:'PACHARAN BAINES',unit:'BOTELLA',price:17.69},
+    {id:'c_alv10',name:'RON BARCELO AÑEJO',unit:'BOTELLA',price:15.85}
+  ]},
+  s_dulce:{id:'s_dulce',name:'S. Dulce',emoji:'🍫',phone:'',products:[
+    {id:'s_dul1',name:'TARTA CHOCOLATE DE CARTA',unit:'TARTA',price:26.46}
+  ]},
+
 };
 
 function addMissingSuppliers(){
@@ -2990,13 +3342,14 @@ function updateCoreSuppliers(){
   fbDb.ref('suppliers').once('value', snap=>{
     const existing = snap.val() || {};
     const updates = {};
-    ['bencar','ismael'].forEach(id=>{
-      const cur = existing[id];
-      const def = DEFAULT_SUPS[id];
-      if(!cur || !cur.products || !cur.products[0] || !String(cur.products[0].id).startsWith(id==='bencar'?'bx':'ix')){
-        updates[id] = def;
-      }
-    });
+    // Always update bencar to latest Excel prices
+    updates['bencar'] = DEFAULT_SUPS['bencar'];
+    // Update ismael if products missing or wrong prefix
+    const curIsmael = existing['ismael'];
+    const defIsmael = DEFAULT_SUPS['ismael'];
+    if(!curIsmael || !curIsmael.products || !curIsmael.products[0] || !String(curIsmael.products[0].id).startsWith('ix')){
+      updates['ismael'] = defIsmael;
+    }
     if(Object.keys(updates).length > 0){
       fbDb.ref('suppliers').update(updates).then(()=>{
         toast('✅ Tarifas de Bencar e Ismael actualizadas','#16a34a');
