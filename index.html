@@ -275,6 +275,14 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
 .esc-modal-hd h3{margin:0;font-size:18px;color:var(--pri)}
 .esc-modal-ft{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-top:1px solid var(--brd)}
 .esc-modal-ft-r{display:flex;gap:10px}
+@media print {
+  .sidebar, .hdr, .sb-overlay, .btn, #toast, .cbar, #wa-ov, #recv-ov { display:none!important; }
+  .admin-wrap { display:block!important; }
+  .main-content { margin:0!important; padding:0!important; }
+  body { background:white!important; color:black!important; }
+  .card { box-shadow:none!important; border:1px solid #ccc!important; margin-bottom:12px; break-inside:avoid; }
+  .ch-wrap { height:300px!important; }
+}
 </style>
 </head>
 <body>
@@ -313,6 +321,19 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
       </a>
       <button class="btn btn-ghost" onclick="copyWAMsg()">📋 Copiar</button>
       <button class="btn btn-ghost" onclick="closeWA()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECV MODAL -->
+<div id="recv-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:12px" onclick="if(event.target===this)closeRecvModal()">
+  <div id="recv-modal" style="background:var(--card);border-radius:14px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="font-weight:700;font-size:16px;margin-bottom:14px">📦 Confirmar entrega</div>
+    <div id="recv-items"></div>
+    <textarea id="recv-general-note" placeholder="Nota general (opcional)..." rows="2" style="width:100%;padding:8px;border:1px solid var(--brd);border-radius:8px;font-size:13px;background:var(--bg);color:var(--txt);resize:none;box-sizing:border-box;margin-top:10px"></textarea>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-ok btn-sm" onclick="confirmReceived()" style="flex:1">✅ Confirmar entrega</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeRecvModal()">Cancelar</button>
     </div>
   </div>
 </div>
@@ -528,6 +549,7 @@ let revenue     = {};
 let budgets     = {};
 let priceHistory= [];
 let templates   = {};
+let extraExpenses= {}; // gastos manuales: {id:{id,restaurant,amount,concept,date,createdAt}}
 let fbConnected = false;
 
 function supList(){ return Object.values(suppliers); }
@@ -584,7 +606,7 @@ function initFirebaseListeners(){
       suppliers = val;
       localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
     }
-    if(S.view==='order'||S.view==='albaran-new') render();
+    if(S.view==='order'||S.view==='albaran-new'){const _sv=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo(0,_sv));}
   });
 
   // Albaranes — real-time sync
@@ -611,6 +633,11 @@ function initFirebaseListeners(){
     budgets = snap.val() || {};
     if(S.view==='admin' && S.adminTab==='budgets') renderAdminContent();
   });
+  // Extra expenses (gastos manuales)
+  fbDb.ref('extraExpenses').on('value', snap => {
+    extraExpenses = snap.val() || {};
+    if(S.view==='admin' && (S.adminTab==='spending'||S.adminTab==='monthly'||S.adminTab==='foodcost'||S.adminTab==='budgets')) renderAdminContent();
+  });
   // Price history
   fbDb.ref('priceHistory').on('value', snap => {
     const val = snap.val();
@@ -619,7 +646,7 @@ function initFirebaseListeners(){
   // Templates
   fbDb.ref('templates').on('value', snap => {
     templates = snap.val() || {};
-    if(S.view==='order') render();
+    if(S.view==='order'){const _sv=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo(0,_sv));}
   });
 
   // Auth users (registrations)
@@ -889,6 +916,7 @@ let S={
   editingPermsUid:null,
   orderUrgent:false,
   orderDeliveryDate:'',
+  orderNotes:'',
   prodSearch:'',
   darkMode:localStorage.getItem('oc_dark')==='1',
   loginTab:'login',
@@ -914,12 +942,14 @@ function waURL(phone,text){ return `https://wa.me/${phone.replace(/\D/g,'')}?tex
 function msgAdmin(o){
   const sup=suppliers[o.supId];
   const lines=(o.items||[]).map(it=>`• ${it.name}: ${it.qty} ${it.unit}`).join('\n');
-  return `📋 *SOLICITUD PEDIDO — O'Carro*\n🏪 ${o.restaurant}\n🏭 Proveedor: ${sup?sup.emoji+' '+sup.name:'?'}\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n\n${lines}\n\n*Total: ${fmt(total(o))}*\n\n_App O'Carro Pedidos_`;
+  const noteLine=o.notes?`\n📝 Nota: ${o.notes}`:'';
+  return `📋 *SOLICITUD PEDIDO — O'Carro*\n🏪 ${o.restaurant}\n🏭 Proveedor: ${sup?sup.emoji+' '+sup.name:'?'}\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n\n${lines}\n\n*Total: ${fmt(total(o))}*${noteLine}\n\n_App O'Carro Pedidos_`;
 }
 function msgSupplier(o){
   const lines=(o.items||[]).map(it=>`• ${it.name} (${it.unit}): ${it.qty}  →  ${fmt((it.qty||0)*(it.price||0))}`).join('\n');
   const rest=o.restaurant&&o.restaurant.includes('Consolidado')?o.restaurant:`🏪 ${o.restaurant}`;
-  return `🛒 *PEDIDO O'CARRO*\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n${rest}\n\n*Productos:*\n${lines}\n\n*TOTAL: ${fmt(total(o))}*\n\n_${cfg.adminName} — Jefe de Compras_`;
+  const noteLine=o.notes?`\n📝 *Nota:* ${o.notes}`:'';
+  return `🛒 *PEDIDO O'CARRO*\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n${rest}\n\n*Productos:*\n${lines}\n\n*TOTAL: ${fmt(total(o))}*${noteLine}\n\n_${cfg.adminName} — Jefe de Compras_`;
 }
 
 let _waMsg='';
@@ -1016,12 +1046,13 @@ function render(){
 function renderAdminContent(){
   const tc=document.getElementById('tc');
   if(!tc) return;
+  const _sv=window.scrollY;
   let content='';
   if(S.adminTab==='pending')       content=vPending();
   else if(S.adminTab==='approved') content=vApproved();
   else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='received') content=vReceived();
-  else if(S.adminTab==='spending') content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
+  else if(S.adminTab==='spending') content=`<div class="card"><div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ Imprimir</button></div><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`+vExtraExpenses();
   else if(S.adminTab==='monthly')  content=vMonthly();
   else if(S.adminTab==='foodcost') content=vFoodCost();
   else if(S.adminTab==='budgets')  content=vBudgets();
@@ -1033,10 +1064,12 @@ function renderAdminContent(){
   else if(S.adminTab==='suppliers') content=vSuppliers();
   else if(S.adminTab==='settings') content=vSettings();
   else if(S.adminTab==='escandallos') content=vEscandallos();
+  else if(S.adminTab==='sup-history') content=vSupHistory();
   tc.innerHTML=content;
   if(S.adminTab==='escandallos') initEscandallos();
   if(S.adminTab==='spending') setTimeout(renderChart,50);
   if(S.adminTab==='monthly') setTimeout(renderMonthlyChart,50);
+  if(S.adminTab==='budgets') setTimeout(renderBudgetTrendChart,100);
   // Update sidebar stats
   const pend=orders.filter(o=>o.status==='pending');
   const appr=orders.filter(o=>o.status==='approved');
@@ -1045,6 +1078,7 @@ function renderAdminContent(){
   // Update pending badge in sidebar
   const sbBadge=document.getElementById('sb-pend-badge');
   if(sbBadge){sbBadge.textContent=pend.length;sbBadge.style.display=pend.length?'':'none';}
+  requestAnimationFrame(()=>window.scrollTo(0,_sv));
 }
 
 /* ═══════════════ LOGIN ═══════════════ */
@@ -1166,6 +1200,8 @@ function vOrder(){
   const note=S.session.needsApproval
     ?`<div class="banner">📋 Tu pedido irá a <strong>${cfg.adminName}</strong> para aprobación antes de enviarse al proveedor.</div>`
     :`<div class="banner blue">⚡ Tus pedidos se aprueban automáticamente y van directo al proveedor.</div>`;
+  const _vacUser=cfg.users.find(u=>u.restaurant===S.session.restaurant);
+  const vacBanner=_vacUser&&_vacUser.vacaciones?'<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e">🌴 Modo vacaciones activo — los pedidos están desactivados temporalmente</div>':'';
   const stabs=sups.map(s=>{const sc2=S.cart[s.id]||{};const n=Object.values(sc2).reduce((a,v)=>a+v,0);return `<button class="stab ${S.supId===s.id?'act':''}" onclick="setSup('${s.id}')">${s.emoji} ${s.name}${n>0?` <span style="background:#3b82f6;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:700">${n}</span>`:''}</button>`;}).join('');
   const searchTerm=(S.prodSearch||'').toLowerCase().trim();
   const filteredProds=sup.products.filter(p=>!searchTerm||p.name.toLowerCase().includes(searchTerm));
@@ -1187,15 +1223,52 @@ function vOrder(){
   myHistory.forEach(o=>(o.items||[]).forEach(it=>{if(!autoSuggest[it.id])autoSuggest[it.id]={...it,count:0,totalQty:0};autoSuggest[it.id].count++;autoSuggest[it.id].totalQty+=it.qty;}));
   const topProds=Object.values(autoSuggest).sort((a,b)=>b.count-a.count).slice(0,5);
   const autoBtn=topProds.length&&!Object.keys(S.cart[S.supId]||{}).length?`<button class="btn btn-blue btn-sm" onclick="loadAutoSuggest()" style="white-space:nowrap">🤖 Pedido típico</button>`:'';
+  // Recurring templates
+  const _today=new Date();
+  const _todayWD=_today.getDay();
+  const _todayDOM=_today.getDate();
+  const _todayKey=_today.toISOString().split('T')[0];
+  const _myTplsAll=Object.values(templates[S.session.userId]||{});
+  const _recurringDue=_myTplsAll.filter(t=>{
+    if(!t.recurrence||t.recurrence.type==='none') return false;
+    if(t.lastAutoDate===_todayKey) return false;
+    if(t.recurrence.type==='weekly') return _todayWD===t.recurrence.weekday;
+    if(t.recurrence.type==='monthly') return _todayDOM===t.recurrence.dayOfMonth;
+    return false;
+  });
+  const recurringBanner=_recurringDue.length?`<div class="banner blue" style="margin-bottom:10px">
+    🔄 <strong>Pedidos recurrentes pendientes:</strong>
+    ${_recurringDue.map(t=>`<div style="margin-top:6px;display:flex;align-items:center;gap:8px">
+      <span>${t.name} (${(suppliers[t.supId]||{name:t.supId}).name})</span>
+      <button class="btn btn-blue btn-sm" onclick="loadRecurringTpl('${t.id}')">📥 Cargar</button>
+    </div>`).join('')}
+  </div>`:'';
   const tplSection=`<div class="sh" style="margin-top:4px">Plantillas</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
       ${autoBtn}
       ${myTpls.map(t=>`<div style="display:flex;gap:2px"><button class="btn btn-ghost btn-sm" onclick="loadTemplate('${t.id}')" style="border-radius:6px 0 0 6px">📥 ${t.name}</button><button class="btn btn-no btn-sm" onclick="deleteTpl('${t.id}')" style="border-radius:0 6px 6px 0;padding:0 8px">✕</button></div>`).join('')}
       ${Object.keys(S.cart[S.supId]||{}).length>0?`<button class="btn btn-ghost btn-sm" onclick="S.showSaveTemplate=!S.showSaveTemplate;render()">💾 Guardar</button>`:''}
     </div>
-    ${S.showSaveTemplate?`<div style="display:flex;gap:6px;margin-bottom:10px"><input type="text" id="tpl-name" placeholder="Nombre de la plantilla..." style="flex:1;padding:6px 10px;border:1px solid var(--brd);border-radius:6px;font-size:13px"/><button class="btn btn-pri btn-sm" onclick="saveTpl()">Guardar</button></div>`:''}`;
+    ${S.showSaveTemplate?`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+      <div style="display:flex;gap:6px"><input type="text" id="tpl-name" placeholder="Nombre de la plantilla..." style="flex:1;padding:6px 10px;border:1px solid var(--brd);border-radius:6px;font-size:13px"/></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <select id="tpl-recur" style="padding:6px;border:1px solid var(--brd);border-radius:6px;font-size:13px;background:var(--card);color:var(--txt)">
+          <option value="none">Sin repetición</option>
+          <option value="weekly">Semanal</option>
+          <option value="monthly">Mensual</option>
+        </select>
+        <select id="tpl-recur-day" style="padding:6px;border:1px solid var(--brd);border-radius:6px;font-size:13px;background:var(--card);color:var(--txt)">
+          <option value="1">Lunes</option><option value="2">Martes</option><option value="3">Miércoles</option>
+          <option value="4">Jueves</option><option value="5">Viernes</option><option value="6">Sábado</option><option value="0">Domingo</option>
+          ${Array.from({length:28},(_,i)=>`<option value="d${i+1}">${i+1} de cada mes</option>`).join('')}
+        </select>
+        <button class="btn btn-pri btn-sm" onclick="saveTpl()">Guardar</button>
+      </div>
+    </div>`:''}`;
   return `<div class="main">
     ${tabsHtml}${restPickerHtml}${note}
+    ${vacBanner}
+    ${recurringBanner}
     ${tplSection}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 0 6px">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 14px;border-radius:10px;border:2px solid ${S.orderUrgent?'#dc2626':'var(--brd)'};background:${S.orderUrgent?'#fff1f2':'var(--card)'};transition:.2s">
@@ -1214,6 +1287,10 @@ function vOrder(){
       <input type="text" placeholder="🔍 Buscar producto..." value="${S.prodSearch||''}" oninput="S.prodSearch=this.value;render()" style="padding:6px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:12px;width:180px;background:var(--card);color:var(--txt)">
     </div>
     ${filteredProds.length?`<div class="pgrid">${prods}</div>`:`<div class="empty"><div class="ei">🔍</div><div class="et">Sin resultados para "${S.prodSearch}"</div></div>`}
+    <div style="margin-top:12px">
+      <label style="font-size:11px;color:var(--mut);display:block;margin-bottom:4px">📝 Anotación / Nota para el pedido (opcional)</label>
+      <textarea id="order-notes" placeholder="Ej: Traer antes de las 10h, sin el producto X esta semana..." rows="2" style="width:100%;padding:8px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt);resize:vertical;box-sizing:border-box" oninput="S.orderNotes=this.value">${S.orderNotes||''}</textarea>
+    </div>
   </div>
   <div class="cbar ${cnt>0?'up':''}" id="cbar">
     <div><div class="cb-v" id="cb-v">${cnt} art.${supCnt>1?` · ${supCnt} prov.`:''}</div><div class="cb-s" id="cb-s">${fmt(tot)}</div></div>
@@ -1290,7 +1367,7 @@ function vAdmin(){
   }
   function grpHd(g,emoji,lbl){
     const open=S.sbGroups[g];
-    const childTabs={pedidos:['pending','approved','consolidated','received'],analisis:['spending','monthly','foodcost','budgets','compare','prices'],gestion:['users','suppliers','settings','escandallos','solicitudes']};
+    const childTabs={pedidos:['pending','approved','consolidated','received'],analisis:['spending','monthly','foodcost','budgets','compare','prices','sup-history'],gestion:['users','suppliers','settings','escandallos','solicitudes']};
     const hasAct=(childTabs[g]||[]).includes(S.adminTab);
     return `<div class="sg-hd${hasAct&&!open?' has-act':''}" onclick="toggleSbGroup('${g}')"><span>${emoji} ${lbl}</span><span class="sg-arrow">${open?'▲':'▼'}</span></div>`;
   }
@@ -1312,6 +1389,7 @@ function vAdmin(){
       ${sbItem('budgets','Presupuestos')}
       ${sbItem('compare','Comparar precios')}
       ${sbItem('prices','Historial precios')}
+      ${sbItem('sup-history','Por proveedor')}
     `:''}
     <div class="sg-direct${S.adminTab==='albaranes'?' act':''}" onclick="setTabSb('albaranes')">📋 Albaranes</div>
     ${grpHd('gestion','⚙️','Gestión')}
@@ -1329,7 +1407,7 @@ function vAdmin(){
   else if(S.adminTab==='approved')  content=vApproved();
   else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='received')  content=vReceived();
-  else if(S.adminTab==='spending')  content=`<div class="card"><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
+  else if(S.adminTab==='spending')  content=`<div class="card"><div style="display:flex;justify-content:flex-end;margin-bottom:8px"><button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ Imprimir</button></div><div class="ch-wrap"><canvas id="chart"></canvas></div></div>`;
   else if(S.adminTab==='monthly')   content=vMonthly();
   else if(S.adminTab==='foodcost')  content=vFoodCost();
   else if(S.adminTab==='budgets')   content=vBudgets();
@@ -1341,6 +1419,7 @@ function vAdmin(){
   else if(S.adminTab==='suppliers') content=vSuppliers();
   else if(S.adminTab==='settings')  content=vSettings();
   else if(S.adminTab==='escandallos') content=vEscandallos();
+  else if(S.adminTab==='sup-history') content=vSupHistory();
 
   const liveTag=fbConnected?`<span class="live-badge"><span class="pulse"></span>EN VIVO</span>`:'';
 
@@ -1365,6 +1444,7 @@ function orderCard(o,showActions){
   const bl={pending:'Pendiente',approved:'Aprobado',rejected:'Rechazado',received:'✔ Recibido'}[o.status]||o.status;
   const modTag=o.modifiedByAdmin?` <span class="badge b-f">✏️ Modificado</span>`:'';
   const urgTag=o.urgent?` <span class="badge b-urg">🚨 URGENTE</span>`:'';
+  const issuesTag=o.receivedIssues?` <span class="badge" style="background:#fef3c7;color:#92400e">⚠️ Con incidencias</span>`:'';
   const delTag=o.deliveryDate?` <span style="font-size:11px;color:var(--mut);font-weight:600">📅 Entrega: ${o.deliveryDate}</span>`:'';
   const recvBtn=showActions&&o.status==='approved'?`<button class="btn btn-ghost btn-sm" onclick="markReceived('${o.id}')">📦 Marcar recibido</button>`:'';
   const restRecvBtn=!showActions&&o.status==='approved'&&S.session?`<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="markReceived('${o.id}')">📦 Confirmar recepción</button>`:'';
@@ -1387,15 +1467,21 @@ function orderCard(o,showActions){
   let acts='';
   if(showActions&&o.status==='pending'){
     if(isEditing){
-      acts=`<div class="oc-acts" style="flex-wrap:wrap">
-        <button class="btn btn-ok btn-sm" onclick="approveWithEdits('${o.id}')">✅ Aprobar</button>
-        <button class="btn btn-ghost btn-sm" onclick="S.editOrderId=null;S.editItems=[];renderAdminContent()">✕ Cancelar</button>
+      acts=`<div style="width:100%">
+        <textarea id="approve-note-${o.id}" placeholder="Comentario al aprobar (opcional)..." rows="2" style="width:100%;padding:6px 8px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt);resize:none;box-sizing:border-box;margin-bottom:6px"></textarea>
+        <div class="oc-acts" style="flex-wrap:wrap">
+          <button class="btn btn-ok btn-sm" onclick="approveWithEdits('${o.id}')">✅ Aprobar</button>
+          <button class="btn btn-ghost btn-sm" onclick="S.editOrderId=null;S.editItems=[];renderAdminContent()">✕ Cancelar</button>
+        </div>
       </div>`;
     } else {
-      acts=`<div class="oc-acts">
-        <button class="btn btn-ok btn-sm" onclick="approve('${o.id}')">✅ Aprobar</button>
-        <button class="btn btn-blue btn-sm" onclick="startEditOrder('${o.id}')">✏️ Modificar</button>
-        <button class="btn btn-no btn-sm" onclick="rejectWithReason('${o.id}')">✗ Rechazar</button>
+      acts=`<div style="width:100%">
+        <textarea id="approve-note-${o.id}" placeholder="Comentario al aprobar (opcional)..." rows="2" style="width:100%;padding:6px 8px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt);resize:none;box-sizing:border-box;margin-bottom:6px"></textarea>
+        <div class="oc-acts">
+          <button class="btn btn-ok btn-sm" onclick="approve('${o.id}')">✅ Aprobar</button>
+          <button class="btn btn-blue btn-sm" onclick="startEditOrder('${o.id}')">✏️ Modificar</button>
+          <button class="btn btn-no btn-sm" onclick="rejectWithReason('${o.id}')">✗ Rechazar</button>
+        </div>
       </div>`;
     }
   } else if(o.status==='approved'){
@@ -1412,15 +1498,17 @@ function orderCard(o,showActions){
   const oCreatedAt=o.createdAt||'';
   const bKey=oUser?oUser.id+'_'+oCreatedAt.slice(0,7):null;
   const bLimit=bKey?(budgets[bKey]||0):0;
-  const bSpent=bKey?orders.filter(x=>x.status==='approved'&&x.restaurant===o.restaurant&&(x.createdAt||'').startsWith(oCreatedAt.slice(0,7))).reduce((s,x)=>s+total(x),0):0;
+  const bSpent=bKey?orders.filter(x=>(x.status==='approved'||x.status==='received')&&x.restaurant===o.restaurant&&(x.createdAt||'').startsWith(oCreatedAt.slice(0,7))).reduce((s,x)=>s+total(x),0):0;
   const budgetAlert=bLimit>0&&bSpent>bLimit?`<div class="banner red" style="margin:4px 0 2px">💳 Presupuesto superado — ${fmt(bSpent)} de ${fmt(bLimit)}</div>`:'';
   return `<div class="oc" ${isEditing?'style="border-color:var(--pri);box-shadow:0 0 0 2px rgba(26,26,46,.15)"':o.urgent?'style="border-color:#dc2626"':''}>
     <div class="oc-hd">
-      <div><div class="oc-rest">${o.restaurant}${o.autoApproved?` <span class="badge b-f">Auto</span>`:''}${modTag}${urgTag}</div>
+      <div><div class="oc-rest">${o.restaurant}${o.autoApproved?` <span class="badge b-f">Auto</span>`:''}${modTag}${urgTag}${issuesTag}</div>
       <div class="oc-sub">${sup.emoji} ${sup.name} · ${fmtD(o.createdAt)} · <span class="badge ${bc}">${bl}</span>${delTag}</div></div>
       ${acts}
     </div>
     ${largeAlert}${budgetAlert}
+    ${o.approvalNote?`<div style="background:#f0fdf4;border-left:3px solid #16a34a;border-radius:0 6px 6px 0;padding:6px 10px;margin:4px 0 6px;font-size:12px;color:#166534">💬 Admin: ${o.approvalNote}</div>`:''}
+    ${o.notes?`<div style="background:var(--bg);border-left:3px solid var(--pri);border-radius:0 6px 6px 0;padding:6px 10px;margin:4px 0 6px;font-size:12px;color:var(--txt)">📝 <em>${o.notes}</em></div>`:''}
     ${isEditing?`<div class="banner blue" style="margin-bottom:10px">✏️ Modifica las cantidades y pulsa <strong>Aprobar</strong></div>`:''}
     <div class="pl">${itemsHtml}${totLabel}</div>
     ${recvBtn||restRecvBtn}
@@ -1451,17 +1539,65 @@ function renderChart(){
   const ctx=document.getElementById('chart');if(!ctx)return;
   if(chartInst){chartInst.destroy();chartInst=null;}
   const byR={};
-  orders.filter(o=>o.status==='approved').forEach(o=>{ const k=(o.restaurant||'Sin nombre').replace("O'Carro ",'');byR[k]=(byR[k]||0)+total(o); });
+  orders.filter(o=>o.status==='approved'||o.status==='received').forEach(o=>{ const k=(o.restaurant||'Sin nombre').replace("O'Carro ",'');byR[k]=(byR[k]||0)+total(o); });
+  // Sumar gastos manuales
+  Object.values(extraExpenses).forEach(e=>{ const k=(e.restaurant||'Sin nombre').replace("O'Carro ",'');byR[k]=(byR[k]||0)+(parseFloat(e.amount)||0); });
   const ent=Object.entries(byR).filter(([,v])=>v>0).sort(([,a],[,b])=>b-a);
   if(!ent.length){ ctx.parentNode.innerHTML=`<div class="empty" style="height:260px;display:flex;flex-direction:column;justify-content:center"><div class="ei">📊</div><div class="et">Aprueba pedidos para ver el gasto</div></div>`;return; }
   chartInst=new Chart(ctx,{type:'bar',data:{labels:ent.map(([k])=>k),datasets:[{data:ent.map(([,v])=>v),backgroundColor:'#1a1a2e',borderRadius:6,hoverBackgroundColor:'#e94560'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},scales:{y:{ticks:{callback:v=>v.toLocaleString('es-ES',{maximumFractionDigits:0})+' €'},grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}});
+}
+function vExtraExpenses(){
+  const restOpts=cfg.users.map(u=>`<option value="${u.restaurant}">${u.restaurant}</option>`).join('');
+  const list=Object.values(extraExpenses).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+  const rows=list.map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--brd)">
+    <div style="flex:1"><div style="font-size:13px;font-weight:600">${e.restaurant}</div><div style="font-size:11px;color:var(--mut)">${e.concept||'Sin concepto'} · ${(e.date||e.createdAt||'').slice(0,10)}</div></div>
+    <div style="font-weight:700;color:var(--pri)">${fmt(e.amount)}</div>
+    <button class="btn btn-no btn-sm" onclick="delExtraExpense('${e.id}')" style="padding:2px 8px">✕</button>
+  </div>`).join('');
+  return `<div class="card" style="margin-top:14px">
+    <div class="card-t">➕ Añadir gasto manual</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div><label style="font-size:11px;color:var(--mut);display:block;margin-bottom:3px">Local</label>
+        <select id="eg-rest" style="width:100%;padding:7px 8px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt)">${restOpts}</select></div>
+      <div><label style="font-size:11px;color:var(--mut);display:block;margin-bottom:3px">Importe (€)</label>
+        <input type="number" id="eg-amt" min="0" step="0.01" placeholder="0.00" style="width:100%;padding:7px 8px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--mut);display:block;margin-bottom:3px">Concepto</label>
+        <input type="text" id="eg-concept" placeholder="Ej: Compra directa mercado…" style="width:100%;padding:7px 8px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt);box-sizing:border-box"></div>
+      <div><label style="font-size:11px;color:var(--mut);display:block;margin-bottom:3px">Fecha</label>
+        <input type="date" id="eg-date" value="${new Date().toISOString().split('T')[0]}" style="width:100%;padding:7px 8px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt);box-sizing:border-box"></div>
+    </div>
+    <button class="btn btn-pri btn-sm" onclick="saveExtraExpense()">Añadir gasto</button>
+    ${list.length?`<div style="margin-top:14px"><div class="sh" style="margin-bottom:4px">Gastos manuales registrados</div>${rows}</div>`:''}
+  </div>`;
+}
+function saveExtraExpense(){
+  const restaurant=document.getElementById('eg-rest')?.value;
+  const amount=parseFloat(document.getElementById('eg-amt')?.value);
+  const concept=document.getElementById('eg-concept')?.value.trim()||'';
+  const date=document.getElementById('eg-date')?.value||new Date().toISOString().split('T')[0];
+  if(!restaurant||isNaN(amount)||amount<=0){toast('Indica local e importe válido','#dc2626');return;}
+  const id='ex'+uid();
+  const entry={id,restaurant,amount,concept,date,createdAt:new Date().toISOString()};
+  extraExpenses[id]=entry;
+  if(fbDb) fbDb.ref('extraExpenses/'+id).set(entry);
+  renderAdminContent();
+  if(S.adminTab==='spending') setTimeout(renderChart,50);
+  toast('Gasto registrado','#16a34a');
+}
+function delExtraExpense(id){
+  if(!confirm('¿Eliminar este gasto manual?'))return;
+  delete extraExpenses[id];
+  if(fbDb) fbDb.ref('extraExpenses/'+id).remove();
+  renderAdminContent();
+  if(S.adminTab==='spending') setTimeout(renderChart,50);
+  toast('Gasto eliminado','#dc2626');
 }
 
 /* ═══════════════ ALBARANES ═══════════════ */
 function vAlbaranes(){
   const btn=`<button class="btn btn-pri btn-sm" onclick="goAlbaranAdmin()" style="margin-bottom:14px">+ Nuevo albarán</button>`;
   const byRest={};
-  orders.filter(o=>o.status==='approved').forEach(o=>{ if(!byRest[o.restaurant])byRest[o.restaurant]={ordered:0,received:0}; byRest[o.restaurant].ordered+=total(o); });
+  orders.filter(o=>o.status==='approved'||o.status==='received').forEach(o=>{ if(!byRest[o.restaurant])byRest[o.restaurant]={ordered:0,received:0}; byRest[o.restaurant].ordered+=total(o); });
   albNotes.forEach(a=>{ if(!byRest[a.restaurant])byRest[a.restaurant]={ordered:0,received:0}; byRest[a.restaurant].received+=(a.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0); });
   const tableRows=Object.entries(byRest).map(([rest,d])=>{
     const diff=d.received-d.ordered;
@@ -1480,6 +1616,13 @@ function albCard(a){
   const sup=suppliers[a.supId]||{name:'?',emoji:'?'};
   const tot=(a.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
   const matchOrder=orders.find(o=>o.restaurant===a.restaurant&&o.supId===a.supId&&o.status==='approved');
+  const matchingOrders=orders.filter(o=>(o.status==='approved'||o.status==='received')&&o.restaurant===a.restaurant&&o.supId===a.supId);
+  const linkedOrder=a.orderId?orders.find(o=>o.id===a.orderId):null;
+  const linkSection=a.orderId
+    ? `<div style="font-size:12px;color:#16a34a;margin-top:6px">🔗 Vinculado a pedido del ${fmtD(linkedOrder?linkedOrder.createdAt:'')}</div>`
+    : matchingOrders.length
+      ? `<select onchange="linkAlbToOrder('${a.id}',this.value)" style="font-size:12px;padding:4px 6px;border:1px solid var(--brd);border-radius:6px;background:var(--card);color:var(--txt);margin-top:6px;width:100%"><option value="">🔗 Vincular a pedido…</option>${matchingOrders.map(o=>`<option value="${o.id}">Pedido ${fmtD(o.createdAt)} — ${fmt(total(o))}</option>`).join('')}</select>`
+      : '';
   const hasIncidents=(a.items||[]).some(it=>it.incident);
   const rows=(a.items||[]).map(it=>`<div class="pr" style="${it.incident?'background:#fff5f5;border-radius:6px;padding:4px 6px;margin-bottom:2px':''}"><span class="pn">${it.code?`<small style="color:var(--mut)">[${it.code}]</small> `:''} ${it.name}${it.incident?`<div style="font-size:11px;color:#dc2626;margin-top:2px">⚠️ ${it.incident}</div>`:''}</span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt((parseFloat(it.qty)||0)*(parseFloat(it.price)||0))}</span></div>`).join('');
   let cmp='';
@@ -1501,10 +1644,18 @@ function albCard(a){
     ${a.photo?`<img src="${a.photo}" class="alb-photo"/>`:''}
     <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
     ${cmp}
+    ${linkSection}
   </div>`;
 }
 
 function delAlbF(id){ if(!confirm('¿Eliminar?'))return;deleteAlb(id);if(!fbDb){albNotes=albNotes.filter(a=>a.id!==id);}render(); }
+function linkAlbToOrder(albId,orderId){
+  if(!orderId) return;
+  if(fbDb) fbDb.ref('albaranes/'+albId+'/orderId').set(orderId);
+  const a=albNotes.find(x=>x.id===albId);if(a) a.orderId=orderId;
+  renderAdminContent();
+  toast('🔗 Albarán vinculado al pedido','#16a34a');
+}
 
 /* ═══════════════ NEW ALBARAN ═══════════════ */
 function vAlbaranNew(){
@@ -1767,7 +1918,7 @@ function vUsers(){
   const newF=S.editUserId==='new'?userForm(null):`<button class="btn btn-pri btn-sm" onclick="S.editUserId='new';render()" style="margin-bottom:14px">+ Añadir usuario</button>`;
   const list=cfg.users.map(u=>{
     const ed=S.editUserId===u.id;
-    return `<div class="user-card"><div class="uc-hd"><div><div class="uc-name">${u.restaurant}</div><div class="uc-info">PIN: ${u.pin} · ${u.needsApproval?'Requiere aprobación':'Auto-aprobado'}</div></div>
+    return `<div class="user-card"><div class="uc-hd"><div><div class="uc-name">${u.restaurant}${u.vacaciones?" 🌴":""}</div><div class="uc-info">PIN: ${u.pin} · ${u.needsApproval?'Requiere aprobación':'Auto-aprobado'}${u.vacaciones?' · Vacaciones':''}</div></div>
       <div class="uc-acts"><button class="btn btn-ghost btn-sm" onclick="S.editUserId=S.editUserId==='${u.id}'?null:'${u.id}';render()">${ed?'✕':'✏️'}</button>
       <button class="btn btn-no btn-sm" onclick="delUser('${u.id}')">🗑️</button></div></div>
       ${ed?`<div class="uc-body">${userForm(u)}</div>`:''}
@@ -1918,7 +2069,10 @@ function saveTpl(){
   const sc=S.cart[S.supId]||{};
   const items=sup.products.filter(p=>sc[p.id]).map(p=>({prodId:p.id,prodName:p.name,qty:sc[p.id],unit:p.unit,price:p.price}));
   if(!items.length){toast('Añade productos primero','#dc2626');return;}
-  const tpl={id:uid(),name,supId:S.supId,items,createdAt:new Date().toISOString()};
+  const recurType=document.getElementById('tpl-recur')?.value||'none';
+  const recurDayRaw=document.getElementById('tpl-recur-day')?.value||'1';
+  const recurrence=recurType==='none'?{type:'none'}:recurType==='weekly'?{type:'weekly',weekday:parseInt(recurDayRaw)||1}:{type:'monthly',dayOfMonth:parseInt(recurDayRaw.replace('d',''))||1};
+  const tpl={id:uid(),name,supId:S.supId,items,recurrence,createdAt:new Date().toISOString()};
   if(!templates[uid2])templates[uid2]={};
   templates[uid2][tpl.id]=tpl;
   if(fbDb)fbDb.ref('templates/'+uid2+'/'+tpl.id).set(tpl);
@@ -1952,6 +2106,21 @@ function loadAutoSuggest(){
   render();toast('🤖 Pedido típico cargado — ajusta cantidades','#7c3aed');
 }
 
+/* ═══════════════ PEDIDOS RECURRENTES ═══════════════ */
+function loadRecurringTpl(tplId){
+  const uid2=S.session.userId;
+  const tpl=Object.values(templates[uid2]||{}).find(t=>t.id===tplId);
+  if(!tpl){toast('Plantilla no encontrada','#dc2626');return;}
+  S.supId=tpl.supId;
+  if(!S.cart[tpl.supId])S.cart[tpl.supId]={};
+  tpl.items.forEach(it=>{S.cart[tpl.supId][it.prodId]=it.qty;});
+  const todayKey=new Date().toISOString().split('T')[0];
+  if(fbDb) fbDb.ref('templates/'+uid2+'/'+tplId+'/lastAutoDate').set(todayKey);
+  if(templates[uid2]&&templates[uid2][tplId]) templates[uid2][tplId].lastAutoDate=todayKey;
+  const sv=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo(0,sv));
+  toast('✅ Plantilla recurrente cargada','#16a34a');
+}
+
 /* ═══════════════ PRESUPUESTOS ═══════════════ */
 function saveBudget(key,val){
   const v=parseFloat(val)||0;
@@ -1963,7 +2132,8 @@ function vBudgets(){
   const curKey=now.toISOString().slice(0,7);
   const curLabel=now.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
   const spendByRest={};
-  orders.filter(o=>o.status==='approved'&&(o.createdAt||'').startsWith(curKey)).forEach(o=>{spendByRest[o.restaurant]=(spendByRest[o.restaurant]||0)+total(o);});
+  orders.filter(o=>(o.status==='approved'||o.status==='received')&&(o.createdAt||'').startsWith(curKey)).forEach(o=>{spendByRest[o.restaurant]=(spendByRest[o.restaurant]||0)+total(o);});
+  Object.values(extraExpenses).filter(ex=>(ex.date||ex.createdAt||'').startsWith(curKey)).forEach(ex=>{spendByRest[ex.restaurant]=(spendByRest[ex.restaurant]||0)+(parseFloat(ex.amount)||0);});
   const cards=cfg.users.map(u=>{
     const bKey=u.id+'_'+curKey;
     const limit=budgets[bKey]||0;
@@ -1990,6 +2160,10 @@ function vBudgets(){
     <div class="card-t">Presupuesto mensual — <span style="text-transform:capitalize">${curLabel}</span></div>
     <div style="font-size:12px;color:var(--mut);margin-bottom:8px">Introduce el límite de compras para cada local. Se avisa si se supera al aprobar pedidos.</div>
     ${cards}
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="card-t">📈 Gasto vs Presupuesto (últimos 6 meses)</div>
+    <div class="ch-wrap"><canvas id="budget-trend-chart"></canvas></div>
   </div>`;
 }
 
@@ -2085,7 +2259,7 @@ function fcNavDate(dir){
 }
 function fcOrders(){
   const {s,e}=fcRange();
-  return orders.filter(o=>o.status==='approved'&&o.createdAt&&new Date(o.createdAt)>=s&&new Date(o.createdAt)<=e);
+  return orders.filter(o=>(o.status==='approved'||o.status==='received')&&o.createdAt&&new Date(o.createdAt)>=s&&new Date(o.createdAt)<=e);
 }
 function saveRevenue(key,val){
   const v=parseFloat(val);
@@ -2105,7 +2279,9 @@ function vFoodCost(){
   const key=fcKey();
   const rev=revenue[key]||0;
   const appr=fcOrders();
-  const totalCost=appr.reduce((s,o)=>s+total(o),0);
+  const fcRng=fcRange();
+  const extraCostTotal=Object.values(extraExpenses).filter(ex=>{const d=new Date(ex.date||ex.createdAt);return d>=fcRng.s&&d<=fcRng.e;}).reduce((s,ex)=>s+(parseFloat(ex.amount)||0),0);
+  const totalCost=appr.reduce((s,o)=>s+total(o),0)+extraCostTotal;
   const pct=(rev>0)?((totalCost/rev)*100):null;
   const pctCol=pct===null?'var(--mut)':pct<28?'#16a34a':pct<33?'#ca8a04':pct<38?'#ea580c':'#dc2626';
   const pctLbl=pct===null?'Sin facturación':pct<28?'Excelente':pct<33?'Bueno':pct<38?'Atención':'Elevado';
@@ -2114,6 +2290,8 @@ function vFoodCost(){
   const byRest={};
   cfg.users.forEach(u=>{byRest[u.id]={name:u.restaurant,id:u.id,cost:0};});
   appr.forEach(o=>{const u=cfg.users.find(x=>x.restaurant===o.restaurant);if(u&&byRest[u.id])byRest[u.id].cost+=total(o);});
+  // Incluir gastos manuales del período
+  Object.values(extraExpenses).forEach(ex=>{const d=new Date(ex.date||ex.createdAt);if(d>=fcRng.s&&d<=fcRng.e){const u=cfg.users.find(x=>x.restaurant===ex.restaurant);if(u&&byRest[u.id])byRest[u.id].cost+=(parseFloat(ex.amount)||0);}});
   const restRows=Object.values(byRest).filter(r=>r.cost>0).sort((a,b)=>b.cost-a.cost).map(r=>{
     const rKey=key+'_r_'+r.id;
     const rRev=revenue[rKey]||0;
@@ -2269,12 +2447,12 @@ function submitOrder(){
     const sc=S.cart[sid]||{};
     const items=sup.products.filter(p=>sc[p.id]).map(p=>({...p,qty:sc[p.id]}));
     if(!items.length)return;
-    const o={id:uid(),restaurant:S.session.restaurant,supId:sid,items,status:needApproval?'pending':'approved',autoApproved:!needApproval,createdAt:new Date().toISOString(),urgent:S.orderUrgent||false,deliveryDate:S.orderDeliveryDate||null};
+    const o={id:uid(),restaurant:S.session.restaurant,supId:sid,items,status:needApproval?'pending':'approved',autoApproved:!needApproval,createdAt:new Date().toISOString(),urgent:S.orderUrgent||false,deliveryDate:S.orderDeliveryDate||null,notes:S.orderNotes||''};
     saveOrder(o);
     orders2send.push(o);
   });
   if(!orders2send.length){toast('Añade productos al pedido','#dc2626');return;}
-  S.cart={};S.orderUrgent=false;S.orderDeliveryDate='';S.prodSearch='';
+  S.cart={};S.orderUrgent=false;S.orderDeliveryDate='';S.prodSearch='';S.orderNotes='';
   if(needApproval){
     // Show WA for admin with summary of all orders
     const totalAmt=orders2send.reduce((s,o)=>s+total(o),0);
@@ -2293,9 +2471,14 @@ function submitOrder(){
 }
 
 function approve(id){
-  updateOrder(id,{status:'approved'});
-  if(!fbDb){ const o=orders.find(o=>o.id===id);if(o)o.status='approved'; render(); }
+  const noteEl=document.getElementById('approve-note-'+id);
+  const approvalNote=noteEl?noteEl.value.trim():'';
+  const o=orders.find(x=>x.id===id);
+  updateOrder(id,{status:'approved',...(approvalNote?{approvalNote}:{})});
+  if(!fbDb){ if(o){o.status='approved';if(approvalNote)o.approvalNote=approvalNote;} render(); }
   toast('✅ Pedido aprobado','#16a34a');
+  const sup=o?suppliers[o.supId]:null;
+  if(o&&sup?.phone) showWA(sup.phone,msgSupplier({...o,status:'approved'}),`Pedido aprobado — envía a ${sup.name}`);
 }
 function rejectWithReason(id){
   const reason=prompt('Motivo del rechazo (opcional):');
@@ -2324,16 +2507,54 @@ function editItemQty(idx,delta){
 function approveWithEdits(id){
   const items=S.editItems.filter(it=>it.qty>0);
   if(!items.length){toast('El pedido no puede estar vacío','#dc2626');return;}
-  updateOrder(id,{status:'approved',items,modifiedByAdmin:true});
-  if(!fbDb){ const o=orders.find(x=>x.id===id);if(o){o.status='approved';o.items=items;o.modifiedByAdmin=true;} }
+  const noteEl=document.getElementById('approve-note-'+id);
+  const approvalNote=noteEl?noteEl.value.trim():'';
+  const oOrig=orders.find(x=>x.id===id);
+  updateOrder(id,{status:'approved',items,modifiedByAdmin:true,...(approvalNote?{approvalNote}:{})});
+  if(!fbDb){ if(oOrig){oOrig.status='approved';oOrig.items=items;oOrig.modifiedByAdmin=true;if(approvalNote)oOrig.approvalNote=approvalNote;} }
   S.editOrderId=null;S.editItems=[];
   toast('✅ Pedido modificado y aprobado','#16a34a');
+  const sup=oOrig?suppliers[oOrig.supId]:null;
+  if(oOrig&&sup?.phone) showWA(sup.phone,msgSupplier({...oOrig,status:'approved',items,modifiedByAdmin:true}),`Pedido aprobado — envía a ${sup.name}`);
 }
 
+let _recvOrderId=null;
 function markReceived(id){
-  updateOrder(id,{status:'received',receivedAt:new Date().toISOString()});
-  if(!fbDb){ const o=orders.find(x=>x.id===id);if(o){o.status='received';o.receivedAt=new Date().toISOString();} render(); }
-  toast('📦 Pedido marcado como recibido','#7c3aed');
+  _recvOrderId=id;
+  const o=orders.find(x=>x.id===id);
+  if(!o){toast('Pedido no encontrado','#dc2626');return;}
+  const itemsHtml=(o.items||[]).map((it,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--brd)">
+      <div style="flex:1;font-size:13px">${it.name} <span style="color:var(--mut)">${it.qty} ${it.unit}</span></div>
+      <select id="recv-status-${i}" style="font-size:12px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;background:var(--card);color:var(--txt)">
+        <option value="ok">✅ OK</option>
+        <option value="partial">⚠️ Parcial</option>
+        <option value="missing">❌ Faltó</option>
+        <option value="bad">🔴 Mal estado</option>
+      </select>
+      <input id="recv-note-${i}" type="text" placeholder="Nota..." style="width:100px;font-size:12px;padding:3px 6px;border:1px solid var(--brd);border-radius:6px;background:var(--card);color:var(--txt)">
+    </div>`).join('');
+  document.getElementById('recv-items').innerHTML=itemsHtml;
+  document.getElementById('recv-general-note').value='';
+  document.getElementById('recv-ov').style.display='flex';
+}
+function closeRecvModal(){ document.getElementById('recv-ov').style.display='none'; _recvOrderId=null; }
+function confirmReceived(){
+  if(!_recvOrderId) return;
+  const o=orders.find(x=>x.id===_recvOrderId);
+  if(!o){ closeRecvModal(); return; }
+  const receivedItems=(o.items||[]).map((it,i)=>{
+    const status=document.getElementById('recv-status-'+i)?.value||'ok';
+    const note=document.getElementById('recv-note-'+i)?.value.trim()||'';
+    return {...it,recvStatus:status,...(note?{recvNote:note}:{})};
+  });
+  const generalNote=document.getElementById('recv-general-note')?.value.trim()||'';
+  const hasIssues=receivedItems.some(it=>it.recvStatus!=='ok');
+  updateOrder(_recvOrderId,{status:'received',receivedAt:new Date().toISOString(),receivedItems,...(generalNote?{receivedNote:generalNote}:{}),...(hasIssues?{receivedIssues:true}:{})});
+  if(!fbDb){ const ord=orders.find(x=>x.id===_recvOrderId);if(ord){ord.status='received';ord.receivedAt=new Date().toISOString();ord.receivedItems=receivedItems;if(generalNote)ord.receivedNote=generalNote;if(hasIssues)ord.receivedIssues=true;}}
+  closeRecvModal();
+  toast(hasIssues?'📦 Recibido con incidencias':'📦 Pedido recibido correctamente',hasIssues?'#d97706':'#7c3aed');
+  renderAdminContent();
 }
 
 function vReceived(){
@@ -2349,7 +2570,8 @@ function vReceived(){
 function vMonthly(){
   return `<div class="card">
     <div class="card-t">Gasto mensual por local — últimos 6 meses</div>
-    <div style="margin-bottom:10px;display:flex;justify-content:flex-end">
+    <div style="margin-bottom:10px;display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ Imprimir</button>
       <button class="btn btn-ghost btn-sm" onclick="exportExcel('monthly')">📥 Exportar Excel</button>
     </div>
     <div class="ch-wrap"><canvas id="monthly-chart"></canvas></div>
@@ -2668,6 +2890,79 @@ function escDelete(){
 }
 
 function escFmt(v){ return parseFloat(v||0).toFixed(2).replace('.',',')+' €'; }
+
+
+
+/* ═══════════════ BUDGET TREND CHART ═══════════════ */
+function renderBudgetTrendChart(){
+  const canvas=document.getElementById('budget-trend-chart');
+  if(!canvas) return;
+  if(window._budgetTrendChart){window._budgetTrendChart.destroy();window._budgetTrendChart=null;}
+  const now=new Date();
+  const months=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months.push(d.toISOString().slice(0,7));
+  }
+  const labels=months.map(m=>{const[y,mo]=m.split('-');return new Date(y,mo-1).toLocaleDateString('es',{month:'short',year:'2-digit'});});
+  const spendData=months.map(m=>{
+    const fromOrders=orders.filter(o=>(o.status==='approved'||o.status==='received')&&(o.createdAt||'').startsWith(m)).reduce((s,o)=>s+total(o),0);
+    const fromExtra=Object.values(extraExpenses).filter(ex=>(ex.date||ex.createdAt||'').startsWith(m)).reduce((s,ex)=>s+(parseFloat(ex.amount)||0),0);
+    return fromOrders+fromExtra;
+  });
+  const budgetData=months.map(m=>{
+    return cfg.users.reduce((s,u)=>s+(budgets[u.id+'_'+m]||0),0);
+  });
+  window._budgetTrendChart=new Chart(canvas,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Gasto real',data:spendData,backgroundColor:'#e9456099',borderColor:'#e94560',borderWidth:1.5,borderRadius:4},
+        {label:'Presupuesto',data:budgetData,backgroundColor:'#1a1a2e33',borderColor:'#1a1a2e',borderWidth:1.5,borderRadius:4,type:'line',fill:false,tension:0.3,pointRadius:4}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'€'+v.toLocaleString('es')},grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}
+  });
+}
+
+/* ═══════════════ HISTORIAL POR PROVEEDOR ═══════════════ */
+function vSupHistory(){
+  const supIds=Object.keys(suppliers);
+  if(!supIds.length) return `<div class="empty"><div class="ei">📦</div><div class="et">Sin proveedores</div></div>`;
+  const rows=supIds.map(sid=>{
+    const sup=suppliers[sid];
+    const supOrders=orders.filter(o=>(o.status==='approved'||o.status==='received')&&o.supId===sid);
+    if(!supOrders.length) return '';
+    const totalSpend=supOrders.reduce((s,o)=>s+total(o),0);
+    const lastOrder=supOrders.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
+    const prodMap={};
+    supOrders.forEach(o=>(o.items||[]).forEach(it=>{
+      if(!prodMap[it.id])prodMap[it.id]={name:it.name,unit:it.unit,qty:0,spend:0,count:0};
+      prodMap[it.id].qty+=it.qty;prodMap[it.id].spend+=(it.qty||0)*(it.price||0);prodMap[it.id].count++;
+    }));
+    const topProds=Object.values(prodMap).sort((a,b)=>b.spend-a.spend).slice(0,5);
+    const prodRows=topProds.map(p=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px solid var(--brd)"><span>${p.name}</span><span style="color:var(--mut)">${p.qty.toFixed(1)} ${p.unit} · ${fmt(p.spend)}</span></div>`).join('');
+    return `<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="font-size:24px">${sup.emoji||'📦'}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:15px">${sup.name}</div>
+          <div style="font-size:12px;color:var(--mut)">${supOrders.length} pedidos · Último: ${fmtD(lastOrder.createdAt)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:700;color:var(--pri)">${fmt(totalSpend)}</div>
+          <div style="font-size:11px;color:var(--mut)">total comprado</div>
+        </div>
+      </div>
+      <div class="sh" style="font-size:11px;margin-bottom:4px">TOP PRODUCTOS</div>
+      ${prodRows||'<div style="font-size:12px;color:var(--mut)">Sin datos</div>'}
+    </div>`;
+  }).filter(Boolean).join('');
+  if(!rows) return `<div class="empty"><div class="ei">📦</div><div class="et">Sin historial de compras aún</div></div>`;
+  const totalAll=orders.filter(o=>o.status==='approved'||o.status==='received').reduce((s,o)=>s+total(o),0);
+  return `<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Total comprado a todos los proveedores: <strong>${fmt(totalAll)}</strong></div>`+rows;
+}
 
 /* ═══════════════ NUEVOS PROVEEDORES (tarifas abril 2026) ═══════════════ */
 const NEW_SUPPLIERS = {
