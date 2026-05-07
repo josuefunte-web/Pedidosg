@@ -2557,24 +2557,32 @@ function vSettings(){
       <input type="number" value="${cfg.priceAlertPct||5}" min="1" max="50" step="1" onchange="cfg.priceAlertPct=parseFloat(this.value)||5;saveCfg()"/>
       <div style="font-size:12px;color:var(--mut);margin-top:4px">Aviso cuando un producto sube más de este porcentaje</div>
     </div>
-    <div class="card-t" style="margin-top:20px">🔔 Notificaciones</div>
+    <div class="card-t" style="margin-top:20px">🔔 Notificaciones push en el móvil</div>
     <div class="fg">
-      <div style="font-size:13px;margin-bottom:8px">Activa las notificaciones del navegador para recibir avisos de nuevos pedidos. <strong>Abre la app en tu navegador directamente</strong> (no desde un iframe o vista previa) para que funcionen. El sonido de alerta funciona siempre.</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        <button class="btn btn-pri btn-sm" onclick="requestPushPermission()">🔔 Activar notificaciones</button>
-        <button class="btn btn-ghost btn-sm" onclick="testNotifSound()">🔊 Probar sonido</button>
-        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-          <input type="checkbox" ${cfg.notifSound!==false?'checked':''} onchange="cfg.notifSound=this.checked;saveCfg()" style="width:15px;height:15px;accent-color:var(--pri)"> Sonido al llegar pedido
-        </label>
+      <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px">
+        <strong>Cómo recibir notificaciones en el móvil (iOS y Android):</strong>
+        <ol style="margin:8px 0 0 16px;padding:0;line-height:1.8">
+          <li>Instala la app <strong>ntfy</strong> en tu móvil (gratuita — App Store / Play Store)</li>
+          <li>En ntfy, suscríbete al canal que pongas aquí abajo</li>
+          <li>¡Listo! Cuando un local envíe un pedido, te llega al móvil aunque la app esté cerrada</li>
+        </ol>
       </div>
-      <div id="push-status" style="font-size:12px;color:var(--mut)">${(()=>{
-        const inIframe=window.self!==window.top;
-        if(inIframe) return '⚠️ Vista en iframe — las notificaciones emergentes solo funcionan abriendo la app directamente en el navegador. El sonido sí funciona.';
-        if(!('Notification' in window)) return '⚠️ Tu navegador no soporta notificaciones emergentes. El sonido sí funciona.';
-        if(Notification.permission==='granted') return '✅ Notificaciones activas';
-        if(Notification.permission==='denied') return '❌ Bloqueadas — actívalas en los ajustes del navegador para este sitio';
-        return '⚪ No activadas aún — pulsa el botón para activarlas';
-      })()}</div>
+      <label>Canal ntfy (elige uno único, sin espacios)</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" value="${cfg.ntfyTopic||''}" placeholder="ej: ocarro-pedidos-2024" style="flex:1" onchange="cfg.ntfyTopic=this.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');saveCfg();this.value=cfg.ntfyTopic"/>
+        <button class="btn btn-ghost btn-sm" onclick="testNtfy()">📲 Probar</button>
+      </div>
+      <div style="font-size:12px;color:var(--mut);margin-top:5px">
+        ${cfg.ntfyTopic
+          ? `✅ Activo — suscríbete en ntfy al canal <strong>${cfg.ntfyTopic}</strong>`
+          : '⚪ Sin configurar — pon un nombre de canal para activar las notificaciones push'}
+      </div>
+      <div style="margin-top:12px;border-top:1px solid var(--brd);padding-top:12px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" ${cfg.notifSound!==false?'checked':''} onchange="cfg.notifSound=this.checked;saveCfg()" style="width:15px;height:15px;accent-color:var(--pri)"> Sonido de alerta en el ordenador (cuando la pestaña está abierta)
+        </label>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="testNotifSound()">🔊 Probar sonido</button>
+      </div>
     </div>
     <div class="card-t" style="margin-top:20px">🤖 IA para albaranes — Google Gemini</div>
     <div class="fg">
@@ -2637,6 +2645,28 @@ function pushNotify(title,body,icon='🛒'){
   if(window.self===window.top&&'Notification' in window&&Notification.permission==='granted'){
     try{ new Notification(`${icon} ${title}`,{body}); }catch(e){}
   }
+}
+
+function sendNtfy(title, body, {priority='default', tags='bell', urgent=false}={}){
+  const topic=(cfg.ntfyTopic||'').trim();
+  if(!topic) return;
+  fetch(`https://ntfy.sh/${topic}`,{
+    method:'POST',
+    headers:{
+      'Title': title,
+      'Priority': urgent?'urgent':priority,
+      'Tags': urgent?'rotating_light,'+tags:tags,
+      'Content-Type':'text/plain'
+    },
+    body
+  }).catch(()=>{}); // silencioso si falla
+}
+
+function testNtfy(){
+  const topic=(cfg.ntfyTopic||'').trim();
+  if(!topic){toast('Primero pon un nombre de canal','#dc2626');return;}
+  sendNtfy('🧪 Prueba O\'Carro','Si ves esto, las notificaciones push funcionan correctamente ✅',{tags:'white_check_mark'});
+  toast(`📲 Notificación enviada al canal "${topic}" — comprueba el móvil`,'#16a34a',5000);
 }
 
 /* ═══════════════ ORDER ACTIONS ═══════════════ */
@@ -2732,6 +2762,14 @@ function submitOrder(){
     const totalAmt=pendingOrders.reduce((s,o)=>s+total(o),0);
     const msgMulti=`🛒 Nuevo pedido de ${pendingOrders[0].restaurant}\n${pendingOrders.map(o=>`• ${(suppliers[o.supId]||{name:o.supId}).name}: ${fmt(total(o))}`).join('\n')}\n💰 Total: ${fmt(totalAmt)}`;
     showWA(cfg.adminPhone||'',msgMulti,`${pendingOrders.length} pedido(s) de ${pendingOrders[0].restaurant} — apruébalos`);
+    // Notificación push al móvil del admin
+    const urgent=pendingOrders.some(o=>o.urgent);
+    const ntfyLines=pendingOrders.map(o=>`• ${(suppliers[o.supId]||{name:o.supId}).name}: ${fmt(total(o))}${o.urgent?' 🚨 URGENTE':''}`).join('\n');
+    sendNtfy(
+      `${urgent?'🚨 URGENTE — ':''}Nuevo pedido de ${pendingOrders[0].restaurant}`,
+      `${ntfyLines}\n💰 Total: ${fmt(totalAmt)}`,
+      {priority:urgent?'urgent':'high', tags:urgent?'rotating_light':'shopping_cart', urgent}
+    );
     toast(`✅ ${pendingOrders.length} pedido(s) enviado(s) para aprobación`,'#d97706');
   }
   if(autoOrders.length){
@@ -2739,6 +2777,13 @@ function submitOrder(){
     autoOrders.forEach(o=>{
       const sup=suppliers[o.supId];if(sup?.phone)showWA(sup.phone,msgSupplier(o),`Pedido aprobado — envíalo a ${sup.name}`);
     });
+    // Notificación push también para auto-aprobados
+    const totalAuto=autoOrders.reduce((s,o)=>s+total(o),0);
+    sendNtfy(
+      `⚡ Pedido auto-aprobado — ${autoOrders[0].restaurant}`,
+      autoOrders.map(o=>`• ${(suppliers[o.supId]||{name:o.supId}).name}: ${fmt(total(o))}`).join('\n')+`\n💰 Total: ${fmt(totalAuto)}`,
+      {priority:'default', tags:'white_check_mark'}
+    );
     toast(`⚡ ${autoOrders.length} pedido(s) aprobado(s) automáticamente — envía a cada proveedor`,'#16a34a');
   }
   render();
@@ -2918,7 +2963,10 @@ function vEscandallos(){
   return `
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <div style="font-size:18px;font-weight:800;color:var(--pri)">🧮 Escandallos</div>
-    <button class="btn btn-pri btn-sm" onclick="escOpenModal()">+ Nuevo</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost btn-sm" onclick="escExportTodos()">📥 Exportar todos</button>
+      <button class="btn btn-pri btn-sm" onclick="escOpenModal()">+ Nuevo</button>
+    </div>
   </div>
   <div class="esc-filtros">
     <input type="text" id="esc-search" placeholder="Buscar plato..." oninput="escRender()" />
@@ -3288,6 +3336,65 @@ function escExportExcel(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Escandallo');
   XLSX.writeFile(wb,(nombre.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g,'_'))+'.xlsx');
+}
+
+function escExportTodos(){
+  if(typeof XLSX==='undefined'){toast('Librería Excel no disponible','#dc2626');return;}
+  const todos=Object.values(_escAllData||{});
+  if(!todos.length){toast('No hay escandallos guardados','#dc2626');return;}
+
+  // Ordenar por nombre
+  todos.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'','es'));
+
+  // Calcular coste con merma para cada escandallo
+  function calcCoste(esc){
+    return (esc.ingredientes||[]).reduce((s,ing)=>{
+      // Precio vivo o guardado
+      let p=parseFloat(ing.precioUnitario)||0;
+      if(ing.proveedorId&&suppliers[ing.proveedorId]){
+        const prod=(suppliers[ing.proveedorId].products||[]).find(x=>x.id===ing.productoId);
+        if(prod) p=parseFloat(prod.price)||0;
+      }
+      const merma=parseFloat(ing.merma)||0;
+      const factor=merma>0&&merma<100?1/(1-merma/100):1;
+      return s+(parseFloat(ing.cantidad)||0)*p*factor;
+    },0);
+  }
+
+  const ws_data=[
+    ['PLATO','PRECIO COSTE + IVA','PRECIO VENTA OBJETIVO','%','PRECIO DE VENTA REAL','% REAL']
+  ];
+  todos.forEach((esc,i)=>{
+    const row=i+2; // fila Excel (1 = cabecera)
+    ws_data.push([
+      esc.nombre||'',
+      +calcCoste(esc).toFixed(4),
+      {f:`B${row}*4`},       // precio objetivo (food cost 25%)
+      {f:`B${row}/C${row}`}, // % food cost objetivo
+      esc.precioVenta||0,
+      {f:`IF(E${row}>0,B${row}/E${row},"")`} // % real
+    ]);
+  });
+
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(ws_data);
+
+  // Formato numérico para columnas %
+  const range=XLSX.utils.decode_range(ws['!ref']);
+  for(let r=1;r<=range.e.r;r++){
+    const dCell=ws[XLSX.utils.encode_cell({r,c:3})]; // D
+    const fCell=ws[XLSX.utils.encode_cell({r,c:5})]; // F
+    if(dCell) dCell.z='0.00%';
+    if(fCell) fCell.z='0.00%';
+  }
+
+  // Anchos de columna (en caracteres)
+  ws['!cols']=[{wch:40},{wch:22},{wch:26},{wch:8},{wch:24},{wch:10}];
+
+  XLSX.utils.book_append_sheet(wb,ws,'Escandallos');
+  const fecha=new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb,`Escandallos_${fecha}.xlsx`);
+  toast(`✅ ${todos.length} escandallos exportados`,'#16a34a');
 }
 
 function escDelete(){
