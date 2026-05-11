@@ -3653,13 +3653,13 @@ function menRenderSelector(){
     const coste=escCosteTotal(e);
     const rest=e.restaurante||'global';
     const restTag=rest==='global'?'':`<span style="font-size:9px;color:#7c3aed">${rest}</span>`;
-    return `<label style="display:flex;align-items:flex-start;gap:6px;padding:6px 8px;border:1.5px solid ${sel?'var(--pri)':'var(--brd)'};border-radius:7px;cursor:pointer;background:${sel?'rgba(26,26,46,.06)':'var(--card)'}" onclick="menToggleEsc('${id}')">
-      <input type="checkbox" ${sel?'checked':''} style="margin-top:2px;pointer-events:none"/>
+    return `<div style="display:flex;align-items:flex-start;gap:6px;padding:6px 8px;border:1.5px solid ${sel?'var(--pri)':'var(--brd)'};border-radius:7px;cursor:pointer;background:${sel?'rgba(26,26,46,.06)':'var(--card)'}" onclick="menToggleEsc('${id}')">
+      <input type="checkbox" ${sel?'checked':''} style="margin-top:2px;pointer-events:none" readonly/>
       <div style="flex:1">
         <div style="font-size:12px;font-weight:600">${e.nombre}</div>
         <div style="font-size:11px;color:var(--mut)">${escFmt(coste)} ${restTag}</div>
       </div>
-    </label>`;
+    </div>`;
   }).join('');
   menUpdateCoste();
 }
