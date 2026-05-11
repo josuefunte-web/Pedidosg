@@ -1225,6 +1225,7 @@ function vOrder(){
     <button class="tab ${S.orderTab==='new'?'act':''}" onclick="S.orderTab='new';render()">🛒 Hacer pedido</button>
     <button class="tab ${S.orderTab==='history'?'act':''}" onclick="S.orderTab='history';render()">📋 Mis pedidos${histBadge}</button>
     <button class="tab ${S.orderTab==='gastos'?'act':''}" onclick="S.orderTab='gastos';render()">💶 Mi gasto</button>
+    <button class="tab ${S.orderTab==='escandallos'?'act':''}" onclick="S.orderTab='escandallos';render()">🧮 Escandallos</button>
   </div>`;
   const restPickerHtml=myRests.length>1?`<div class="rest-picker">
     <div class="rest-picker-lbl">🏪 Pedido para</div>
@@ -1236,6 +1237,10 @@ function vOrder(){
   }
   if(S.orderTab==='gastos'){
     return `<div class="main">${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalGastos()}</div>`;
+  }
+  if(S.orderTab==='escandallos'){
+    if(!_escInit&&fbDb) initEscandallos();
+    return `<div class="main">${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalEscandallos()}</div>`;
   }
 
   const sups=visibleSups();
@@ -2174,7 +2179,11 @@ function supForm(sup){
   </div>`;
 }
 function supDetailForm(sup){
-  const prods=(sup.products||[]).map(p=>`<div class="prod-row"><div class="prod-info" style="flex:1"><div class="prod-name-t">${p.name}</div><div style="display:flex;gap:6px;align-items:center;margin-top:4px"><span style="font-size:12px;color:var(--mut);min-width:30px">${p.unit||'KG'}</span><input type="number" value="${parseFloat(p.price||0).toFixed(2)}" step="0.01" min="0" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sup.id}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">€</span></div></div><button class="btn btn-no btn-xs" style="align-self:center" onclick="delProd('${sup.id}','${p.id}')">✕</button></div>`).join('');
+  const _U=['KG','L','UN','Caja','Bote','Bolsa'];
+  const prods=(sup.products||[]).map(p=>{
+    const unitOpts=_U.map(u=>`<option${(p.unit||'KG')===u?' selected':''}>${u}</option>`).join('');
+    return `<div class="prod-row"><div class="prod-info" style="flex:1"><div class="prod-name-t">${p.name}</div><div style="display:flex;gap:6px;align-items:center;margin-top:4px"><select style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" onchange="editProdUnit('${sup.id}','${p.id}',this.value)">${unitOpts}</select><input type="number" value="${parseFloat(p.price||0).toFixed(2)}" step="0.01" min="0" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sup.id}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">€</span></div></div><button class="btn btn-no btn-xs" style="align-self:center" onclick="delProd('${sup.id}','${p.id}')">✕</button></div>`;
+  }).join('');
   return `<div class="sh">Información del proveedor</div>
   <div class="two-col">
     <div class="fg"><label>Nombre</label><input type="text" id="sf-name-${sup.id}" value="${sup.name}" placeholder="Bencar"/></div>
@@ -2183,7 +2192,7 @@ function supDetailForm(sup){
     <div class="fg"><label>Orden (posición en la lista)</label><input type="number" id="sf-orden-${sup.id}" value="${sup.orden??''}" min="1" step="1" placeholder="1, 2, 3..."/></div>
   </div>
   <button class="btn btn-pri btn-sm" onclick="saveSup2('${sup.id}')">✓ Guardar cambios</button>
-  <div class="sh" style="margin-top:20px">Productos (${sup.products.length}) — edita el precio directamente</div>
+  <div class="sh" style="margin-top:20px">Productos (${sup.products.length}) — edita unidad y precio directamente</div>
   ${!sup.products.length?`<div style="color:var(--mut);font-size:13px;text-align:center;margin:8px 0 12px">Sin productos aún</div>`:''}
   ${prods}
   <div class="sh" style="margin-top:16px">Añadir producto</div>
@@ -2218,6 +2227,11 @@ function toggleSupVisibility(sid,uid,visible){
   saveSups();
   toast(visible?'Proveedor activado para este local':'Proveedor desactivado para este local','#16a34a');
 }
+function editProdUnit(sid,pid,val){
+  if(!suppliers[sid])return;
+  const prod=suppliers[sid].products.find(p=>p.id===pid);
+  if(prod){prod.unit=val;saveSups();toast('Unidad actualizada','#16a34a');}
+}
 function editProdPrice(sid,pid,val){
   const price=parseFloat(val);
   if(!suppliers[sid]||isNaN(price)||price<0){toast('Precio no válido','#dc2626');return;}
@@ -2251,19 +2265,26 @@ function delProd(sid,pid){ if(!suppliers[sid])return;suppliers[sid].products=sup
 function localAddProd(sid){
   const name=document.getElementById('lp-name')?.value.trim();
   const unit=document.getElementById('lp-unit')?.value||'KG';
-  const price=parseFloat(document.getElementById('lp-price')?.value);
+  const priceRaw=document.getElementById('lp-price')?.value;
+  const price=(priceRaw===''||priceRaw==null)?0:parseFloat(priceRaw);
   if(!name){toast('Escribe el nombre del producto','#dc2626');return;}
   if(isNaN(price)||price<0){toast('Introduce un precio válido','#dc2626');return;}
   if(!suppliers[sid]){toast('Proveedor no encontrado','#dc2626');return;}
   const pid='p'+uid();
-  suppliers[sid].products.push({id:pid,name,unit,price});
-  saveSups();
+  const newProd={id:pid,name,unit,price};
+  // Garantizar que products es array (Firebase puede devolver objeto con claves numéricas)
+  if(!Array.isArray(suppliers[sid].products)) suppliers[sid].products=Object.values(suppliers[sid].products||{});
+  suppliers[sid].products.push(newProd);
+  // Escritura dirigida — solo actualiza los productos de este proveedor, no todo suppliers
+  // Esto evita condiciones de carrera donde otro dispositivo pueda sobreescribir el producto
+  if(fbDb) fbDb.ref('suppliers/'+sid+'/products').set(suppliers[sid].products);
+  localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
   S.showAddProd=false;
   // Auto-añadir al carrito con cantidad 1
   if(!S.cart[sid]) S.cart[sid]={};
   S.cart[sid][pid]=1;
   render();
-  toast(`✅ "${name}" añadido y puesto en el pedido`,'#16a34a');
+  toast(`✅ "${name}" guardado en el proveedor y añadido al pedido`,'#16a34a');
 }
 
 /* ═══════════════ PLANTILLAS ═══════════════ */
@@ -3001,28 +3022,78 @@ function toggleDarkMode(){
 
 /* ═══════════════ ESCANDALLOS ═══════════════ */
 let _escEditId=null, _escIngs=[], _escAllData={}, _escSupsCache={}, _escInit=false;
+let _menAllData={}, _menEditId=null, _menEscIds=[], _menInit=false;
 let _recAllData={}, _recEditId=null, _recData=null;
 
 function vEscandallos(){
+  const escTab=S._escSubTab||'escandallos';
   return `
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-    <div style="font-size:18px;font-weight:800;color:var(--pri)">🧮 Escandallos</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="font-size:18px;font-weight:800;color:var(--pri)">${escTab==='menus'?'🍽 Menús':'🧮 Escandallos'}</div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-ghost btn-sm" onclick="escExportTodos()">📥 Exportar todos</button>
-      <button class="btn btn-pri btn-sm" onclick="escOpenModal()">+ Nuevo</button>
+      ${escTab==='escandallos'?`<button class="btn btn-ghost btn-sm" onclick="escExportTodos()">📥 Exportar</button>
+      <button class="btn btn-pri btn-sm" onclick="escOpenModal()">+ Nuevo</button>`
+      :`<button class="btn btn-pri btn-sm" onclick="menOpenModal()">+ Nuevo menú</button>`}
     </div>
   </div>
+  <div class="tabs" style="margin-bottom:12px">
+    <button class="tab ${escTab==='escandallos'?'act':''}" onclick="S._escSubTab='escandallos';renderAdminContent()">🧮 Escandallos</button>
+    <button class="tab ${escTab==='menus'?'act':''}" onclick="S._escSubTab='menus';renderAdminContent()">🍽 Menús</button>
+  </div>
+  ${escTab==='menus'?`
   <div class="esc-filtros">
+    <input type="text" id="men-search" placeholder="Buscar menú..." oninput="menRender()" />
+    <select id="men-local-filter" onchange="menRender()"><option value="">Todos los locales</option>${cfg.users.map(u=>`<option>${u.restaurant}</option>`).join('')}</select>
+  </div>
+  <div id="men-grid" class="esc-grid"><p style="color:var(--mut)">Cargando...</p></div>
+  `:
+  `<div class="esc-filtros">
     <input type="text" id="esc-search" placeholder="Buscar plato..." oninput="escRender()" />
     <select id="esc-cat-filter" onchange="escRender()">
       <option value="">Todas las categorías</option>
       <option>Entrantes</option><option>Carnes</option><option>Pescados</option>
       <option>Postres</option><option>Bebidas</option><option>Otros</option>
     </select>
+    <select id="esc-local-filter" onchange="escRender()">
+      <option value="">Todos los locales</option>
+      <option value="global">Solo globales</option>
+      ${cfg.users.map(u=>`<option value="${u.restaurant}">${u.restaurant}</option>`).join('')}
+    </select>
   </div>
-  <div id="esc-grid" class="esc-grid"><p style="color:var(--mut)">Cargando...</p></div>
+  <div id="esc-grid" class="esc-grid"><p style="color:var(--mut)">Cargando...</p></div>`}
 
-  <!-- MODAL -->
+  <!-- MODAL MENÚ -->
+  <div class="overlay" id="men-modal-ov" style="display:none" onclick="if(event.target===this)menCloseModal()">
+    <div class="esc-modal-box" style="max-width:600px">
+      <div class="esc-modal-hd">
+        <h3 id="men-modal-title">Nuevo menú</h3>
+        <button class="btn btn-ghost btn-sm" onclick="menCloseModal()">✕</button>
+      </div>
+      <div style="padding:0 20px 16px">
+        <div class="fg"><label>Nombre del menú</label><input type="text" id="men-nombre" placeholder="Ej: Menú degustación"/></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div class="fg"><label>Local</label><select id="men-local"><option value="global">Global (todos)</option>${cfg.users.map(u=>`<option value="${u.restaurant}">${u.restaurant}</option>`).join('')}</select></div>
+          <div class="fg"><label>PVP del menú €</label><input type="number" id="men-pvp" min="0" step="0.01" placeholder="0.00"/></div>
+        </div>
+        <div class="fg"><label>Notas</label><textarea id="men-notas" rows="2" placeholder="Descripción, alérgenos..."></textarea></div>
+        <div style="font-weight:700;font-size:13px;margin:12px 0 8px;color:var(--pri)">Escandallos incluidos</div>
+        <div id="men-esc-selector" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;max-height:220px;overflow-y:auto;border:1.5px solid var(--brd);border-radius:8px;padding:8px"></div>
+        <div style="margin-top:12px;padding:10px 14px;background:var(--srf);border-radius:8px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px;color:var(--mut)">Coste total</span>
+          <strong id="men-coste-total" style="font-size:16px;color:var(--pri)">0,00 €</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:12px">
+          <button class="btn btn-no btn-sm" id="men-btn-del" style="display:none" onclick="menDelete()">🗑 Eliminar</button>
+          <div style="display:flex;gap:8px;margin-left:auto">
+            <button class="btn btn-ghost btn-sm" onclick="menCloseModal()">Cancelar</button>
+            <button class="btn btn-pri btn-sm" onclick="menSave()">💾 Guardar menú</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ESCANDALLO -->
   <div class="overlay" id="esc-modal-ov" style="display:none" onclick="if(event.target===this)escCloseModal()">
     <div class="esc-modal-box">
       <div class="esc-modal-hd">
@@ -3037,6 +3108,10 @@ function vEscandallos(){
           <select id="esc-categoria">
             <option>Entrantes</option><option>Carnes</option><option>Pescados</option>
             <option>Postres</option><option>Bebidas</option><option>Otros</option>
+          </select>
+          <label>Local</label>
+          <select id="esc-local">
+            <option value="global">Global (todos los locales)</option>
           </select>
           <label>Precio de venta (PVP) €</label>
           <input type="number" id="esc-pvp" min="0" step="0.01" placeholder="0.00" oninput="escRecalc()"/>
@@ -3088,12 +3163,22 @@ function vEscandallos(){
 function initEscandallos(){
   _escSupsCache = suppliers;
   escRender();
+  menRender();
   if(_escInit||!fbDb) return;
   _escInit=true;
   fbDb.ref('escandallos').on('value', snap=>{
     _escAllData = snap.val() || {};
     escRender();
+    menRender();
+    if(S.view==='order' && S.orderTab==='escandallos') render();
   });
+  if(!_menInit){ _menInit=true;
+    fbDb.ref('menus').on('value', snap=>{
+      _menAllData = snap.val() || {};
+      menRender();
+      if(S.view==='order' && S.orderTab==='escandallos') render();
+    });
+  }
 }
 
 function escRender(){
@@ -3101,15 +3186,19 @@ function escRender(){
   if(!grid) return;
   const txt = (document.getElementById('esc-search')?.value||'').toLowerCase();
   const cat = document.getElementById('esc-cat-filter')?.value||'';
+  const local = document.getElementById('esc-local-filter')?.value||'';
   const entries = Object.entries(_escAllData).filter(([,e])=>{
-    return (!txt||e.nombre?.toLowerCase().includes(txt))&&(!cat||e.categoria===cat);
+    const rest=e.restaurante||'global';
+    return (!txt||e.nombre?.toLowerCase().includes(txt))
+      &&(!cat||e.categoria===cat)
+      &&(!local||(local==='global'?rest==='global':rest===local));
   });
   if(!entries.length){
-    grid.innerHTML='<p style="color:var(--mut)">No hay escandallos. Crea el primero con "+ Nuevo".</p>';
+    grid.innerHTML='<p style="color:var(--mut)">No hay escandallos con esos filtros. Crea uno con "+ Nuevo".</p>';
     return;
   }
   grid.innerHTML = entries.map(([id,e])=>{
-    const coste = (e.ingredientes||[]).reduce((s,i)=>s+(parseFloat(i.cantidad)||0)*(parseFloat(i.precioUnitario)||0),0);
+    const coste = escCosteTotal(e);
     const pvp = parseFloat(e.precioVenta)||0;
     const fcObj = parseFloat(e.foodCostObjetivo)||30;
     const fcReal = pvp>0?(coste/pvp*100):null;
@@ -3117,9 +3206,16 @@ function escRender(){
     const margenPct = pvp>0&&margen!==null?(margen/pvp*100):null;
     let cls='esc-ok';
     if(fcReal!==null){if(fcReal>fcObj+5)cls='esc-bad';else if(fcReal>fcObj)cls='esc-warn';}
+    const rest=e.restaurante||'global';
+    const restBadge=rest==='global'
+      ?`<span style="font-size:10px;background:#dbeafe;color:#1d4ed8;border-radius:10px;padding:1px 7px;font-weight:700">🌐 Global</span>`
+      :`<span style="font-size:10px;background:#f3e8ff;color:#7c3aed;border-radius:10px;padding:1px 7px;font-weight:700">🏪 ${rest}</span>`;
+    const baseTag=e.baseId?`<span style="font-size:10px;color:var(--mut);margin-left:4px">copia</span>`:'';
+    const copyBtn=`<button class="btn btn-ghost btn-xs" style="margin-top:8px;width:100%;justify-content:center" onclick="event.stopPropagation();escCopiarParaLocal('${id}')">📋 Copiar para local</button>`;
     return `<div class="esc-card" onclick="escOpenModal('${id}')">
       <div class="esc-fc-ind ${cls}">${fcReal!==null?fcReal.toFixed(0)+'%':'—'}</div>
       <span class="esc-badge">${e.categoria||'Otros'}</span>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">${restBadge}${baseTag}</div>
       <h4>${e.nombre||'Sin nombre'}</h4>
       <div class="esc-stats">
         <div class="esc-stat"><span>Coste</span><strong>${escFmt(coste)}</strong></div>
@@ -3127,9 +3223,23 @@ function escRender(){
         <div class="esc-stat"><span>Margen</span><strong>${margen!==null?escFmt(margen):'—'}</strong></div>
         <div class="esc-stat"><span>% Margen</span><strong>${margenPct!==null?margenPct.toFixed(1)+'%':'—'}</strong></div>
       </div>
-      <div style="margin-top:10px;font-size:12px;color:var(--mut)">${(e.ingredientes||[]).length} ingredientes</div>
+      <div style="margin-top:8px;font-size:12px;color:var(--mut)">${(e.ingredientes||[]).length} ingredientes</div>
+      ${copyBtn}
     </div>`;
   }).join('');
+}
+
+function escCosteTotal(e){
+  return (e.ingredientes||[]).reduce((s,ing)=>{
+    let p=parseFloat(ing.precioUnitario)||0;
+    if(ing.proveedorId&&suppliers[ing.proveedorId]){
+      const prod=(suppliers[ing.proveedorId].products||[]).find(x=>x.id===ing.productoId);
+      if(prod) p=parseFloat(prod.price)||0;
+    }
+    const merma=parseFloat(ing.merma)||0;
+    const factor=merma>0&&merma<100?1/(1-merma/100):1;
+    return s+(parseFloat(ing.cantidad)||0)*p*factor;
+  },0);
 }
 
 function escOpenModal(id=null){
@@ -3137,6 +3247,11 @@ function escOpenModal(id=null){
   _escSupsCache=suppliers;
   document.getElementById('esc-modal-title').textContent=id?'Editar escandallo':'Nuevo escandallo';
   document.getElementById('esc-btn-del').style.display=id?'':'none';
+  // Poblar select de local si existe
+  const selLocal=document.getElementById('esc-local');
+  if(selLocal){
+    selLocal.innerHTML=`<option value="global">Global (todos los locales)</option>`+cfg.users.map(u=>`<option value="${u.restaurant}">${u.restaurant}</option>`).join('');
+  }
   if(id&&_escAllData[id]){
     const e=_escAllData[id];
     document.getElementById('esc-nombre').value=e.nombre||'';
@@ -3144,6 +3259,7 @@ function escOpenModal(id=null){
     document.getElementById('esc-pvp').value=e.precioVenta||'';
     document.getElementById('esc-fcobj').value=e.foodCostObjetivo||30;
     document.getElementById('esc-notas').value=e.notas||'';
+    if(selLocal) selLocal.value=e.restaurante||'global';
     _escIngs=JSON.parse(JSON.stringify(e.ingredientes||[]));
   } else {
     document.getElementById('esc-nombre').value='';
@@ -3151,6 +3267,7 @@ function escOpenModal(id=null){
     document.getElementById('esc-pvp').value='';
     document.getElementById('esc-fcobj').value=30;
     document.getElementById('esc-notas').value='';
+    if(selLocal) selLocal.value='global';
   }
   // Limpiar campos de añadir ingrediente
   ['esc-sel-qty','esc-sel-merma','esc-libre-nombre','esc-libre-precio'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -3281,6 +3398,7 @@ function escSave(){
     const data={
       nombre,
       categoria:document.getElementById('esc-categoria')?.value||'Otros',
+      restaurante:document.getElementById('esc-local')?.value||'global',
       precioVenta:parseFloat(document.getElementById('esc-pvp')?.value)||0,
       foodCostObjetivo:parseFloat(document.getElementById('esc-fcobj')?.value)||30,
       notas:document.getElementById('esc-notas')?.value.trim()||'',
@@ -3444,6 +3562,206 @@ function escExportTodos(){
 function escDelete(){
   if(!_escEditId||!confirm('¿Eliminar este escandallo?')) return;
   fbDb.ref('escandallos/'+_escEditId).remove().then(()=>{escCloseModal();toast('Escandallo eliminado','#888');});
+}
+
+/* ── Copiar escandallo para un local específico ── */
+function escCopiarParaLocal(id){
+  if(!_escAllData[id]){toast('Escandallo no encontrado','#dc2626');return;}
+  const e=_escAllData[id];
+  // Mostrar selector de local
+  const rests=cfg.users.map(u=>u.restaurant);
+  const sel=prompt('¿Para qué local?\n'+rests.map((r,i)=>`${i+1}. ${r}`).join('\n')+'\n\nEscribe el número:');
+  if(!sel) return;
+  const idx=parseInt(sel)-1;
+  if(isNaN(idx)||idx<0||idx>=rests.length){toast('Local no válido','#dc2626');return;}
+  const rest=rests[idx];
+  if(!confirm(`¿Crear una copia de "${e.nombre}" para ${rest}?\nPodrás editarla de forma independiente.`)) return;
+  const copia={...JSON.parse(JSON.stringify(e)),restaurante:rest,baseId:id,nombre:e.nombre+' ('+rest+')',createdAt:Date.now(),updatedAt:Date.now()};
+  delete copia.id;
+  fbDb.ref('escandallos').push(copia).then(()=>toast(`✅ Copia creada para ${rest}`,'#16a34a')).catch(err=>toast('Error: '+err.message,'#dc2626'));
+}
+
+/* ═══════════════ MENÚS ═══════════════ */
+function menRender(){
+  const grid=document.getElementById('men-grid');
+  if(!grid) return;
+  const txt=(document.getElementById('men-search')?.value||'').toLowerCase();
+  const local=document.getElementById('men-local-filter')?.value||'';
+  const entries=Object.entries(_menAllData).filter(([,m])=>{
+    return (!txt||m.nombre?.toLowerCase().includes(txt))&&(!local||m.restaurante===local||(m.restaurante||'global')==='global');
+  }).sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||'','es'));
+  if(!entries.length){
+    grid.innerHTML='<p style="color:var(--mut)">No hay menús. Crea el primero con "+ Nuevo menú".</p>';
+    return;
+  }
+  grid.innerHTML=entries.map(([id,m])=>{
+    const escs=(m.escandallos||[]).map(eid=>_escAllData[eid]).filter(Boolean);
+    const costeTotal=escs.reduce((s,e)=>s+escCosteTotal(e),0);
+    const pvp=parseFloat(m.pvp)||0;
+    const fcReal=pvp>0?(costeTotal/pvp*100):null;
+    const margen=pvp>0?(pvp-costeTotal):null;
+    const rest=m.restaurante||'global';
+    const restBadge=rest==='global'
+      ?`<span style="font-size:10px;background:#dbeafe;color:#1d4ed8;border-radius:10px;padding:1px 7px;font-weight:700">🌐 Global</span>`
+      :`<span style="font-size:10px;background:#f3e8ff;color:#7c3aed;border-radius:10px;padding:1px 7px;font-weight:700">🏪 ${rest}</span>`;
+    const fcCls=fcReal===null?'esc-ok':fcReal>35?'esc-bad':fcReal>30?'esc-warn':'esc-ok';
+    return `<div class="esc-card" onclick="menOpenModal('${id}')">
+      <div class="esc-fc-ind ${fcCls}">${fcReal!==null?fcReal.toFixed(0)+'%':'—'}</div>
+      <div style="margin-bottom:4px">${restBadge}</div>
+      <h4>${m.nombre||'Sin nombre'}</h4>
+      <div class="esc-stats">
+        <div class="esc-stat"><span>Platos</span><strong>${escs.length}</strong></div>
+        <div class="esc-stat"><span>Coste</span><strong>${escFmt(costeTotal)}</strong></div>
+        <div class="esc-stat"><span>PVP</span><strong>${pvp>0?escFmt(pvp):'—'}</strong></div>
+        <div class="esc-stat"><span>Margen</span><strong>${margen!==null?escFmt(margen):'—'}</strong></div>
+      </div>
+      ${m.notas?`<div style="margin-top:8px;font-size:12px;color:var(--mut)">${m.notas}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function menOpenModal(id=null){
+  _menEditId=id;
+  document.getElementById('men-modal-title').textContent=id?'Editar menú':'Nuevo menú';
+  document.getElementById('men-btn-del').style.display=id?'':'none';
+  if(id&&_menAllData[id]){
+    const m=_menAllData[id];
+    document.getElementById('men-nombre').value=m.nombre||'';
+    document.getElementById('men-local').value=m.restaurante||'global';
+    document.getElementById('men-pvp').value=m.pvp||'';
+    document.getElementById('men-notas').value=m.notas||'';
+    _menEscIds=[...(m.escandallos||[])];
+  } else {
+    document.getElementById('men-nombre').value='';
+    document.getElementById('men-local').value='global';
+    document.getElementById('men-pvp').value='';
+    document.getElementById('men-notas').value='';
+    _menEscIds=[];
+  }
+  menRenderSelector();
+  document.getElementById('men-modal-ov').style.display='flex';
+}
+function menCloseModal(){ document.getElementById('men-modal-ov').style.display='none'; _menEditId=null; _menEscIds=[]; }
+
+function menRenderSelector(){
+  const cont=document.getElementById('men-esc-selector');
+  if(!cont) return;
+  const escs=Object.entries(_escAllData).sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||'','es'));
+  if(!escs.length){cont.innerHTML='<p style="color:var(--mut);font-size:13px;grid-column:1/-1">No hay escandallos. Crea alguno primero.</p>';return;}
+  cont.innerHTML=escs.map(([id,e])=>{
+    const sel=_menEscIds.includes(id);
+    const coste=escCosteTotal(e);
+    const rest=e.restaurante||'global';
+    const restTag=rest==='global'?'':`<span style="font-size:9px;color:#7c3aed">${rest}</span>`;
+    return `<label style="display:flex;align-items:flex-start;gap:6px;padding:6px 8px;border:1.5px solid ${sel?'var(--pri)':'var(--brd)'};border-radius:7px;cursor:pointer;background:${sel?'rgba(26,26,46,.06)':'var(--card)'}" onclick="menToggleEsc('${id}')">
+      <input type="checkbox" ${sel?'checked':''} style="margin-top:2px;pointer-events:none"/>
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:600">${e.nombre}</div>
+        <div style="font-size:11px;color:var(--mut)">${escFmt(coste)} ${restTag}</div>
+      </div>
+    </label>`;
+  }).join('');
+  menUpdateCoste();
+}
+function menToggleEsc(id){
+  const i=_menEscIds.indexOf(id);
+  if(i>=0) _menEscIds.splice(i,1); else _menEscIds.push(id);
+  menRenderSelector();
+}
+function menUpdateCoste(){
+  const total=_menEscIds.reduce((s,id)=>{
+    const e=_escAllData[id];
+    return e?s+escCosteTotal(e):s;
+  },0);
+  const el=document.getElementById('men-coste-total');
+  if(el) el.textContent=escFmt(total);
+}
+function menSave(){
+  if(!fbDb){toast('Sin conexión Firebase','#dc2626');return;}
+  const nombre=(document.getElementById('men-nombre')?.value||'').trim();
+  if(!nombre){toast('Escribe el nombre del menú','#dc2626');return;}
+  const data={
+    nombre,
+    restaurante:document.getElementById('men-local')?.value||'global',
+    pvp:parseFloat(document.getElementById('men-pvp')?.value)||0,
+    notas:document.getElementById('men-notas')?.value.trim()||'',
+    escandallos:[..._menEscIds],
+    updatedAt:Date.now()
+  };
+  const ref=_menEditId?fbDb.ref('menus/'+_menEditId):fbDb.ref('menus').push();
+  if(!_menEditId) data.createdAt=Date.now();
+  ref.set(data).then(()=>{menCloseModal();toast('✅ Menú guardado','#16a34a');}).catch(e=>toast('Error: '+e.message,'#dc2626'));
+}
+function menDelete(){
+  if(!_menEditId||!confirm('¿Eliminar este menú?')) return;
+  fbDb.ref('menus/'+_menEditId).remove().then(()=>{menCloseModal();toast('Menú eliminado','#888');});
+}
+
+/* ═══════════════ VISTA LOCAL — ESCANDALLOS (read-only) ═══════════════ */
+function vLocalEscandallos(){
+  const rest=S.session.restaurant||'';
+  // El local ve: sus propios escandallos + los globales (si no tiene copia propia del mismo baseId)
+  const myEscs=Object.entries(_escAllData).filter(([,e])=>{
+    const r=e.restaurante||'global';
+    return r==='global'||r===rest;
+  });
+  // Para globales, si hay una copia local, mostrar solo la copia
+  const baseIds=new Set(myEscs.filter(([,e])=>e.baseId&&e.restaurante===rest).map(([,e])=>e.baseId));
+  const visible=myEscs.filter(([id,e])=>!(e.restaurante==='global'&&baseIds.has(id)));
+
+  const myMenus=Object.entries(_menAllData).filter(([,m])=>{
+    const r=m.restaurante||'global';
+    return r==='global'||r===rest;
+  });
+
+  let html='<div class="card"><div class="card-t">Mis escandallos</div>';
+  if(!visible.length){
+    html+='<div style="color:var(--mut);font-size:13px;text-align:center;padding:16px">Aún no tienes escandallos asignados</div>';
+  } else {
+    html+=visible.map(([,e])=>{
+      const coste=escCosteTotal(e);
+      const pvp=parseFloat(e.precioVenta)||0;
+      const fcReal=pvp>0?(coste/pvp*100):null;
+      const margen=pvp>0?(pvp-coste):null;
+      const fcCls=fcReal===null?'':fcReal>35?'color:#dc2626':fcReal>30?'color:#d97706':'color:#16a34a';
+      return `<div style="border:1.5px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-weight:700">${e.nombre||'Sin nombre'}</div>
+          <span class="badge" style="background:#f3f4f6;color:var(--txt)">${e.categoria||'Otros'}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12px;text-align:center">
+          <div><div style="color:var(--mut)">Coste</div><div style="font-weight:700">${escFmt(coste)}</div></div>
+          <div><div style="color:var(--mut)">PVP</div><div style="font-weight:700">${pvp>0?escFmt(pvp):'—'}</div></div>
+          <div><div style="color:var(--mut)">Food cost</div><div style="font-weight:700;${fcCls}">${fcReal!==null?fcReal.toFixed(1)+'%':'—'}</div></div>
+        </div>
+        ${margen!==null?`<div style="text-align:right;font-size:12px;margin-top:6px;color:var(--mut)">Margen: <strong style="color:var(--txt)">${escFmt(margen)}</strong></div>`:''}
+        ${e.notas?`<div style="margin-top:6px;font-size:12px;color:var(--mut)">📝 ${e.notas}</div>`:''}
+      </div>`;
+    }).join('');
+  }
+  html+='</div>';
+
+  if(myMenus.length){
+    html+='<div class="card"><div class="card-t">Mis menús</div>';
+    html+=myMenus.map(([,m])=>{
+      const escs=(m.escandallos||[]).map(eid=>_escAllData[eid]).filter(Boolean);
+      const costeTotal=escs.reduce((s,e)=>s+escCosteTotal(e),0);
+      const pvp=parseFloat(m.pvp)||0;
+      const margen=pvp>0?(pvp-costeTotal):null;
+      return `<div style="border:1.5px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:8px">
+        <div style="font-weight:700;margin-bottom:8px">${m.nombre}</div>
+        <div style="font-size:12px;color:var(--mut);margin-bottom:6px">${escs.map(e=>e.nombre).join(' · ')}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12px;text-align:center">
+          <div><div style="color:var(--mut)">Coste</div><div style="font-weight:700">${escFmt(costeTotal)}</div></div>
+          <div><div style="color:var(--mut)">PVP</div><div style="font-weight:700">${pvp>0?escFmt(pvp):'—'}</div></div>
+          <div><div style="color:var(--mut)">Margen</div><div style="font-weight:700">${margen!==null?escFmt(margen):'—'}</div></div>
+        </div>
+        ${m.notas?`<div style="margin-top:6px;font-size:12px;color:var(--mut)">📝 ${m.notas}</div>`:''}
+      </div>`;
+    }).join('');
+    html+='</div>';
+  }
+  return html;
 }
 
 function escFmt(v){ return parseFloat(v||0).toFixed(2).replace('.',',')+' €'; }
