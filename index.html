@@ -3022,6 +3022,7 @@ function toggleDarkMode(){
 
 /* ═══════════════ ESCANDALLOS ═══════════════ */
 let _escEditId=null, _escIngs=[], _escAllData={}, _escSupsCache={}, _escInit=false;
+let _escElab={texto:'',pasos:[]};
 let _menAllData={}, _menEditId=null, _menEscIds=[], _menInit=false;
 let _recAllData={}, _recEditId=null, _recData=null;
 
@@ -3118,6 +3119,11 @@ function vEscandallos(){
           <input type="number" id="esc-pvp" min="0" step="0.01" placeholder="0.00" oninput="escRecalc()"/>
           <label>Food cost objetivo (%)</label>
           <input type="number" id="esc-fcobj" min="1" max="100" value="30" oninput="escRecalc()"/>
+          <label>Rendimiento (cuánto produce)</label>
+          <div style="display:flex;gap:6px">
+            <input type="number" id="esc-rend" min="0.001" step="0.001" placeholder="1" style="flex:2" oninput="escRecalc()"/>
+            <select id="esc-rend-unit" style="flex:1"><option>rac.</option><option>KG</option><option>L</option><option>UN</option></select>
+          </div>
           <label>Notas</label>
           <textarea id="esc-notas" rows="3" placeholder="Alérgenos, temporada..."></textarea>
         </div>
@@ -3128,6 +3134,7 @@ function vEscandallos(){
               <option value="">-- Proveedor (opcional) --</option>
             </select>
             <select id="esc-sel-prod" style="grid-column:1/3"><option value="">-- Producto del proveedor --</option></select>
+            <select id="esc-sel-subesc" style="grid-column:1/3" onchange="escOnSubEscChange()"><option value="">-- O usar otro escandallo como ingrediente --</option></select>
             <input type="text" id="esc-libre-nombre" placeholder="O escribe ingrediente libre" style="grid-column:1/3;padding:6px 9px;border:1.5px solid var(--brd);border-radius:7px;font-size:13px;background:var(--card);color:var(--txt)"/>
             <div style="display:flex;gap:4px;align-items:center">
               <input type="number" id="esc-sel-qty" placeholder="Cant." min="0" step="0.001" style="flex:1"/>
@@ -3145,6 +3152,23 @@ function vEscandallos(){
             <div class="esc-calc-r"><span>PVP sugerido</span><strong id="ec-pvpsug">— €</strong></div>
             <div class="esc-calc-r"><span>Margen bruto</span><strong id="ec-margen">— €</strong></div>
             <div class="esc-calc-r"><span>% Margen</span><strong id="ec-margenpct">— %</strong></div>
+          </div>
+        </div>
+      </div>
+      <!-- ELABORACIÓN — ancho completo -->
+      <div style="padding:14px 20px 16px;border-top:1px solid var(--brd)">
+        <div style="font-weight:700;font-size:13px;color:var(--pri);margin-bottom:10px">📝 Elaboración</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Descripción general</label>
+            <textarea id="esc-elab-texto" rows="5" placeholder="Descripción general de la elaboración, técnica, temperatura, presentación..." style="width:100%;padding:8px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt);resize:vertical;box-sizing:border-box" oninput="_escElab.texto=this.value"></textarea>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+              <label style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px">Pasos</label>
+              <button class="btn btn-ghost btn-xs" onclick="escAddPaso()">+ Paso</button>
+            </div>
+            <div id="esc-pasos-list"></div>
           </div>
         </div>
       </div>
@@ -3230,13 +3254,9 @@ function escRender(){
   }).join('');
 }
 
-function escCosteTotal(e){
+function escCosteTotal(e, depth=0){
   return (e.ingredientes||[]).reduce((s,ing)=>{
-    let p=parseFloat(ing.precioUnitario)||0;
-    if(ing.proveedorId&&suppliers[ing.proveedorId]){
-      const prod=(suppliers[ing.proveedorId].products||[]).find(x=>x.id===ing.productoId);
-      if(prod) p=parseFloat(prod.price)||0;
-    }
+    const p=escLivePrice(ing, depth);
     const merma=parseFloat(ing.merma)||0;
     const factor=merma>0&&merma<100?1/(1-merma/100):1;
     return s+(parseFloat(ing.cantidad)||0)*p*factor;
@@ -3260,15 +3280,25 @@ function escOpenModal(id=null){
     document.getElementById('esc-pvp').value=e.precioVenta||'';
     document.getElementById('esc-fcobj').value=e.foodCostObjetivo||30;
     document.getElementById('esc-notas').value=e.notas||'';
+    const rendEl=document.getElementById('esc-rend');
+    const rendUEl=document.getElementById('esc-rend-unit');
+    if(rendEl) rendEl.value=e.rendimiento||1;
+    if(rendUEl) rendUEl.value=e.rendimientoUnidad||'rac.';
     if(selLocal) selLocal.value=e.restaurante||'global';
     _escIngs=JSON.parse(JSON.stringify(e.ingredientes||[]));
+    _escElab={texto:e.elaboracion?.texto||'',pasos:JSON.parse(JSON.stringify(e.elaboracion?.pasos||[]))};
   } else {
     document.getElementById('esc-nombre').value='';
     document.getElementById('esc-categoria').value='Carnes';
     document.getElementById('esc-pvp').value='';
     document.getElementById('esc-fcobj').value=30;
     document.getElementById('esc-notas').value='';
+    const rendEl=document.getElementById('esc-rend');
+    const rendUEl=document.getElementById('esc-rend-unit');
+    if(rendEl) rendEl.value=1;
+    if(rendUEl) rendUEl.value='rac.';
     if(selLocal) selLocal.value='global';
+    _escElab={texto:'',pasos:[]};
   }
   // Limpiar campos de añadir ingrediente
   ['esc-sel-qty','esc-sel-merma','esc-libre-nombre','esc-libre-precio'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
@@ -3280,10 +3310,53 @@ function escOpenModal(id=null){
     o.value=pid; o.textContent=(prov.emoji||'')+(prov.name||pid);
     sel.appendChild(o);
   });
+  // Poblar sub-escandallos (excluir el escandallo actual para evitar circulares)
+  const selSub=document.getElementById('esc-sel-subesc');
+  if(selSub){
+    selSub.innerHTML='<option value="">-- O usar otro escandallo como ingrediente --</option>';
+    Object.entries(_escAllData).forEach(([eid,e])=>{
+      if(eid===id) return; // evitar referencia circular directa
+      const o=document.createElement('option');
+      o.value=eid;
+      const rend=parseFloat(e.rendimiento)||1;
+      const rendU=e.rendimientoUnidad||'rac.';
+      o.textContent=`${e.nombre||'Sin nombre'} (rinde ${rend} ${rendU})`;
+      selSub.appendChild(o);
+    });
+  }
   escRenderIngs(); escRecalc();
   document.getElementById('esc-modal-ov').style.display='flex';
+  // Cargar elaboración tras mostrar modal
+  requestAnimationFrame(()=>{
+    const elabEl=document.getElementById('esc-elab-texto');
+    if(elabEl) elabEl.value=_escElab.texto||'';
+    escRenderPasos();
+  });
 }
-function escCloseModal(){ document.getElementById('esc-modal-ov').style.display='none'; _escEditId=null; _escIngs=[]; }
+function escCloseModal(){ document.getElementById('esc-modal-ov').style.display='none'; _escEditId=null; _escIngs=[]; _escElab={texto:'',pasos:[]}; }
+
+function escAddPaso(){
+  _escElab.pasos.push('');
+  escRenderPasos();
+}
+function escDelPaso(i){
+  _escElab.pasos.splice(i,1);
+  escRenderPasos();
+}
+function escRenderPasos(){
+  const cont=document.getElementById('esc-pasos-list');
+  if(!cont) return;
+  if(!_escElab.pasos.length){
+    cont.innerHTML='<p style="color:var(--mut);font-size:12px">Sin pasos. Pulsa "+ Paso" para añadir.</p>';
+    return;
+  }
+  cont.innerHTML=_escElab.pasos.map((p,i)=>`
+    <div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:6px">
+      <span style="min-width:20px;height:20px;background:var(--pri);color:#fff;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:7px">${i+1}</span>
+      <input type="text" value="${p.replace(/"/g,'&quot;')}" placeholder="Paso ${i+1}..." style="flex:1;padding:6px 9px;border:1.5px solid var(--brd);border-radius:7px;font-size:13px;background:var(--card);color:var(--txt)" oninput="_escElab.pasos[${i}]=this.value"/>
+      <button onclick="escDelPaso(${i})" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:16px;margin-top:4px;padding:2px">✕</button>
+    </div>`).join('');
+}
 
 function escLoadProds(){
   const pid=document.getElementById('esc-sel-prov').value;
@@ -3308,15 +3381,33 @@ function escAddIng(){
   const merma=parseFloat(document.getElementById('esc-sel-merma').value)||0;
   const libreNombre=(document.getElementById('esc-libre-nombre').value||'').trim();
   const librePrice=parseFloat(document.getElementById('esc-libre-precio').value)||0;
+  const subEscId=document.getElementById('esc-sel-subesc')?.value||'';
 
   if(!qty||qty<=0){toast('Introduce una cantidad válida','#dc2626');return;}
 
-  if(libreNombre){
+  if(subEscId){
+    // Sub-escandallo como ingrediente
+    const subEsc=_escAllData[subEscId];
+    if(!subEsc){toast('Escandallo no encontrado','#dc2626');return;}
+    const rend=parseFloat(subEsc.rendimiento)||1;
+    const rendU=subEsc.rendimientoUnidad||'rac.';
+    const costeTotal=escCosteTotal(subEsc);
+    const costePorUnidad=costeTotal/rend;
+    _escIngs.push({
+      type:'subesc', escId:subEscId,
+      proveedorId:null, productoId:null,
+      nombre:subEsc.nombre||'Sin nombre',
+      cantidad:qty, unidad:rendU,
+      precioUnitario:costePorUnidad,
+      merma, rendimiento:rend, rendimientoUnidad:rendU
+    });
+    document.getElementById('esc-sel-subesc').value='';
+  } else if(libreNombre){
     // Ingrediente libre (sin proveedor)
     _escIngs.push({proveedorId:null,proveedorNombre:'Libre',productoId:null,nombre:libreNombre,cantidad:qty,unidad:'u.',precioUnitario:librePrice,merma});
   } else {
     // Ingrediente de proveedor
-    if(!pid){toast('Selecciona un proveedor o escribe un ingrediente libre','#dc2626');return;}
+    if(!pid){toast('Selecciona un proveedor, un sub-escandallo o escribe un ingrediente libre','#dc2626');return;}
     if(!prodId){toast('Selecciona un producto','#dc2626');return;}
     const opt=sel.options[sel.selectedIndex];
     const prov=_escSupsCache[pid];
@@ -3333,11 +3424,30 @@ function escAddIng(){
 
 function escQuitarIng(i){ _escIngs.splice(i,1); escRenderIngs(); escRecalc(); }
 
-function escLivePrice(ing){
-  if(ing.proveedorId===null) return parseFloat(ing.precioUnitario)||0; // ingrediente libre
+function escOnSubEscChange(){
+  const selSub=document.getElementById('esc-sel-subesc');
+  const eid=selSub?.value;
+  if(!eid) return;
+  // Cuando seleccionan un sub-escandallo, limpiar los otros campos
+  document.getElementById('esc-sel-prov').value='';
+  document.getElementById('esc-sel-prod').innerHTML='<option value="">-- Producto del proveedor --</option>';
+  document.getElementById('esc-libre-nombre').value='';
+  document.getElementById('esc-libre-precio').value='';
+}
+
+function escLivePrice(ing, depth=0){
+  // Sub-escandallo: recalcular coste en vivo (máx 5 niveles para evitar bucles)
+  if(ing.type==='subesc' && ing.escId && depth<5){
+    const subEsc=_escAllData[ing.escId];
+    if(subEsc){
+      const rend=parseFloat(subEsc.rendimiento)||1;
+      return escCosteTotal(subEsc, depth+1)/rend;
+    }
+  }
+  if(ing.proveedorId===null) return parseFloat(ing.precioUnitario)||0; // libre o sub-esc no encontrado
   const sup=suppliers[ing.proveedorId];
   if(sup&&sup.products){
-    const prod=sup.products.find(p=>p.id===ing.productoId);
+    const prod=(Array.isArray(sup.products)?sup.products:Object.values(sup.products)).find(p=>p.id===ing.productoId);
     if(prod) return parseFloat(prod.price)||0;
   }
   return parseFloat(ing.precioUnitario)||0;
@@ -3361,9 +3471,10 @@ function escRenderIngs(){
     const changed=ing.proveedorId!==null&&Math.abs(liveP-(parseFloat(ing.precioUnitario)||0))>0.001;
     const priceTag=changed?`<span style="color:#d97706;font-size:10px" title="Precio actualizado desde tarifa">🔄 ${escFmt(liveP)}</span>`:`${escFmt(liveP)}`;
     const mermaTag=merma>0?`<span style="color:#7c3aed;font-size:10px;margin-left:4px" title="Con merma del ${merma}%">⚠️ ${merma}%</span>`:'';
-    const libre=ing.proveedorId===null?'<span style="font-size:10px;color:#6b7280;margin-left:4px">[libre]</span>':'';
+    const subEscTag=ing.type==='subesc'?'<span style="font-size:10px;color:#7c3aed;margin-left:4px;font-weight:700">[sub-elaboración]</span>':'';
+    const libre=(!ing.type&&ing.proveedorId===null)?'<span style="font-size:10px;color:#6b7280;margin-left:4px">[libre]</span>':'';
     return `<div class="esc-ing-row">
-      <span class="in">${ing.nombre}${libre}</span>
+      <span class="in">${ing.nombre}${subEscTag}${libre}</span>
       <span class="id">${ing.cantidad} ${ing.unidad} × ${priceTag}${mermaTag}</span>
       <span class="ic">${escFmt(costeReal)}</span>
       <button onclick="escQuitarIng(${i})" title="Eliminar">✕</button>
@@ -3400,10 +3511,13 @@ function escSave(){
       nombre,
       categoria:document.getElementById('esc-categoria')?.value||'Otros',
       restaurante:document.getElementById('esc-local')?.value||'global',
+      rendimiento:parseFloat(document.getElementById('esc-rend')?.value)||1,
+      rendimientoUnidad:document.getElementById('esc-rend-unit')?.value||'rac.',
       precioVenta:parseFloat(document.getElementById('esc-pvp')?.value)||0,
       foodCostObjetivo:parseFloat(document.getElementById('esc-fcobj')?.value)||30,
       notas:document.getElementById('esc-notas')?.value.trim()||'',
       ingredientes:ingsWithLivePrice,
+      elaboracion:{texto:_escElab.texto||'',pasos:_escElab.pasos.filter(p=>p.trim())},
       updatedAt:Date.now()
     };
     const ref=_escEditId?fbDb.ref('escandallos/'+_escEditId):fbDb.ref('escandallos').push();
@@ -3462,6 +3576,13 @@ function escExportPDF(){
     <div class="sum-box"><div class="sum-label">Food cost obj.</div><div class="sum-val">${fcObj}%</div></div>
     <div class="sum-box"><div class="sum-label">PVP sugerido</div><div class="sum-val">${coste>0?escFmt(coste/(fcObj/100)):'—'}</div></div>
   </div>
+  ${notas?`<div class="notas"><strong>Notas:</strong> ${notas}</div>`:''}
+  ${(_escElab.texto||_escElab.pasos.filter(p=>p.trim()).length)?`
+  <div style="margin-top:18px;page-break-inside:avoid">
+    <h3 style="font-size:14px;color:#1a1a2e;margin:0 0 10px;border-bottom:2px solid #1a1a2e;padding-bottom:4px">📝 Elaboración</h3>
+    ${_escElab.texto?`<p style="font-size:13px;line-height:1.6;margin-bottom:12px">${_escElab.texto}</p>`:''}
+    ${_escElab.pasos.filter(p=>p.trim()).length?`<ol style="margin:0;padding-left:20px">${_escElab.pasos.filter(p=>p.trim()).map(p=>`<li style="font-size:13px;line-height:1.6;margin-bottom:6px">${p}</li>`).join('')}</ol>`:''}
+  </div>`:''}
   <script>window.onload=()=>{window.print()}<\/script>
   </body></html>`;
   const w=window.open('','_blank');if(w){w.document.write(html);w.document.close();}
