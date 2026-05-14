@@ -5150,6 +5150,29 @@ function getInvItems(rest){
   return Object.values(inventory[k]||{}).sort((a,b)=>(a.category||'').localeCompare(b.category||'es')||(a.name||'').localeCompare(b.name||'es'));
 }
 
+function importSupplierProducts(rest){
+  if(!fbDb){ toast('Sin conexión Firebase','#dc2626'); return; }
+  const k=restKey(rest);
+  const existing=inventory[k]||{};
+  const existingNames=new Set(Object.values(existing).map(p=>(p.name||'').trim().toLowerCase()));
+  let added=0;
+  const batch={};
+  supList().forEach(sup=>{
+    (sup.products||[]).forEach(p=>{
+      const nameNorm=(p.name||'').trim().toLowerCase();
+      if(!nameNorm||existingNames.has(nameNorm)) return;
+      const id='inv_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+      batch[id]={id,name:p.name,unit:p.unit||'ud',qty:0,minStock:0,price:parseFloat(p.price)||0,category:sup.emoji+' '+sup.name,updatedAt:new Date().toISOString(),updatedBy:'Importación catálogo'};
+      existingNames.add(nameNorm); // evitar duplicados dentro del mismo lote
+      added++;
+    });
+  });
+  if(!added){ toast('Todos los productos ya están en el inventario','#7c3aed'); return; }
+  fbDb.ref('inventory/'+k).update(batch)
+    .then(()=>toast(`✅ ${added} producto${added>1?'s':''} importado${added>1?'s':''} del catálogo`,'#16a34a'))
+    .catch(e=>toast('Error: '+e.message,'#dc2626'));
+}
+
 function saveInvItem(rest, item){
   if(!fbDb){ toast('Sin conexión Firebase','#dc2626'); return; }
   const k=restKey(rest);
@@ -5358,8 +5381,9 @@ function vInventario(){
   return `<div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div style="font-size:16px;font-weight:700">📦 Inventario</div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${items.length?`<button class="btn btn-ghost btn-sm" onclick="exportInventoryExcel('${rest.replace(/'/g,"\\'")}')">📥 Excel</button>`:''}
+        <button class="btn btn-ghost btn-sm" onclick="importSupplierProducts('${rest.replace(/'/g,"\\'")}')">📋 Importar catálogo</button>
         <button class="btn btn-acc btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','new')">➕ Producto</button>
       </div>
     </div>
@@ -5445,7 +5469,10 @@ function vLocalInventario(rest){
   return `<div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div style="font-size:16px;font-weight:700">📦 Mi inventario — ${rest}</div>
-      ${items.length?`<button class="btn btn-acc btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','new')">➕ Añadir</button>`:''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="importSupplierProducts('${rest.replace(/'/g,"\\'")}')">📋 Importar catálogo</button>
+        <button class="btn btn-acc btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','new')">➕ Añadir</button>
+      </div>
     </div>
     ${alertBanner}
     ${summaryRest}
