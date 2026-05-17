@@ -983,6 +983,17 @@ const EMOJIS=['🏠','🌿','⭐','🍽️','🏃','🌅','🎯','🧭','🌊','
 const WA_SVG=`<svg class="wa-ic" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
 
 function fmt(n){ return (parseFloat(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+function pkgLabel(p){
+  const price=parseFloat(p.price)||0;
+  const unit=(p.unit||'KG').trim();
+  if(unit==='KG'||unit==='L') return `${fmt(price)} / ${unit}`;
+  if(unit==='g') return `${fmt(price*1000)} / KG`;
+  if(p.pesoGr&&p.pesoGr>0){
+    const kgPrice=(price/p.pesoGr)*1000;
+    return `${fmt(kgPrice)} / KG <span style="font-size:11px;color:var(--mut);font-weight:400">(${fmt(price)} ${unit})</span>`;
+  }
+  return `${fmt(price)} / ${unit}`;
+}
 function fmtD(iso){ try{return new Date(iso).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}catch(e){return iso||'—';} }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function total(o){ return (o.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0); }
@@ -1293,7 +1304,7 @@ function vOrder(){
     const selUnit=(S.cartUnits[S.supId]||{})[p.id]||p.unit;
     const unitBtns=_UNITS.map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
     return `<div class="pi ${q>0?'ic':''}" id="pi-${p.id}">
-      <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${fmt(p.price)} / ${p.unit}</div></div>
+      <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${pkgLabel(p)}</div></div>
       <div class="qc">
         <button class="qb" onclick="chgQ('${p.id}',-1)">−</button>
         <div class="qd" id="qd-${p.id}">${q}</div>
@@ -2812,7 +2823,7 @@ function filterProds(val){
     const selUnit=(S.cartUnits[S.supId]||{})[p.id]||p.unit;
     const unitBtns=_UNITS.map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
     return `<div class="pi ${q>0?'ic':''}" id="pi-${p.id}">
-      <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${fmt(p.price)} / ${p.unit}</div></div>
+      <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${pkgLabel(p)}</div></div>
       <div class="qc">
         <button class="qb" onclick="chgQ('${p.id}',-1)">−</button>
         <div class="qd" id="qd-${p.id}">${q}</div>
@@ -3213,6 +3224,7 @@ function vEscandallos(){
               </div>
             </div>
             <button id="esc-btn-new-prod" class="btn btn-ghost btn-sm" style="display:none;grid-column:1/3;font-size:12px" onclick="escToggleNewProd(true)">+ Crear nuevo producto en este proveedor</button>
+            <input type="text" id="esc-subesc-search" placeholder="🔍 Buscar subelaboración..." style="grid-column:1/3;display:none;padding:7px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt);outline:none" oninput="escFilterSubEsc(this.value)" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>
             <select id="esc-sel-subesc" style="grid-column:1/3" onchange="escOnSubEscChange()"><option value="">-- O usar otro escandallo como ingrediente --</option></select>
             <input type="text" id="esc-libre-nombre" placeholder="O escribe ingrediente libre" style="grid-column:1/3;padding:6px 9px;border:1.5px solid var(--brd);border-radius:7px;font-size:13px;background:var(--card);color:var(--txt)"/>
             <div style="display:flex;gap:4px;align-items:center">
@@ -3398,17 +3410,20 @@ function escOpenModal(id=null){
   });
   // Poblar sub-escandallos (excluir el escandallo actual para evitar circulares)
   const selSub=document.getElementById('esc-sel-subesc');
+  const subSrch=document.getElementById('esc-subesc-search');
   if(selSub){
     selSub.innerHTML='<option value="">-- O usar otro escandallo como ingrediente --</option>';
-    Object.entries(_escAllData).forEach(([eid,e])=>{
-      if(eid===id) return; // evitar referencia circular directa
+    const entries=Object.entries(_escAllData).filter(([eid])=>eid!==id).sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||'','es'));
+    entries.forEach(([eid,e])=>{
       const o=document.createElement('option');
       o.value=eid;
       const rend=parseFloat(e.rendimiento)||1;
       const rendU=e.rendimientoUnidad||'rac.';
+      o.dataset.nombre=(e.nombre||'').toLowerCase();
       o.textContent=`${e.nombre||'Sin nombre'} (rinde ${rend} ${rendU})`;
       selSub.appendChild(o);
     });
+    if(subSrch) subSrch.style.display=entries.length>4?'block':'none';
   }
   escRenderIngs(); escRecalc();
   document.getElementById('esc-modal-ov').style.display='flex';
@@ -3464,6 +3479,17 @@ function escLoadProds(){
     o.dataset.price=p.price||0; o.dataset.unit=p.unit||'u.'; o.dataset.name=p.name||''; o.dataset.gr=p.pesoGr||'';
     sel.appendChild(o);
   });
+}
+function escFilterSubEsc(term){
+  const sel=document.getElementById('esc-sel-subesc');
+  if(!sel) return;
+  const q=term.toLowerCase().trim();
+  Array.from(sel.options).forEach(o=>{
+    if(!o.value){o.style.display='';return;}
+    o.style.display=(!q||o.dataset.nombre.includes(q))?'':'none';
+  });
+  const visible=Array.from(sel.options).filter(o=>o.value&&o.style.display!=='none');
+  if(visible.length===1) sel.value=visible[0].value;
 }
 function escFilterProdsSearch(term){
   const sel=document.getElementById('esc-sel-prod');
@@ -4177,6 +4203,8 @@ function recModalHTML(){
     return `<button type="button" class="rec-mes${on?' on':''}" style="cursor:pointer;border:1.5px solid ${on?'var(--pri)':'var(--brd)'};padding:3px 7px;border-radius:5px;font-size:11px;font-weight:700;background:${on?'var(--pri)':'var(--card)'};color:${on?'#fff':'var(--mut)'}" onclick="recToggleMes('${m}')">${m}</button>`;
   }).join('');
   const seccionesHTML=(r.secciones||[]).map((sec,si)=>recSeccionHTML(sec,si)).join('');
+  const rend=r.rendimiento||1;
+  const rendUnit=r.rendimientoUnidad||'porciones';
   return `
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
     <div class="fg" style="grid-column:1/3">
@@ -4195,6 +4223,24 @@ function recModalHTML(){
   <div class="fg">
     <label>Temporada</label>
     <div style="display:flex;gap:5px;flex-wrap:wrap">${mesesHTML}</div>
+  </div>
+  <div style="background:var(--srf);border:1px solid var(--brd);border-radius:10px;padding:14px">
+    <div style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Rendimiento — escala todos los ingredientes automáticamente</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onclick="recChangeRend(Math.max(0.1,(parseFloat(document.getElementById('rec-rend-input').value)||1)-1))" style="width:32px;height:32px;border-radius:8px;border:1.5px solid var(--brd);background:#fff;font-size:18px;font-weight:700;cursor:pointer;color:var(--pri);display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+        <input id="rec-rend-input" type="number" value="${rend}" min="0.1" step="1" style="width:70px;text-align:center;padding:6px 8px;border:1.5px solid var(--pri);border-radius:8px;font-size:16px;font-weight:800;color:var(--pri);background:#fff;outline:none" onfocus="_recRendPrev=parseFloat(this.value)||1" onchange="recChangeRend(parseFloat(this.value)||1)"/>
+        <button onclick="recChangeRend((parseFloat(document.getElementById('rec-rend-input').value)||1)+1)" style="width:32px;height:32px;border-radius:8px;border:1.5px solid var(--brd);background:#fff;font-size:18px;font-weight:700;cursor:pointer;color:var(--pri);display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+      </div>
+      <select id="rec-rend-unit" style="padding:6px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:#fff;color:var(--txt)" onchange="_recData.rendimientoUnidad=this.value">
+        <option${rendUnit==='porciones'?' selected':''}>porciones</option>
+        <option${rendUnit==='kg'?' selected':''}>kg</option>
+        <option${rendUnit==='L'?' selected':''}>L</option>
+        <option${rendUnit==='raciones'?' selected':''}>raciones</option>
+        <option${rendUnit==='unidades'?' selected':''}>unidades</option>
+      </select>
+      <span style="font-size:12px;color:var(--mut)" id="rec-rend-factor"></span>
+    </div>
   </div>
   <div>
     <div style="font-size:13px;font-weight:700;color:var(--pri);margin-bottom:10px">Secciones de ingredientes</div>
@@ -4274,6 +4320,9 @@ function recOpenModal(id=null){
   } else {
     _recData={nombre:'',partida:'Calientes',tipo:'Principal',temporada:[],secciones:[{titulo:'',ingredientes:[],pasos:[]}]};
   }
+  if(!_recData.rendimiento) _recData.rendimiento=1;
+  if(!_recData.rendimientoUnidad) _recData.rendimientoUnidad='porciones';
+  _recRendPrev=_recData.rendimiento;
   document.getElementById('rec-modal-title').textContent=id?'Editar receta':'Nueva receta';
   document.getElementById('rec-btn-del').style.display=id?'':'none';
   document.getElementById('rec-btn-pdf').style.display=id?'':'none';
@@ -4326,6 +4375,37 @@ function recDelPaso(si,pi){
   document.getElementById('rec-secciones').innerHTML=(_recData.secciones||[]).map((s,i)=>recSeccionHTML(s,i)).join('');
 }
 
+let _recRendPrev=1;
+function recChangeRend(newVal){
+  newVal=Math.max(0.1,parseFloat(newVal)||1);
+  const oldVal=parseFloat(_recData.rendimiento)||1;
+  if(Math.abs(newVal-oldVal)<0.0001){_recData.rendimiento=newVal;return;}
+  const factor=newVal/oldVal;
+  // Escalar todas las cantidades
+  (_recData.secciones||[]).forEach(sec=>{
+    (sec.ingredientes||[]).forEach(ing=>{
+      if(ing.cantidad&&!isNaN(parseFloat(ing.cantidad))){
+        ing.cantidad=Math.round(parseFloat(ing.cantidad)*factor*10000)/10000;
+      }
+    });
+  });
+  _recData.rendimiento=newVal;
+  _recData.rendimientoUnidad=document.getElementById('rec-rend-unit')?.value||_recData.rendimientoUnidad||'porciones';
+  // Actualizar input y mostrar factor
+  const inp=document.getElementById('rec-rend-input');
+  if(inp) inp.value=newVal;
+  const factorLbl=document.getElementById('rec-rend-factor');
+  if(factorLbl){
+    const pct=((factor-1)*100).toFixed(0);
+    const sign=factor>=1?'+':'';
+    factorLbl.textContent=factor!==1?`× ${factor.toFixed(2)} (${sign}${pct}%)` :'';
+    factorLbl.style.color=factor>1?'#15803d':'#dc2626';
+    setTimeout(()=>{if(factorLbl)factorLbl.textContent='';},2500);
+  }
+  // Re-renderizar ingredientes
+  document.getElementById('rec-secciones').innerHTML=(_recData.secciones||[]).map((s,i)=>recSeccionHTML(s,i)).join('');
+  _recRendPrev=newVal;
+}
 function recLoadProvProds(provId,si){
   const sel=document.getElementById('rec-prod-sel-'+si);
   const srch=document.getElementById('rec-prod-srch-'+si);
