@@ -634,6 +634,13 @@ function initFirebaseListeners(){
   fbDb.ref('suppliers').on('value', snap => {
     const val = snap.val();
     if(val){
+      // Firebase devuelve arrays como objetos {0:{...},1:{...}} — normalizar a array
+      Object.values(val).forEach(sup=>{
+        if(sup && sup.products && !Array.isArray(sup.products)){
+          sup.products = Object.values(sup.products);
+        }
+        if(sup && !sup.products) sup.products = [];
+      });
       suppliers = val;
       localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
     }
