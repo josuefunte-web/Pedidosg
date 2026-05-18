@@ -1106,7 +1106,7 @@ function logout(){
 }
 function goOrder(){ S.view='order';S.cart={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
 function goAdmin(){ S.view='admin';S.session={isAdmin:true,name:cfg.adminName};localStorage.setItem('oc_admin_session','1');showHdr(true);render(); }
-function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albDate=new Date().toISOString().split('T')[0];showHdr(false);render(); }
+function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];showHdr(false);render(); }
 function setTab(t){ S.adminTab=t;render();if(t==='spending')setTimeout(renderChart,50);if(t==='monthly')setTimeout(renderMonthlyChart,50); }
 function setTabSb(t){ S.adminTab=t;S.sidebarOpen=false;render();if(t==='spending')setTimeout(renderChart,50);if(t==='monthly')setTimeout(renderMonthlyChart,50); }
 function toggleSbGroup(g){ S.sbGroups[g]=!S.sbGroups[g];render(); }
@@ -1844,7 +1844,7 @@ function vAlbaranes(){
   return btn+table+`<div class="sh">Albaranes</div>`+notes;
 }
 
-function goAlbaranAdmin(){ S.view='albaran-new';S.albItems=[];S.albRestaurant='';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albDate=new Date().toISOString().split('T')[0];render(); }
+function goAlbaranAdmin(){ S.view='albaran-new';S.albItems=[];S.albRestaurant='';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];render(); }
 
 function albCard(a){
   const sup=suppliers[a.supId]||{name:'?',emoji:'?'};
@@ -1916,7 +1916,7 @@ function vAlbaranNew(){
       ${restSel}${supSel}
       <div class="fg"><label>Fecha</label><input type="date" id="alb-date" value="${S.albDate}" onchange="S.albDate=this.value"/></div>
       <div class="fg"><label>Foto del albarán</label>
-        <div class="file-input-wrap"><div class="file-input-btn">📷 Fotografiar o subir imagen</div><input type="file" accept="image/*" capture="environment" onchange="handleAlbPhoto(this)"/></div>
+        <div class="file-input-wrap"><div class="file-input-btn">📎 Subir imagen, PDF o Excel</div><input type="file" accept="image/*,application/pdf,.pdf,.xlsx,.xls,.csv" onchange="handleAlbPhoto(this)"/></div>
         ${S.albCropping
           ? `<div style="font-size:13px;color:var(--mut);margin:8px 0 6px">📌 Arrastra para seleccionar el área a escanear</div>
              <canvas id="crop-canvas" style="width:100%;border-radius:8px;cursor:crosshair;touch-action:none;border:2px dashed var(--pri)"></canvas>
@@ -1924,10 +1924,14 @@ function vAlbaranNew(){
                <button class="btn btn-pri btn-sm" onclick="applyCrop()">✂️ Aplicar recorte</button>
                <button class="btn btn-ghost btn-sm" onclick="cancelCrop()">Cancelar</button>
              </div>`
-          : `<img id="alb-img-preview" class="img-preview" style="${S.albPhoto?'display:block':'display:none'}" src="${S.albPhoto||''}"/>
+          : `${S.albPhoto&&S.albFileType==='image'
+               ?`<img id="alb-img-preview" class="img-preview" style="display:block" src="${S.albPhoto}"/>`
+               :S.albPhoto&&S.albFileType==='pdf'
+               ?`<div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--srf);border-radius:10px;margin-top:8px;border:1px solid var(--brd)"><span style="font-size:28px">📄</span><div><div style="font-weight:600;font-size:14px;color:var(--txt)">${S.albFileName||'documento.pdf'}</div><div style="font-size:12px;color:var(--mut)">PDF listo para analizar con IA</div></div></div>`
+               :`<img id="alb-img-preview" class="img-preview" style="display:none" src=""/>`}
              <div id="ocr-progress" class="ocr-progress">🔍 Reconociendo texto...</div>
              ${S.albPhoto?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-               <button class="btn btn-ghost btn-sm" onclick="showCropUI()">✂️ Recortar imagen</button>
+               ${S.albFileType==='image'?`<button class="btn btn-ghost btn-sm" onclick="showCropUI()">✂️ Recortar imagen</button>`:''}
                <button class="btn btn-blue btn-sm" onclick="runOCR()">${cfg.geminiKey?'🤖 Reconocer con IA (Gemini)':'🔍 Reconocer productos (OCR)'}</button>
              </div>`:''}` }
       </div>
@@ -2004,9 +2008,67 @@ function applyCrop(){
 
 function handleAlbPhoto(input){
   const file=input.files[0];if(!file)return;
+  const nameLow=file.name.toLowerCase();
+  // Excel / CSV → parseo automático
+  if(nameLow.endsWith('.xlsx')||nameLow.endsWith('.xls')||nameLow.endsWith('.csv')){
+    handleAlbExcel(file);return;
+  }
+  // Imagen o PDF → base64 para Gemini/OCR
   const reader=new FileReader();
-  reader.onload=e=>{ S.albPhoto=e.target.result;const img=document.getElementById('alb-img-preview');if(img){img.src=S.albPhoto;img.style.display='block';}render(); };
+  reader.onload=e=>{
+    S.albPhoto=e.target.result;
+    S.albFileName=file.name;
+    S.albFileType=file.type.startsWith('image')?'image':'pdf';
+    render();
+  };
   reader.readAsDataURL(file);
+}
+
+async function handleAlbExcel(file){
+  try{
+    if(!window.XLSX){
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        s.onload=res;s.onerror=rej;document.head.appendChild(s);
+      });
+    }
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+    if(!rows.length){toast('El archivo está vacío o no tiene filas con datos','#d97706');return;}
+    const sample=rows[0];
+    const findKey=(candidates)=>{
+      for(const c of candidates){
+        const k=Object.keys(sample).find(k=>k.toLowerCase().includes(c));
+        if(k)return k;
+      }
+      return null;
+    };
+    const nameKey=findKey(['nombre','name','product','producto','artículo','articulo','descripci']);
+    const qtyKey=findKey(['cantidad','qty','quantity','unidades','bultos','cajas','cant']);
+    const unitKey=findKey(['unidad','unit','ud.','ud ','tipo']);
+    const priceKey=findKey(['precio','price','importe','pvp','coste','costo']);
+    if(!nameKey){toast('No se encontró columna de nombre de producto. Comprueba los encabezados del Excel.','#dc2626');return;}
+    const parsed=rows.map(r=>({
+      code:'',
+      name:String(r[nameKey]||'').trim(),
+      unit:unitKey?String(r[unitKey]||'KG').trim():'KG',
+      qty:parseFloat(String(r[qtyKey]||'1').replace(',','.'))||1,
+      price:parseFloat(String(r[priceKey]||'0').replace(',','.'))||0
+    })).filter(r=>r.name);
+    if(parsed.length){
+      S.albItems=[...S.albItems,...parsed];
+      toast(`✅ ${parsed.length} productos importados desde Excel. Revisa y corrige si es necesario.`,'#16a34a');
+      render();
+    } else {
+      toast('No se encontraron filas con nombre de producto.','#d97706');
+    }
+  }catch(e){
+    console.error(e);
+    toast('Error al leer el Excel: '+e.message,'#dc2626');
+  }
 }
 function albAddItem(){ S.albItems.push({code:'',name:'',unit:'KG',qty:1,price:0});render(); }
 function albDelItem(i){ S.albItems.splice(i,1);render(); }
