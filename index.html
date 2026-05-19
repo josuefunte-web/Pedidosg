@@ -2431,6 +2431,10 @@ function supDetailForm(sup){
     <div class="fg" style="margin:0"><label>Peso gr</label><input type="number" id="pf-gr-${sid}" placeholder="250" step="1" min="0"/></div>
   </div>
   <button class="btn btn-ok btn-sm" onclick="addProd('${sid}')">+ Añadir producto</button>
+  <div class="sh" style="margin-top:20px">🧹 Limpiar nombres de productos</div>
+  <div style="font-size:13px;color:var(--mut);margin-bottom:8px">Elimina sufijos de formato (75cl, x6, CAJ, BOT…) de todos los nombres ya importados.</div>
+  <button class="btn btn-ghost btn-sm" onclick="cleanSupProdNames('${sid}')">🧹 Limpiar nombres de este proveedor</button>
+  <div id="sup-clean-status-${sid}" style="font-size:13px;margin-top:6px;color:var(--mut)"></div>
   <div class="sh" style="margin-top:20px">📥 Importar tarifa desde archivo</div>
   <div style="font-size:13px;color:var(--mut);margin-bottom:10px">Sube un Excel (.xlsx/.csv) o PDF con la tarifa del proveedor y se importarán todos los productos automáticamente.</div>
   <div class="file-input-wrap" style="max-width:360px">
@@ -2452,8 +2456,9 @@ function saveSup2(id){
   const orden=ordenRaw&&!isNaN(ordenRaw)?parseInt(ordenRaw):undefined;
   if(!name){toast('Introduce el nombre','#dc2626');return;}
   const _sy=window.scrollY;
-  if(id==='new'){const nid='s'+uid();suppliers[nid]={id:nid,name,emoji,phone,...(orden!==undefined?{orden}:{}),products:[]};saveSups();S.editSupId=null;S.openSupId=nid;render();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Proveedor creado — ya puedes añadir productos','#16a34a');}
-  else{if(!suppliers[id])return;suppliers[id].name=name;suppliers[id].emoji=emoji;suppliers[id].phone=phone;if(orden!==undefined)suppliers[id].orden=orden;else delete suppliers[id].orden;saveSups();render();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Proveedor guardado','#16a34a');}
+  const _rerender=()=>{ renderAdminContent(); requestAnimationFrame(()=>window.scrollTo(0,_sy)); };
+  if(id==='new'){const nid='s'+uid();suppliers[nid]={id:nid,name,emoji,phone,...(orden!==undefined?{orden}:{}),products:[]};saveSups();S.editSupId=null;S.openSupId=nid;_rerender();toast('Proveedor creado — ya puedes añadir productos','#16a34a');}
+  else{if(!suppliers[id])return;suppliers[id].name=name;suppliers[id].emoji=emoji;suppliers[id].phone=phone;if(orden!==undefined)suppliers[id].orden=orden;else delete suppliers[id].orden;saveSups();_rerender();toast('Proveedor guardado','#16a34a');}
 }
 function delSup(id){ if(!confirm('¿Eliminar proveedor?'))return;delete suppliers[id];saveSups();render(); }
 
@@ -2476,6 +2481,20 @@ function cleanProdName(name){
     .replace(/\s+\d+[,.]?\d*\s*(?:cl|CL)[a-z]?\s*$/i,'') // "75c" truncado
     .replace(/\s+\d+u\s*$/i,'')                    // "12u"
     .trim();
+}
+function cleanSupProdNames(sid){
+  const sup=suppliers[sid]; if(!sup||!sup.products) return;
+  let changed=0;
+  sup.products.forEach(p=>{
+    const clean=cleanProdName(p.name||'');
+    if(clean&&clean!==p.name){ p.name=clean; changed++; }
+  });
+  if(!changed){ document.getElementById('sup-clean-status-'+sid).textContent='✅ Todos los nombres ya estaban limpios.'; return; }
+  const _sy=window.scrollY;
+  saveSups();
+  renderAdminContent();
+  requestAnimationFrame(()=>window.scrollTo(0,_sy));
+  toast(`✅ ${changed} nombres corregidos`,'#16a34a');
 }
 async function importSupTarifa(sid, input){
   const file = input.files[0]; if(!file) return;
@@ -2622,7 +2641,7 @@ function addProd(sid){
   const prod={id:'p'+uid(),name,unit:unit||'KG',price};
   if(pesoGr!==undefined) prod.pesoGr=pesoGr;
   suppliers[sid].products.push(prod);
-  const _sy=window.scrollY;saveSups();render();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Producto añadido','#16a34a');
+  const _sy=window.scrollY;saveSups();renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Producto añadido','#16a34a');
 }
 function editProdGr(sid,pid,val){
   if(!suppliers[sid])return;
@@ -2644,7 +2663,7 @@ function filterSupProds(term,containerId){
     r.style.display=(!q||name.includes(q))?'':'none';
   });
 }
-function delProd(sid,pid){ if(!suppliers[sid])return;const _sy=window.scrollY;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups();render();requestAnimationFrame(()=>window.scrollTo(0,_sy)); }
+function delProd(sid,pid){ if(!suppliers[sid])return;const _sy=window.scrollY;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups();renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy)); }
 function localAddProd(sid){
   const name=document.getElementById('lp-name')?.value.trim();
   const unit=document.getElementById('lp-unit')?.value||'KG';
