@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#1a1a2e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="O'Carro">
+<meta name="apple-mobile-web-app-title" content="Provea">
 <link rel="manifest" id="pwa-manifest">
-<title>O'Carro — Pedidos</title>
+<title>Provea — Gestión de Pedidos</title>
 <!-- Firebase -->
 <script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-app-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-database-compat.js"></script>
@@ -584,6 +584,7 @@ function saveCfg(){
 let orders      = [];
 let suppliers   = JSON.parse(localStorage.getItem('oc_suppliers')||JSON.stringify(DEFAULT_SUPS));
 let albNotes    = [];
+let orderComments = {}; // {orderId: [{id,author,isAdmin,text,ts}]}
 let revenue     = {};
 let budgets     = {};
 let priceHistory= [];
@@ -655,6 +656,15 @@ function initFirebaseListeners(){
       localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
     }
     if(S.view==='order'||S.view==='albaran-new'){const _sv=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo(0,_sv));}
+  });
+
+  // Comentarios por pedido — chat interno
+  fbDb.ref('orderComments').on('value', snap => {
+    const val = snap.val();
+    orderComments = {};
+    if(val){ Object.keys(val).forEach(oid=>{ orderComments[oid]=Object.values(val[oid]).sort((a,b)=>a.ts-b.ts); }); }
+    if(S.view==='admin') renderAdminContent();
+    if(S.view==='order' && S.orderTab==='history') render();
   });
 
   // Config global (ntfyTopic, etc.) — sincronizado en Firebase para todos los dispositivos
@@ -1010,7 +1020,7 @@ let S={
   cart:{},
   orderTab:'new',
   editUserId:null, editSupId:null, openSupId:null,
-  editOrderId:null, editItems:[],
+  editOrderId:null, editItems:[], chatOpen:null,
   pinTarget:null, pinBuf:'',
   albView:'list', albItems:[], albRestaurant:'', albSupId:'', albDate:new Date().toISOString().split('T')[0], albPhoto:null,
   fcPeriod:'month', fcDate:new Date().toISOString().split('T')[0],
@@ -1064,13 +1074,16 @@ function msgAdmin(o){
   const sup=suppliers[o.supId];
   const lines=(o.items||[]).map(it=>`• ${it.name}: ${it.qty} ${it.unit}`).join('\n');
   const noteLine=o.notes?`\n📝 Nota: ${o.notes}`:'';
-  return `📋 *SOLICITUD PEDIDO — O'Carro*\n🏪 ${o.restaurant}\n🏭 Proveedor: ${sup?sup.emoji+' '+sup.name:'?'}\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n\n${lines}\n\n*Total: ${fmt(total(o))}*${noteLine}\n\n_App O'Carro Pedidos_`;
+  return `📋 *SOLICITUD PEDIDO — Provea*\n🏪 ${o.restaurant}\n🏭 Proveedor: ${sup?sup.emoji+' '+sup.name:'?'}\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n\n${lines}\n\n*Total: ${fmt(total(o))}*${noteLine}\n\n_App Provea_`;
 }
 function msgSupplier(o){
   const lines=(o.items||[]).map(it=>`• ${it.name} (${it.unit}): ${it.qty}`).join('\n');
-  const rest=o.restaurant&&o.restaurant.includes('Consolidado')?o.restaurant:`🏪 ${o.restaurant}`;
-  const noteLine=o.notes?`\n📝 *Nota:* ${o.notes}`:'';
-  return `🛒 *PEDIDO O'CARRO*\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n${rest}\n\n*Productos:*\n${lines}${noteLine}\n\n_${cfg.adminName} — Jefe de Compras_`;
+  const isConsolidated=o.restaurant&&o.restaurant.includes('Consolidado');
+  const restLine=isConsolidated?`📋 ${o.restaurant}`:`━━━━━━━━━━━━━━━━━━\n🏪 *LOCAL: ${(o.restaurant||'').toUpperCase()}*\n━━━━━━━━━━━━━━━━━━`;
+  const noteLine=o.notes?`\n\n📝 *Nota:* ${o.notes}`:'';
+  const urgLine=o.urgent?'\n🚨 *PEDIDO URGENTE*':'';
+  const delLine=o.deliveryDate?`\n📅 *Entrega solicitada:* ${o.deliveryDate}`:'';
+  return `🛒 *PEDIDO O\'CARRO*\n📅 ${new Date(o.createdAt).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})}\n${restLine}${urgLine}${delLine}\n\n*Productos:*\n${lines}${noteLine}\n\n_${cfg.adminName} — Jefe de Compras_`;
 }
 function msgLocal(o, supName){
   const lines=(o.items||[]).map(it=>`• ${it.name} (${it.unit}): ${it.qty}`).join('\n');
@@ -1793,10 +1806,17 @@ function orderCard(o,showActions){
   const bLimit=bKey?(budgets[bKey]||0):0;
   const bSpent=bKey?orders.filter(x=>(x.status==='approved'||x.status==='received')&&x.restaurant===o.restaurant&&(x.createdAt||'').startsWith(oCreatedAt.slice(0,7))).reduce((s,x)=>s+total(x),0):0;
   const budgetAlert=bLimit>0&&bSpent>bLimit?`<div class="banner red" style="margin:4px 0 2px">💳 Presupuesto superado — ${fmt(bSpent)} de ${fmt(bLimit)}</div>`:'';
+  const restColor=strToColor(o.restaurant||'');
   return `<div class="oc" ${isEditing?'style="border-color:var(--pri);box-shadow:0 0 0 2px rgba(26,26,46,.15)"':o.urgent?'style="border-color:#dc2626"':''}>
+    <div style="background:${restColor};border-radius:10px 10px 0 0;margin:-14px -14px 10px -14px;padding:7px 14px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:15px;font-weight:800;color:#fff;letter-spacing:.3px">🏪 ${o.restaurant}</span>
+      ${o.autoApproved?`<span class="badge b-f" style="background:rgba(255,255,255,.25);color:#fff">Auto</span>`:''}
+      ${o.urgent?`<span style="background:#fff;color:#dc2626;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:800">🚨 URGENTE</span>`:''}
+      ${issuesTag}
+    </div>
     <div class="oc-hd">
-      <div><div class="oc-rest">${o.restaurant}${o.autoApproved?` <span class="badge b-f">Auto</span>`:''}${modTag}${urgTag}${issuesTag}</div>
-      <div class="oc-sub">${sup.emoji} ${sup.name} · ${fmtD(o.createdAt)} · <span class="badge ${bc}">${bl}</span>${delTag}</div></div>
+      <div><div class="oc-rest" style="font-size:13px;color:var(--mut);font-weight:600">${sup.emoji} ${sup.name}${modTag}</div>
+      <div class="oc-sub">${fmtD(o.createdAt)} · <span class="badge ${bc}">${bl}</span>${delTag}</div></div>
       ${acts}
     </div>
     ${largeAlert}${budgetAlert}
@@ -1805,9 +1825,44 @@ function orderCard(o,showActions){
     ${isEditing?`<div class="banner blue" style="margin-bottom:10px">✏️ Modifica las cantidades y pulsa <strong>Aprobar</strong></div>`:''}
     <div class="pl">${itemsHtml}${totLabel}</div>
     ${recvBtn||restRecvBtn}
+    ${chatHTML(o)}
   </div>`;
 }
 
+function chatHTML(o){
+  const msgs = orderComments[o.id]||[];
+  const isAdmin = S.session?.isAdmin;
+  const author = isAdmin ? (cfg.adminName||'Admin') : (S.session?.name||S.session?.restaurant||'Local');
+  const open = S.chatOpen===o.id;
+  const unread = msgs.length;
+  const badge = unread>0 ? `<span style="background:#e11d48;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:6px">${unread}</span>` : '';
+  if(!open) return `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" style="font-size:12px" onclick="S.chatOpen='${o.id}';renderAdminContent&&renderAdminContent();render&&(S.view==='order'?render():null)">💬 Chat interno${badge}</button></div>`;
+  const msgsHtml = msgs.length ? msgs.map(m=>`
+    <div style="display:flex;flex-direction:column;align-items:${m.isAdmin?'flex-end':'flex-start'};margin-bottom:6px">
+      <div style="max-width:80%;background:${m.isAdmin?'var(--pri)':'var(--srf)'};color:${m.isAdmin?'#fff':'var(--txt)'};border-radius:${m.isAdmin?'12px 12px 2px 12px':'12px 12px 12px 2px'};padding:7px 12px;font-size:13px">${m.text}</div>
+      <div style="font-size:10px;color:var(--mut);margin-top:2px">${m.author} · ${m.ts?new Date(m.ts).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}</div>
+    </div>`).join('') : `<div style="color:var(--mut);font-size:12px;text-align:center;padding:8px 0">Sin mensajes aún</div>`;
+  return `<div style="margin-top:10px;border-top:1px solid var(--brd);padding-top:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="font-size:13px;font-weight:600">💬 Chat interno</span>
+      <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="S.chatOpen=null;renderAdminContent&&renderAdminContent();render&&(S.view==='order'?render():null)">▲ Cerrar</button>
+    </div>
+    <div style="max-height:200px;overflow-y:auto;margin-bottom:8px;padding:4px 0">${msgsHtml}</div>
+    <div style="display:flex;gap:6px">
+      <input id="chat-input-${o.id}" type="text" placeholder="Escribe un mensaje..." style="flex:1;padding:7px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:#fff;color:var(--txt)" onkeydown="if(event.key==='Enter')sendOrderChat('${o.id}','${author}',${isAdmin?'true':'false'})"/>
+      <button class="btn btn-pri btn-sm" onclick="sendOrderChat('${o.id}','${author}',${isAdmin?'true':'false'})">Enviar</button>
+    </div>
+  </div>`;
+}
+function sendOrderChat(oid, author, isAdmin){
+  const inp = document.getElementById('chat-input-'+oid);
+  if(!inp) return;
+  const text = inp.value.trim(); if(!text) return;
+  if(!fbDb){toast('Sin conexión Firebase','#dc2626');return;}
+  const msg = {id:uid(), author, isAdmin:!!isAdmin, text, ts:Date.now()};
+  fbDb.ref('orderComments/'+oid+'/'+msg.id).set(msg);
+  inp.value='';
+}
 function vPending(){ const p=orders.filter(o=>o.status==='pending');return p.length?p.map(o=>orderCard(o,true)).join(''):`<div class="empty"><div class="ei">🎉</div><div class="et">Sin pedidos pendientes</div></div>`; }
 function vApproved(){ const a=orders.filter(o=>o.status==='approved');return a.length?a.map(o=>orderCard(o,false)).join(''):`<div class="empty"><div class="ei">📋</div><div class="et">Sin pedidos aprobados</div></div>`; }
 
@@ -1815,7 +1870,7 @@ function vConsolidated(){
   const pend=orders.filter(o=>o.status==='pending');
   if(!pend.length) return `<div class="empty"><div class="ei">📦</div><div class="et">No hay pedidos pendientes</div></div>`;
   const bySup={};
-  pend.forEach(o=>{ if(!bySup[o.supId])bySup[o.supId]={}; (o.items||[]).forEach(it=>{ if(!bySup[o.supId][it.id])bySup[o.supId][it.id]={...it,qty:0,rests:[]}; bySup[o.supId][it.id].qty+=it.qty; bySup[o.supId][it.id].rests.push((o.restaurant||'').replace("O'Carro ",'')); }); });
+  pend.forEach(o=>{ if(!bySup[o.supId])bySup[o.supId]={}; (o.items||[]).forEach(it=>{ if(!bySup[o.supId][it.id])bySup[o.supId][it.id]={...it,qty:0,rests:[]}; bySup[o.supId][it.id].qty+=it.qty; bySup[o.supId][it.id].rests.push((o.restaurant||'').replace("",'')); }); });
   return Object.entries(bySup).map(([sid,items])=>{
     const sup=suppliers[sid]||{name:sid,emoji:'📦',phone:''};
     const arr=Object.values(items);
@@ -1832,9 +1887,9 @@ function renderChart(){
   const ctx=document.getElementById('chart');if(!ctx)return;
   if(chartInst){chartInst.destroy();chartInst=null;}
   const byR={};
-  orders.filter(o=>o.status==='approved'||o.status==='received').forEach(o=>{ const k=(o.restaurant||'Sin nombre').replace("O'Carro ",'');byR[k]=(byR[k]||0)+total(o); });
+  orders.filter(o=>o.status==='approved'||o.status==='received').forEach(o=>{ const k=(o.restaurant||'Sin nombre').replace("",'');byR[k]=(byR[k]||0)+total(o); });
   // Sumar gastos manuales
-  Object.values(extraExpenses).forEach(e=>{ const k=(e.restaurant||'Sin nombre').replace("O'Carro ",'');byR[k]=(byR[k]||0)+(parseFloat(e.amount)||0); });
+  Object.values(extraExpenses).forEach(e=>{ const k=(e.restaurant||'Sin nombre').replace("",'');byR[k]=(byR[k]||0)+(parseFloat(e.amount)||0); });
   const ent=Object.entries(byR).filter(([,v])=>v>0).sort(([,a],[,b])=>b-a);
   if(!ent.length){ ctx.parentNode.innerHTML=`<div class="empty" style="height:260px;display:flex;flex-direction:column;justify-content:center"><div class="ei">📊</div><div class="et">Aprueba pedidos para ver el gasto</div></div>`;return; }
   chartInst=new Chart(ctx,{type:'bar',data:{labels:ent.map(([k])=>k),datasets:[{data:ent.map(([,v])=>v),backgroundColor:'#1a1a2e',borderRadius:6,hoverBackgroundColor:'#e94560'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmt(c.raw)}}},scales:{y:{ticks:{callback:v=>v.toLocaleString('es-ES',{maximumFractionDigits:0})+' €'},grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}});
@@ -1896,7 +1951,7 @@ function vAlbaranes(){
     const diff=d.received-d.ordered;
     const pct=d.ordered>0?((diff/d.ordered)*100).toFixed(1):'-';
     const cls=Math.abs(diff)<1?'diff-ok':diff>0?'diff-err':'diff-warn';
-    return `<tr><td>${(rest||'').replace("O'Carro ",'')}</td><td>${fmt(d.ordered)}</td><td>${fmt(d.received)}</td><td class="${cls}">${diff>=0?'+':''}${fmt(diff)}${pct!=='-'?' ('+pct+'%)':''}</td></tr>`;
+    return `<tr><td>${(rest||'').replace("",'')}</td><td>${fmt(d.ordered)}</td><td>${fmt(d.received)}</td><td class="${cls}">${diff>=0?'+':''}${fmt(diff)}${pct!=='-'?' ('+pct+'%)':''}</td></tr>`;
   }).join('');
   const table=tableRows?`<div class="card"><div class="card-t">📊 Pedido vs Recibido por local</div><div style="overflow-x:auto"><table class="spend-table"><tr><th>Local</th><th>Pedido</th><th>Recibido</th><th>Diferencia</th></tr>${tableRows}</table></div></div>`:'';
   const notes=albNotes.length?albNotes.map(a=>albCard(a)).join(''):`<div class="empty"><div class="ei">📋</div><div class="et">Sin albaranes registrados</div></div>`;
@@ -2288,7 +2343,7 @@ function vUsers(){
 function userForm(u){
   const id=u?u.id:'new';
   return `<div class="two-col">
-    <div class="fg"><label>Nombre restaurante</label><input type="text" id="uf-rest-${id}" value="${u?u.restaurant:''}" placeholder="O'Carro Gourmet"/></div>
+    <div class="fg"><label>Nombre restaurante</label><input type="text" id="uf-rest-${id}" value="${u?u.restaurant:''}" placeholder="Restaurante ejemplo"/></div>
     <div class="fg"><label>Nombre corto</label><input type="text" id="uf-name-${id}" value="${u?u.name:''}" placeholder="Gourmet"/></div>
     <div class="fg"><label>PIN (4 dígitos)</label><input type="text" id="uf-pin-${id}" value="${u?u.pin:''}" maxlength="4" placeholder="1234"/></div>
     <div class="fg"><label>Aprobación</label><select id="uf-appr-${id}"><option value="1" ${u&&u.needsApproval?'selected':''}>Requiere aprobación</option><option value="0" ${u&&!u.needsApproval?'selected':''}>Auto-aprobado</option></select></div>
@@ -2396,11 +2451,32 @@ function saveSup2(id){
   const ordenRaw=document.getElementById('sf-orden-'+id)?.value.trim();
   const orden=ordenRaw&&!isNaN(ordenRaw)?parseInt(ordenRaw):undefined;
   if(!name){toast('Introduce el nombre','#dc2626');return;}
-  if(id==='new'){const nid='s'+uid();suppliers[nid]={id:nid,name,emoji,phone,...(orden!==undefined?{orden}:{}),products:[]};saveSups();S.editSupId=null;S.openSupId=nid;render();toast('Proveedor creado — ya puedes añadir productos','#16a34a');}
-  else{if(!suppliers[id])return;suppliers[id].name=name;suppliers[id].emoji=emoji;suppliers[id].phone=phone;if(orden!==undefined)suppliers[id].orden=orden;else delete suppliers[id].orden;saveSups();render();toast('Proveedor guardado','#16a34a');}
+  const _sy=window.scrollY;
+  if(id==='new'){const nid='s'+uid();suppliers[nid]={id:nid,name,emoji,phone,...(orden!==undefined?{orden}:{}),products:[]};saveSups();S.editSupId=null;S.openSupId=nid;render();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Proveedor creado — ya puedes añadir productos','#16a34a');}
+  else{if(!suppliers[id])return;suppliers[id].name=name;suppliers[id].emoji=emoji;suppliers[id].phone=phone;if(orden!==undefined)suppliers[id].orden=orden;else delete suppliers[id].orden;saveSups();render();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Proveedor guardado','#16a34a');}
 }
 function delSup(id){ if(!confirm('¿Eliminar proveedor?'))return;delete suppliers[id];saveSups();render(); }
 
+function strToColor(str){
+  // Genera un color oscuro consistente por nombre de restaurante
+  let h=0; for(let i=0;i<str.length;i++) h=(h*31+str.charCodeAt(i))&0xffff;
+  const hue=(h%360);
+  return `hsl(${hue},55%,32%)`;
+}
+function cleanProdName(name){
+  // Elimina info de formato/envase del final del nombre
+  // ej: "Vino Tinto Cune 75cl x6" → "Vino Tinto Cune"
+  return name
+    .replace(/\s+(?:x|X)\s*\d+\s*$/,'')           // " x6", " X12" al final
+    .replace(/\s+\d+[,.]?\d*\s*(?:cl|CL|ml|ML|L|l|g|kg|KG)\s+(?:x|X)\s*\d+\s*$/i,'') // "75cl x6"
+    .replace(/\s+\d+[,.]?\d*\s*(?:cl|CL|ml|ML)\s*$/i,'') // "75cl", "37 cl"
+    .replace(/\s+\d+[,.]?\d*\s*(?:L|l)\s*$/,'')   // "1L", "1,5L"
+    .replace(/\s+(?:CAJ|BOT|UNI|CAN|TAR|PAQ|BOL)\s*$/i,'') // envases
+    .replace(/\s+\d+[,.]?\d*\s*(?:L|l)t\s*$/i,'') // "1,5Lt"
+    .replace(/\s+\d+[,.]?\d*\s*(?:cl|CL)[a-z]?\s*$/i,'') // "75c" truncado
+    .replace(/\s+\d+u\s*$/i,'')                    // "12u"
+    .trim();
+}
 async function importSupTarifa(sid, input){
   const file = input.files[0]; if(!file) return;
   const statusEl = document.getElementById('sup-import-status-'+sid);
@@ -2435,7 +2511,7 @@ async function importSupTarifa(sid, input){
       let added=0, updated=0;
 
       rows.forEach(r=>{
-        const name = String(r[nameKey]||'').trim(); if(!name) return;
+        const name = cleanProdName(String(r[nameKey]||'').trim()); if(!name) return;
         const unit = unitKey ? String(r[unitKey]||'UN').trim() : 'UN';
         const price = parseFloat(String(r[priceKey]||'0').replace(',','.'))||0;
         const code  = codeKey ? String(r[codeKey]||'').trim() : '';
@@ -2484,7 +2560,7 @@ async function importSupTarifa(sid, input){
       const sup = suppliers[sid]; if(!sup.products) sup.products=[];
       let added=0, updated=0;
       parsed.forEach(p=>{
-        const name=String(p.name||'').trim(); if(!name) return;
+        const name=cleanProdName(String(p.name||'').trim()); if(!name) return;
         const code=String(p.code||'').trim();
         const unit=String(p.unit||'UN').trim();
         const price=parseFloat(p.price)||0;
@@ -2546,7 +2622,7 @@ function addProd(sid){
   const prod={id:'p'+uid(),name,unit:unit||'KG',price};
   if(pesoGr!==undefined) prod.pesoGr=pesoGr;
   suppliers[sid].products.push(prod);
-  saveSups();render();toast('Producto añadido','#16a34a');
+  const _sy=window.scrollY;saveSups();render();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Producto añadido','#16a34a');
 }
 function editProdGr(sid,pid,val){
   if(!suppliers[sid])return;
@@ -2568,7 +2644,7 @@ function filterSupProds(term,containerId){
     r.style.display=(!q||name.includes(q))?'':'none';
   });
 }
-function delProd(sid,pid){ if(!suppliers[sid])return;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups();render(); }
+function delProd(sid,pid){ if(!suppliers[sid])return;const _sy=window.scrollY;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups();render();requestAnimationFrame(()=>window.scrollTo(0,_sy)); }
 function localAddProd(sid){
   const name=document.getElementById('lp-name')?.value.trim();
   const unit=document.getElementById('lp-unit')?.value||'KG';
@@ -2931,7 +3007,7 @@ function vSettings(){
       </div>
       <label>Canal ntfy (elige uno único, sin espacios)</label>
       <div style="display:flex;gap:8px;align-items:center">
-        <input type="text" value="${cfg.ntfyTopic||''}" placeholder="ej: ocarro-pedidos-2024" style="flex:1" onchange="cfg.ntfyTopic=this.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');saveCfg();this.value=cfg.ntfyTopic"/>
+        <input type="text" value="${cfg.ntfyTopic||''}" placeholder="ej: provea-pedidos-2024" style="flex:1" onchange="cfg.ntfyTopic=this.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');saveCfg();this.value=cfg.ntfyTopic"/>
         <button class="btn btn-ghost btn-sm" onclick="testNtfy()">📲 Probar</button>
       </div>
       <div style="font-size:12px;margin-top:5px;${cfg.ntfyTopic?'color:#16a34a':'color:#dc2626;font-weight:600'}">
@@ -3138,7 +3214,8 @@ function submitOrder(){
   if(pendingOrders.length){
     // Show WA for admin with summary of pending orders
     const totalAmt=pendingOrders.reduce((s,o)=>s+total(o),0);
-    const msgMulti=`🛒 Nuevo pedido de ${pendingOrders[0].restaurant}\n${pendingOrders.map(o=>`• ${(suppliers[o.supId]||{name:o.supId}).name}: ${fmt(total(o))}`).join('\n')}\n💰 Total: ${fmt(totalAmt)}`;
+    const restName=(pendingOrders[0].restaurant||'').toUpperCase();
+    const msgMulti=`🛒 *NUEVO PEDIDO*\n━━━━━━━━━━━━━━━━━━\n🏪 *LOCAL: ${restName}*\n━━━━━━━━━━━━━━━━━━\n${pendingOrders.map(o=>`• ${(suppliers[o.supId]||{name:o.supId}).name}: ${fmt(total(o))}${o.urgent?' 🚨':''}`).join('\n')}\n💰 *Total: ${fmt(totalAmt)}*\n\n_Entra en la app para aprobar_`;
     showWA(cfg.adminPhone||'',msgMulti,`${pendingOrders.length} pedido(s) de ${pendingOrders[0].restaurant} — apruébalos`);
     // Notificación push al móvil del admin
     const urgent=pendingOrders.some(o=>o.urgent);
@@ -3313,7 +3390,7 @@ function renderMonthlyChart(){
   const rests=[...new Set(orders.map(o=>o.restaurant).filter(Boolean))].sort();
   const colors=['#e94560','#1a1a2e','#16a34a','#d97706','#7c3aed','#0891b2','#db2777','#059669','#dc2626','#2563eb','#9333ea','#ea580c'];
   const datasets=rests.map((r,i)=>({
-    label:r.replace("O'Carro ",''),
+    label:r.replace("",''),
     data:months.map(m=>orders.filter(o=>o.status!=='rejected'&&o.restaurant===r&&(o.createdAt||'').startsWith(m)).reduce((s,o)=>s+total(o),0)),
     backgroundColor:colors[i%colors.length]+'99',
     borderColor:colors[i%colors.length],
@@ -3329,7 +3406,7 @@ function exportExcel(type){
   let rows=[];
   let filename='pedidos';
   if(type==='all'||type==='monthly'||!type){
-    filename='pedidos_ocarro_'+new Date().toISOString().slice(0,10);
+    filename='pedidos_provea_'+new Date().toISOString().slice(0,10);
     rows=[['ID','Fecha','Local','Proveedor','Estado','Total €','Urgente','Entrega'],...orders.map(o=>[o.id,(o.createdAt||'').slice(0,10),o.restaurant||'',(suppliers[o.supId]||{name:o.supId||'?'}).name,o.status,total(o).toFixed(2),o.urgent?'Sí':'No',o.deliveryDate||''])];
   } else if(type==='received'){
     filename='pedidos_recibidos_'+new Date().toISOString().slice(0,10);
@@ -5640,7 +5717,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   }
   if(S.darkMode) document.body.classList.add('dark');
   // PWA manifest injection
-  const manifest={name:"O'Carro Pedidos",short_name:"O'Carro",start_url:window.location.href,display:"standalone",background_color:"#f0f2f5",theme_color:"#1a1a2e",icons:[{src:"https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f6d2.svg",sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}]};
+  const manifest={name:"Provea",short_name:"Provea",start_url:window.location.href,display:"standalone",background_color:"#f0f2f5",theme_color:"#1a1a2e",icons:[{src:"https://raw.githubusercontent.com/twitter/twemoji/master/assets/svg/1f6d2.svg",sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}]};
   const mBlob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
   const mUrl=URL.createObjectURL(mBlob);
   document.getElementById('pwa-manifest').href=mUrl;
@@ -5907,9 +5984,14 @@ function vInventario(){
     </div>`:''}
   </div>`:'';
 
-  const table=items.length?`<table class="spend-table">
+  const invQ=(S.invSearch||'').toLowerCase().trim();
+  const filteredItems=invQ?items.filter(it=>(it.name||'').toLowerCase().includes(invQ)||(it.category||'').toLowerCase().includes(invQ)):items;
+
+  const searchBox=`<input type="text" value="${S.invSearch||''}" placeholder="🔍 Buscar producto o categoría..." oninput="S.invSearch=this.value;render()" style="width:100%;padding:9px 14px;border:1.5px solid var(--brd);border-radius:10px;font-size:14px;background:#fff;color:var(--txt);outline:none;margin-bottom:12px;box-sizing:border-box" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>`;
+
+  const table=filteredItems.length?`${searchBox}<table class="spend-table">
     <thead><tr><th>Producto</th><th>Categoría</th><th>Cantidad</th><th>Precio/ud</th><th>Valor</th><th>Mín.</th><th>Estado</th><th>Ajuste rápido</th><th></th></tr></thead>
-    <tbody>${items.map(it=>{
+    <tbody>${filteredItems.map(it=>{
       const low=(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0);
       const qty=parseFloat(it.qty)||0;
       const price=parseFloat(it.price)||0;
@@ -5934,7 +6016,8 @@ function vInventario(){
     }).join('')}
     ${totalValor>0?`<tr style="background:var(--bg);font-weight:700"><td colspan="4" style="text-align:right;padding-right:8px">TOTAL</td><td>${fmt(totalValor)}</td><td colspan="4"></td></tr>`:''}
     </tbody></table>`
-    :`<div class="empty"><div class="ei">📦</div><div class="et">Sin productos en el inventario de ${rest}</div></div>`;
+    :(items.length&&invQ?`${searchBox}<div class="empty" style="margin:0"><div class="et">Sin resultados para "<strong>${invQ}</strong>"</div></div>`
+    :`<div class="empty"><div class="ei">📦</div><div class="et">Sin productos en el inventario de ${rest}</div></div>`);
 
   return `<div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -5999,9 +6082,13 @@ function vLocalInventario(rest){
     </div>`:''}
   </div>`:'';
 
-  const table=items.length?`<table class="spend-table">
+  const invQR=(S.invSearch||'').toLowerCase().trim();
+  const filteredR=invQR?items.filter(it=>(it.name||'').toLowerCase().includes(invQR)||(it.category||'').toLowerCase().includes(invQR)):items;
+  const searchBoxR=`<input type="text" value="${S.invSearch||''}" placeholder="🔍 Buscar producto o categoría..." oninput="S.invSearch=this.value;render()" style="width:100%;padding:9px 14px;border:1.5px solid var(--brd);border-radius:10px;font-size:14px;background:#fff;color:var(--txt);outline:none;margin-bottom:12px;box-sizing:border-box" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>`;
+
+  const table=filteredR.length?`${searchBoxR}<table class="spend-table">
     <thead><tr><th>Producto</th><th>Categoría</th><th>Cantidad</th><th>Precio/ud</th><th>Valor</th><th>Estado</th><th>Ajuste rápido</th><th></th></tr></thead>
-    <tbody>${items.map(it=>{
+    <tbody>${filteredR.map(it=>{
       const low=(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0);
       const qty=parseFloat(it.qty)||0;
       const price=parseFloat(it.price)||0;
@@ -6022,7 +6109,8 @@ function vLocalInventario(rest){
     }).join('')}
     ${totalValorR>0?`<tr style="background:var(--bg);font-weight:700"><td colspan="4" style="text-align:right;padding-right:8px">TOTAL</td><td>${fmt(totalValorR)}</td><td colspan="3"></td></tr>`:''}
     </tbody></table>`
-    :`<div class="empty"><div class="ei">📦</div><div class="et">Sin productos en el inventario aún.<br><br><button class="btn btn-acc btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','new')">➕ Añadir primero</button></div></div>`;
+    :(items.length&&invQR?`${searchBoxR}<div class="empty" style="margin:0"><div class="et">Sin resultados para "<strong>${invQR}</strong>"</div></div>`
+    :`<div class="empty"><div class="ei">📦</div><div class="et">Sin productos en el inventario aún.<br><br><button class="btn btn-acc btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','new')">➕ Añadir primero</button></div></div>`);
 
   return `<div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
