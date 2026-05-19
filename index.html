@@ -1734,6 +1734,8 @@ function orderCard(o,showActions){
 
   let itemsHtml='';
   if(isEditing){
+    const supProds=(suppliers[o.supId]?.products||[]).filter(p=>!S.editItems.find(it=>it.id===p.id));
+    const prodOpts=supProds.map(p=>`<option value="${p.id}" data-name="${p.name}" data-price="${p.price||0}" data-unit="${p.unit||'UN'}">${p.name} — ${pkgLabel(p)}</option>`).join('');
     itemsHtml=S.editItems.map((it,i)=>`
       <div class="pr" style="align-items:center;flex-wrap:nowrap">
         <span class="pn" style="flex:1">${it.name}</span>
@@ -1743,7 +1745,15 @@ function orderCard(o,showActions){
           <button class="qb" onclick="editItemQty(${i},1)">+</button>
         </div>
         <span class="pp" id="eip-${i}" style="margin-left:8px">${fmt(it.qty*it.price)}</span>
-      </div>`).join('');
+        <button style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:15px;padding:0 4px;margin-left:4px" onclick="editRemoveItem(${i})" title="Eliminar">✕</button>
+      </div>`).join('')
+    +(supProds.length?`<div style="display:flex;gap:6px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px dashed var(--brd)">
+        <select id="edit-add-prod-${o.id}" style="flex:1;padding:6px 8px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt)">
+          <option value="">+ Selecciona producto a añadir...</option>${prodOpts}
+        </select>
+        <input type="number" id="edit-add-qty-${o.id}" value="1" min="0.1" step="0.1" style="width:60px;padding:6px 8px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;text-align:center"/>
+        <button class="btn btn-ok btn-sm" onclick="editAddProduct('${o.id}','${o.supId}')">Añadir</button>
+      </div>`:'');
   } else {
     itemsHtml=(o.items||[]).map(it=>`<div class="pr"><span class="pn">${it.name||'?'}</span><span class="pq">${it.qty} ${it.unit||''}</span><span class="pp">${fmt((it.qty||0)*(it.price||0))}</span></div>`).join('');
   }
@@ -3185,6 +3195,20 @@ function startEditOrder(id){
   S.editItems=o.items.map(it=>({...it}));
   renderAdminContent();
 }
+function editRemoveItem(idx){
+  S.editItems.splice(idx,1);
+  renderAdminContent();
+}
+function editAddProduct(orderId, supId){
+  const sel=document.getElementById('edit-add-prod-'+orderId);
+  const qtyEl=document.getElementById('edit-add-qty-'+orderId);
+  if(!sel||!sel.value) return;
+  const opt=sel.options[sel.selectedIndex];
+  const qty=parseFloat(qtyEl?.value)||1;
+  const price=parseFloat(opt.dataset.price)||0;
+  S.editItems.push({id:opt.value,name:opt.dataset.name,unit:opt.dataset.unit||'UN',qty,price});
+  renderAdminContent();
+}
 function editItemQty(idx,delta){
   S.editItems[idx].qty=Math.max(0,(S.editItems[idx].qty||0)+delta);
   const el=document.getElementById('eiq-'+idx);
@@ -3872,10 +3896,13 @@ function escRenderIngs(){
   const cont=document.getElementById('esc-ing-list');
   if(!cont) return;
   if(!_escIngs.length){cont.innerHTML='<p style="color:var(--mut);font-size:13px">Sin ingredientes aún</p>';return;}
+  const totalCoste=_escIngs.reduce((s,ing)=>s+escCosteFactor(ing),0);
   cont.innerHTML=_escIngs.map((ing,i)=>{
     const liveP=escLivePrice(ing);
     const merma=parseFloat(ing.merma)||0;
     const costeReal=escCosteFactor(ing);
+    const pct=totalCoste>0?(costeReal/totalCoste*100):0;
+    const pctColor=pct>=40?'#dc2626':pct>=20?'#d97706':'#64748b';
     const changed=ing.proveedorId!==null&&Math.abs(liveP-(parseFloat(ing.precioUnitario)||0))>0.001;
     const priceTag=changed?`<span style="color:#d97706;font-size:10px" title="Precio actualizado desde tarifa">🔄 ${escFmt(liveP)}</span>`:`${escFmt(liveP)}`;
     const mermaTag=merma>0?`<span style="color:#7c3aed;font-size:10px;margin-left:4px" title="Con merma del ${merma}%">⚠️ ${merma}%</span>`:'';
@@ -3885,6 +3912,7 @@ function escRenderIngs(){
       <span class="in">${ing.nombre}${subEscTag}${libre}</span>
       <span class="id">${ing.cantidad} ${ing.unidad} × ${priceTag}${mermaTag}</span>
       <span class="ic">${escFmt(costeReal)}</span>
+      <span style="font-size:11px;font-weight:700;min-width:38px;text-align:right;color:${pctColor}">${pct.toFixed(1)}%</span>
       <button onclick="escQuitarIng(${i})" title="Eliminar">✕</button>
     </div>`;
   }).join('');
