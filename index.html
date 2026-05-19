@@ -568,7 +568,17 @@ const DEFAULT_SUPS={
 let cfg      = JSON.parse(localStorage.getItem('oc_cfg') || JSON.stringify({adminPIN:'0000',adminName:'Josué',adminPhone:'',adminEmail:'josue.funte@gmail.com',users:DEFAULT_USERS}));
 if(!cfg.adminEmail) cfg.adminEmail='josue.funte@gmail.com';
 if(!cfg.users) cfg.users=DEFAULT_USERS;
-function saveCfg(){ localStorage.setItem('oc_cfg', JSON.stringify(cfg)); }
+function saveCfg(){
+  localStorage.setItem('oc_cfg', JSON.stringify(cfg));
+  // Sincronizar campos globales en Firebase para que lleguen a todos los dispositivos
+  if(fbDb) fbDb.ref('globalCfg').update({
+    ntfyTopic: cfg.ntfyTopic||'',
+    approvalMinAmount: cfg.approvalMinAmount||0,
+    alertThreshold: cfg.alertThreshold||300,
+    priceAlertPct: cfg.priceAlertPct||5,
+    adminPhone: cfg.adminPhone||''
+  });
+}
 
 /* ═══════════════ FIREBASE DATA (pedidos, proveedores, albaranes, revenue) ═══════════════ */
 let orders      = [];
@@ -645,6 +655,19 @@ function initFirebaseListeners(){
       localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
     }
     if(S.view==='order'||S.view==='albaran-new'){const _sv=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo(0,_sv));}
+  });
+
+  // Config global (ntfyTopic, etc.) — sincronizado en Firebase para todos los dispositivos
+  fbDb.ref('globalCfg').on('value', snap => {
+    const val = snap.val();
+    if(val){
+      if(val.ntfyTopic !== undefined) cfg.ntfyTopic = val.ntfyTopic;
+      if(val.approvalMinAmount !== undefined) cfg.approvalMinAmount = val.approvalMinAmount;
+      if(val.alertThreshold !== undefined) cfg.alertThreshold = val.alertThreshold;
+      if(val.priceAlertPct !== undefined) cfg.priceAlertPct = val.priceAlertPct;
+      if(val.adminPhone !== undefined) cfg.adminPhone = val.adminPhone;
+      localStorage.setItem('oc_cfg', JSON.stringify(cfg));
+    }
   });
 
   // Albaranes — real-time sync
@@ -2343,6 +2366,13 @@ function supDetailForm(sup){
     <div class="fg" style="margin:0"><label>Peso gr</label><input type="number" id="pf-gr-${sid}" placeholder="250" step="1" min="0"/></div>
   </div>
   <button class="btn btn-ok btn-sm" onclick="addProd('${sid}')">+ Añadir producto</button>
+  <div class="sh" style="margin-top:20px">📥 Importar tarifa desde archivo</div>
+  <div style="font-size:13px;color:var(--mut);margin-bottom:10px">Sube un Excel (.xlsx/.csv) o PDF con la tarifa del proveedor y se importarán todos los productos automáticamente.</div>
+  <div class="file-input-wrap" style="max-width:360px">
+    <div class="file-input-btn" style="padding:12px">📂 Subir Excel o PDF de tarifa</div>
+    <input type="file" accept=".xlsx,.xls,.csv,application/pdf,.pdf" onchange="importSupTarifa('${sid}',this)"/>
+  </div>
+  <div id="sup-import-status-${sid}" style="font-size:13px;margin-top:8px;color:var(--mut)"></div>
   <div class="sh" style="margin-top:20px">Visibilidad por local</div>
   <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Desmarca los locales que <strong>no</strong> deben ver este proveedor</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
@@ -2360,6 +2390,108 @@ function saveSup2(id){
   else{if(!suppliers[id])return;suppliers[id].name=name;suppliers[id].emoji=emoji;suppliers[id].phone=phone;if(orden!==undefined)suppliers[id].orden=orden;else delete suppliers[id].orden;saveSups();render();toast('Proveedor guardado','#16a34a');}
 }
 function delSup(id){ if(!confirm('¿Eliminar proveedor?'))return;delete suppliers[id];saveSups();render(); }
+
+async function importSupTarifa(sid, input){
+  const file = input.files[0]; if(!file) return;
+  const statusEl = document.getElementById('sup-import-status-'+sid);
+  const setStatus = (msg, color='var(--mut)') => { if(statusEl){ statusEl.style.color=color; statusEl.innerHTML=msg; } };
+  setStatus('⏳ Leyendo archivo...');
+  const nameLow = file.name.toLowerCase();
+
+  // ── EXCEL / CSV ──────────────────────────────────────────────
+  if(nameLow.endsWith('.xlsx')||nameLow.endsWith('.xls')||nameLow.endsWith('.csv')){
+    try{
+      if(!window.XLSX){
+        await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+      }
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if(!rows.length){ setStatus('❌ El archivo está vacío o sin datos.','#dc2626'); return; }
+
+      const sample = rows[0];
+      const findKey = (...candidates) => { for(const c of candidates){ const k=Object.keys(sample).find(k=>k.toLowerCase().includes(c)); if(k) return k; } return null; };
+      const nameKey  = findKey('nombre','name','product','producto','artículo','articulo','descripci','desc');
+      const qtyKey   = findKey('cantidad','qty','uds','uds/caja','unidades','bultos');
+      const unitKey  = findKey('unidad','unit','ud.','envase','tipo');
+      const priceKey = findKey('precio','price','p.unidad','p. unidad','importe','pvp','coste','costo','tarifa');
+      const codeKey  = findKey('código','codigo','code','ref','referencia','art');
+
+      if(!nameKey){ setStatus('❌ No se encontró columna de nombre. Comprueba los encabezados del archivo.','#dc2626'); return; }
+
+      setStatus('⏳ Procesando productos...');
+      const sup = suppliers[sid]; if(!sup.products) sup.products=[];
+      let added=0, updated=0;
+
+      rows.forEach(r=>{
+        const name = String(r[nameKey]||'').trim(); if(!name) return;
+        const unit = unitKey ? String(r[unitKey]||'UN').trim() : 'UN';
+        const price = parseFloat(String(r[priceKey]||'0').replace(',','.'))||0;
+        const code  = codeKey ? String(r[codeKey]||'').trim() : '';
+        const id    = code ? 'imp_'+code : 'imp_'+uid();
+        const idx   = code ? sup.products.findIndex(p=>p.code===code||p.id==='imp_'+code) : -1;
+        if(idx>=0){ sup.products[idx]={...sup.products[idx], name, unit, price, ...(code?{code}:{})}; updated++; }
+        else { sup.products.push({id, name, unit, price, ...(code?{code}:{})}); added++; }
+      });
+
+      saveSups();
+      setStatus(`✅ Tarifa importada: <strong>${added} nuevos</strong> + ${updated} actualizados (${added+updated} total)`, '#16a34a');
+      toast(`✅ ${added+updated} productos importados en ${sup.name}`, '#16a34a', 4000);
+      // Refrescar lista de productos sin cerrar el panel
+      const listEl = document.getElementById('sdp-list-'+sid);
+      if(listEl){
+        const _U=['KG','L','UN','Caja','Bote','Bolsa','g'];
+        listEl.innerHTML = (sup.products||[]).map(p=>{
+          const unitOpts=_U.map(u=>`<option${(p.unit||'KG')===u?' selected':''}>${u}</option>`).join('');
+          return `<div class="prod-row"><div class="prod-info" style="flex:1"><div class="prod-name-t">${p.name}</div><div style="display:flex;gap:5px;align-items:center;margin-top:5px;flex-wrap:wrap"><select style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" onchange="editProdUnit('${sid}','${p.id}',this.value)">${unitOpts}</select><input type="number" value="${parseFloat(p.price||0).toFixed(2)}" step="0.01" min="0" title="Precio €" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sid}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">€</span><input type="number" value="${p.pesoGr||''}" step="1" min="0" placeholder="gr" title="Peso en gramos" style="width:66px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdGr('${sid}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">gr</span></div></div><button class="btn btn-no btn-xs" style="align-self:center" onclick="delProd('${sid}','${p.id}')">✕</button></div>`;
+        }).join('');
+      }
+    } catch(e){ setStatus('❌ Error al leer el Excel: '+e.message,'#dc2626'); console.error(e); }
+    return;
+  }
+
+  // ── PDF ──────────────────────────────────────────────────────
+  if(nameLow.endsWith('.pdf')){
+    if(!cfg.geminiKey){ setStatus('❌ Para leer PDFs necesitas configurar la API key de Gemini en ⚙️ Config (es gratuita).','#dc2626'); return; }
+    setStatus('🤖 Analizando PDF con Gemini IA...');
+    try{
+      const base64 = await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=e=>res(e.target.result.split(',')[1]); r.onerror=rej; r.readAsDataURL(file); });
+      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cfg.geminiKey}`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({contents:[{parts:[
+          {inline_data:{mime_type:'application/pdf', data:base64}},
+          {text:`Eres un asistente que extrae tarifas de proveedores. Extrae TODOS los productos con código (si existe), nombre, unidad de venta y precio unitario. Responde ÚNICAMENTE con un JSON array sin texto adicional:\n[{"code":"12345","name":"Aceite Oliva 5L","unit":"Caja","price":18.50}]\nUnidades posibles: KG, L, UN, Caja, Bote, Bolsa, g. Si no hay código usa "". Solo el JSON array.`}
+        ]}]})
+      });
+      const data = await resp.json();
+      if(data.error){ setStatus('❌ Error Gemini: '+data.error.message,'#dc2626'); return; }
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+      const match = text.match(/\[[\s\S]*\]/);
+      if(!match){ setStatus('⚠️ Gemini no encontró productos. Prueba con un Excel o un PDF más claro.','#d97706'); return; }
+      const parsed = JSON.parse(match[0]);
+      if(!parsed.length){ setStatus('⚠️ No se encontraron productos en el PDF.','#d97706'); return; }
+      const sup = suppliers[sid]; if(!sup.products) sup.products=[];
+      let added=0, updated=0;
+      parsed.forEach(p=>{
+        const name=String(p.name||'').trim(); if(!name) return;
+        const code=String(p.code||'').trim();
+        const unit=String(p.unit||'UN').trim();
+        const price=parseFloat(p.price)||0;
+        const id=code?'imp_'+code:'imp_'+uid();
+        const idx=code?sup.products.findIndex(x=>x.code===code||x.id==='imp_'+code):-1;
+        if(idx>=0){ sup.products[idx]={...sup.products[idx],name,unit,price,...(code?{code}:{})}; updated++; }
+        else { sup.products.push({id,name,unit,price,...(code?{code}:{})}); added++; }
+      });
+      saveSups();
+      setStatus(`✅ PDF procesado: <strong>${added} nuevos</strong> + ${updated} actualizados (${added+updated} total)`, '#16a34a');
+      toast(`✅ ${added+updated} productos importados en ${sup.name}`, '#16a34a', 4000);
+    } catch(e){ setStatus('❌ Error al procesar el PDF: '+e.message,'#dc2626'); console.error(e); }
+    return;
+  }
+
+  setStatus('❌ Formato no soportado. Usa .xlsx, .csv o .pdf','#dc2626');
+}
 function toggleSupVisibility(sid,uid,visible){
   if(!suppliers[sid])return;
   if(!suppliers[sid].disabledFor)suppliers[sid].disabledFor=[];
@@ -2783,16 +2915,19 @@ function vSettings(){
           <li>En ntfy, suscríbete al canal que pongas aquí abajo</li>
           <li>¡Listo! Cuando un local envíe un pedido, te llega al móvil aunque la app esté cerrada</li>
         </ol>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #bfdbfe;color:#1e40af">
+          ⚡ <strong>El canal se comparte automáticamente</strong> con todos los locales vía Firebase — solo necesitas configurarlo aquí una vez.
+        </div>
       </div>
       <label>Canal ntfy (elige uno único, sin espacios)</label>
       <div style="display:flex;gap:8px;align-items:center">
         <input type="text" value="${cfg.ntfyTopic||''}" placeholder="ej: ocarro-pedidos-2024" style="flex:1" onchange="cfg.ntfyTopic=this.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');saveCfg();this.value=cfg.ntfyTopic"/>
         <button class="btn btn-ghost btn-sm" onclick="testNtfy()">📲 Probar</button>
       </div>
-      <div style="font-size:12px;color:var(--mut);margin-top:5px">
+      <div style="font-size:12px;margin-top:5px;${cfg.ntfyTopic?'color:#16a34a':'color:#dc2626;font-weight:600'}">
         ${cfg.ntfyTopic
-          ? `✅ Activo — suscríbete en ntfy al canal <strong>${cfg.ntfyTopic}</strong>`
-          : '⚪ Sin configurar — pon un nombre de canal para activar las notificaciones push'}
+          ? `✅ Canal activo: <strong>${cfg.ntfyTopic}</strong> — sincronizado con todos los dispositivos`
+          : '⚠️ Sin canal configurado — las notificaciones NO llegarán hasta que pongas un canal aquí'}
       </div>
       <div style="margin-top:12px;border-top:1px solid var(--brd);padding-top:12px">
         <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
