@@ -735,7 +735,11 @@ function initFirebaseListeners(){
   // Recetas — real-time sync
   fbDb.ref('recetas').on('value', snap => {
     _recAllData = snap.val() || {};
-    if(S.view==='admin' && S.adminTab==='recetas') renderAdminContent();
+    if(S.view==='admin' && S.adminTab==='recetas'){
+      // No re-renderizar si el modal de receta está abierto (evita destruirlo mid-save)
+      const modalOpen=document.getElementById('rec-modal-ov')?.style.display==='flex';
+      if(!modalOpen) renderAdminContent();
+    }
   });
 
   // Auth users (registrations)
@@ -1040,6 +1044,8 @@ let S={
   invShowMov:false,
   invEditId:null,
   invForm:{name:'',unit:'',qty:'',minStock:'',category:'',price:''},
+  adminOrderPicker:false,
+  _escLocalExpanded:{},
 };
 let cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
 let chartInst=null;
@@ -1167,7 +1173,8 @@ function logout(){
   render();
 }
 function goOrder(){ S.view='order';S.cart={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
-function goAdmin(){ S.view='admin';S.session={isAdmin:true,name:cfg.adminName};localStorage.setItem('oc_admin_session','1');showHdr(true);render(); }
+function goAdmin(){ S.view='admin';S.session={isAdmin:true,name:cfg.adminName};S.adminOrderPicker=false;localStorage.setItem('oc_admin_session','1');showHdr(true);render(); }
+function goOrderAsAdmin(rest){ S.session={isAdmin:true,name:cfg.adminName,restaurant:rest,isAdminOrder:true,needsApproval:false};S.adminOrderPicker=false;S.cart={};S.cartUnits={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
 function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];showHdr(false);render(); }
 function setTab(t){ S.adminTab=t;render();if(t==='spending')setTimeout(renderChart,50);if(t==='monthly')setTimeout(renderMonthlyChart,50); }
 function setTabSb(t){ S.adminTab=t;S.sidebarOpen=false;render();if(t==='spending')setTimeout(renderChart,50);if(t==='monthly')setTimeout(renderMonthlyChart,50); }
@@ -1323,6 +1330,10 @@ function vOrder(){
   if(!myRests.includes(S.session.restaurant)) S.session.restaurant=myRests[0];
   const myPending=orders.filter(o=>o.restaurant===S.session.restaurant&&o.status==='pending').length;
   const histBadge=myPending?` <span style="background:var(--acc);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px">${myPending}</span>`:'';
+  const adminBanner=S.session.isAdminOrder?`<div style="background:#fef3c7;border:1.5px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <span style="font-weight:600;color:#92400e">⚙️ Admin — pedido para <strong>${S.session.restaurant}</strong></span>
+    <button class="btn btn-ghost btn-sm" onclick="goAdmin()">← Volver al panel</button>
+  </div>`:'';
   const tabsHtml=`<div class="tabs" style="margin-bottom:16px">
     <button class="tab ${S.orderTab==='new'?'act':''}" onclick="S.orderTab='new';render()">🛒 Hacer pedido</button>
     <button class="tab ${S.orderTab==='history'?'act':''}" onclick="S.orderTab='history';render()">📋 Mis pedidos${histBadge}</button>
@@ -1336,21 +1347,21 @@ function vOrder(){
   </div>`:'';
 
   if(S.orderTab==='history'){
-    return `<div class="main">${tabsHtml}${myRests.length>1?restPickerHtml:''}${vMyOrders()}</div>`;
+    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vMyOrders()}</div>`;
   }
   if(S.orderTab==='gastos'){
-    return `<div class="main">${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalGastos()}</div>`;
+    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalGastos()}</div>`;
   }
   if(S.orderTab==='escandallos'){
     if(!_escInit&&fbDb) initEscandallos();
-    return `<div class="main">${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalEscandallos()}</div>`;
+    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalEscandallos()}</div>`;
   }
   if(S.orderTab==='inventario'){
-    return `<div class="main">${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalInventario(S.session.restaurant)}</div>`;
+    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalInventario(S.session.restaurant)}</div>`;
   }
 
   const sups=visibleSups();
-  if(!sups.length) return `<div class="main">${tabsHtml}<div class="empty"><div class="ei">🏭</div><div class="et">No hay proveedores activos para este local.</div></div></div>`;
+  if(!sups.length) return `<div class="main">${adminBanner}${tabsHtml}<div class="empty"><div class="ei">🏭</div><div class="et">No hay proveedores activos para este local.</div></div></div>`;
   if(!suppliers[S.supId]||!(sups.find(s=>s.id===S.supId))) S.supId=sups[0].id;
   const sup=suppliers[S.supId];
   const cnt=Object.values(S.cart).reduce((s,sc2)=>s+Object.values(sc2).reduce((a,v)=>a+v,0),0);
@@ -1432,7 +1443,7 @@ function vOrder(){
       </div>
     </div>`:''}`;
   return `<div class="main">
-    ${tabsHtml}${restPickerHtml}${note}
+    ${adminBanner}${tabsHtml}${restPickerHtml}${note}
     ${vacBanner}
     ${recurringBanner}
     ${tplSection}
@@ -1694,6 +1705,9 @@ function vAdmin(){
       ${sbItem('escandallos','🧮 Escandallos')}
       ${sbItem('recetas','📋 Recetas')}
     `:''}
+    <div style="border-top:1px solid rgba(255,255,255,.1);margin:8px 0;padding-top:8px">
+      <div class="sg-direct" onclick="S.adminOrderPicker=true;S.sidebarOpen=false;render()" style="color:#fbbf24;font-weight:700">🛒 Hacer pedido</div>
+    </div>
   </div>`;
 
   let content='';
@@ -1719,6 +1733,18 @@ function vAdmin(){
 
   const liveTag=fbConnected?`<span class="live-badge"><span class="pulse"></span>EN VIVO</span>`:'';
 
+  const adminOrderModal=S.adminOrderPicker?`
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:flex;align-items:center;justify-content:center;padding:24px" onclick="S.adminOrderPicker=false;render()">
+      <div style="background:var(--card);border-radius:16px;padding:24px;max-width:380px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.3);max-height:80vh;overflow-y:auto" onclick="event.stopPropagation()">
+        <div style="font-weight:700;font-size:17px;margin-bottom:4px">🛒 Hacer pedido</div>
+        <div style="font-size:13px;color:var(--mut);margin-bottom:16px">Selecciona el restaurante para el que haces el pedido</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          ${cfg.users.map(u=>`<button class="btn btn-ghost" style="text-align:left;padding:11px 14px;font-size:14px" onclick="goOrderAsAdmin('${u.restaurant.replace(/'/g,"\\'")}')">🏪 ${u.restaurant}</button>`).join('')}
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%" onclick="S.adminOrderPicker=false;render()">Cancelar</button>
+      </div>
+    </div>`:'';
+
   return `<div class="adm-layout">
     ${sidebar}
     <div class="sb-overlay${S.sidebarOpen?' sb-open':''}" onclick="S.sidebarOpen=false;render()"></div>
@@ -1728,7 +1754,7 @@ function vAdmin(){
       </div>
       <div id="tc">${content}</div>
     </div>
-  </div>`;
+  </div>${adminOrderModal}`;
 }
 
 function orderCard(o,showActions){
@@ -4466,12 +4492,44 @@ function vLocalEscandallos(){
   if(!visible.length){
     html+='<div style="color:var(--mut);font-size:13px;text-align:center;padding:16px">Aún no tienes escandallos asignados</div>';
   } else {
-    html+=visible.map(([,e])=>{
+    html+=visible.map(([id,e])=>{
       const coste=escCosteTotal(e);
       const pvp=parseFloat(e.precioVenta)||0;
       const fcReal=pvp>0?(coste/pvp*100):null;
       const margen=pvp>0?(pvp-coste):null;
       const fcCls=fcReal===null?'':fcReal>35?'color:#dc2626':fcReal>30?'color:#d97706':'color:#16a34a';
+      const expanded=S._escLocalExpanded[id]||false;
+      const ings=e.ingredientes||[];
+      const ingRows=ings.map(ing=>{
+        const liveP=escLivePrice(ing);
+        const merma=parseFloat(ing.merma)||0;
+        const factor=1+(merma/100);
+        const costeIng=liveP*(parseFloat(ing.cantidad)||0)*factor;
+        return `<tr>
+          <td style="padding:4px 6px;font-size:12px">${ing.nombre||'—'}</td>
+          <td style="padding:4px 6px;font-size:12px;text-align:right">${ing.cantidad} ${ing.unidad||'u.'}</td>
+          <td style="padding:4px 6px;font-size:12px;text-align:right">${merma>0?merma+'%':'—'}</td>
+          <td style="padding:4px 6px;font-size:12px;text-align:right;font-weight:600">${escFmt(costeIng)}</td>
+        </tr>`;
+      }).join('');
+      const detailHtml=expanded&&ings.length?`
+        <div style="margin-top:10px;border-top:1px solid var(--brd);padding-top:10px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="font-size:11px;color:var(--mut)">
+              <th style="padding:2px 6px;text-align:left;font-weight:600">Ingrediente</th>
+              <th style="padding:2px 6px;text-align:right;font-weight:600">Cantidad</th>
+              <th style="padding:2px 6px;text-align:right;font-weight:600">Merma</th>
+              <th style="padding:2px 6px;text-align:right;font-weight:600">Coste</th>
+            </tr></thead>
+            <tbody>${ingRows}</tbody>
+          </table>
+          ${e.elaboracion&&(e.elaboracion.texto||(e.elaboracion.pasos||[]).filter(p=>p).length)?`
+            <div style="margin-top:8px;padding:8px;background:var(--srf);border-radius:6px;font-size:12px;color:var(--mut)">
+              <strong style="color:var(--txt)">📋 Elaboración</strong><br>
+              ${e.elaboracion.texto||''}
+              ${(e.elaboracion.pasos||[]).filter(p=>p).map((p,i)=>`<div style="margin-top:4px">${i+1}. ${p}</div>`).join('')}
+            </div>`:''}
+        </div>`:'';
       return `<div style="border:1.5px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <div style="font-weight:700">${e.nombre||'Sin nombre'}</div>
@@ -4484,6 +4542,12 @@ function vLocalEscandallos(){
         </div>
         ${margen!==null?`<div style="text-align:right;font-size:12px;margin-top:6px;color:var(--mut)">Margen: <strong style="color:var(--txt)">${escFmt(margen)}</strong></div>`:''}
         ${e.notas?`<div style="margin-top:6px;font-size:12px;color:var(--mut)">📝 ${e.notas}</div>`:''}
+        ${ings.length?`<div style="margin-top:8px;text-align:center">
+          <button class="btn btn-ghost btn-sm" style="font-size:11px;width:100%" onclick="S._escLocalExpanded['${id}']=!S._escLocalExpanded['${id}'];render()">
+            ${expanded?'▲ Ocultar ingredientes':'▼ Ver ingredientes ('+ings.length+')'}
+          </button>
+        </div>`:''}
+        ${detailHtml}
       </div>`;
     }).join('');
   }
@@ -4522,7 +4586,7 @@ const REC_PARTIDAS=['Calientes','Fríos','Postres','Bebidas','Aperitivos','Fondo
 const REC_TIPOS=['Principal','Entrante','Guarnición','Postre','Bebida','Otro'];
 
 function vRecetas(){
-  const recs=Object.values(_recAllData).sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'','es'));
+  const recs=Object.entries(_recAllData).map(([id,r])=>({...r,id})).sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'','es'));
   const cards=recs.length?recs.map(r=>{
     const meses=(r.temporada||[]).map(m=>`<span class="rec-mes on">${m}</span>`).join('');
     const secCount=(r.secciones||[]).length;
