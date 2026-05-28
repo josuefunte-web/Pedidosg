@@ -1046,6 +1046,7 @@ let S={
   invForm:{name:'',unit:'',qty:'',minStock:'',category:'',price:''},
   adminOrderPicker:false,
   _escLocalExpanded:{},
+  _cartProds:{},
 };
 let cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
 let chartInst=null;
@@ -1172,10 +1173,10 @@ function logout(){
   if(fbAuth) fbAuth.signOut().catch(()=>{});
   render();
 }
-function goOrder(){ S.view='order';S.cart={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
+function goOrder(){ S.view='order';S.cart={};S.cartUnits={};S._cartProds={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
 function goAdmin(){ S.view='admin';S.session={isAdmin:true,name:cfg.adminName};S.adminOrderPicker=false;localStorage.setItem('oc_admin_session','1');showHdr(true);render(); }
-function goOrderAsAdmin(rest){ S.session={isAdmin:true,name:cfg.adminName,restaurant:rest,isAdminOrder:true,needsApproval:false};S.adminOrderPicker=false;S.cart={};S.cartUnits={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
-function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];showHdr(false);render(); }
+function goOrderAsAdmin(rest){ S.session={isAdmin:true,name:cfg.adminName,restaurant:rest,isAdminOrder:true,needsApproval:false};S.adminOrderPicker=false;S.cart={};S.cartUnits={};S._cartProds={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
+function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];S.albTotalManual=null;showHdr(false);render(); }
 function setTab(t){ S.adminTab=t;render();if(t==='spending')setTimeout(renderChart,50);if(t==='monthly')setTimeout(renderMonthlyChart,50); }
 function setTabSb(t){ S.adminTab=t;S.sidebarOpen=false;render();if(t==='spending')setTimeout(renderChart,50);if(t==='monthly')setTimeout(renderMonthlyChart,50); }
 function toggleSbGroup(g){ S.sbGroups[g]=!S.sbGroups[g];render(); }
@@ -1972,7 +1973,7 @@ function vAlbaranes(){
   const btn=`<button class="btn btn-pri btn-sm" onclick="goAlbaranAdmin()" style="margin-bottom:14px">+ Nuevo albarán</button>`;
   const byRest={};
   orders.filter(o=>o.status==='approved'||o.status==='received').forEach(o=>{ if(!byRest[o.restaurant])byRest[o.restaurant]={ordered:0,received:0}; byRest[o.restaurant].ordered+=total(o); });
-  albNotes.forEach(a=>{ if(!byRest[a.restaurant])byRest[a.restaurant]={ordered:0,received:0}; byRest[a.restaurant].received+=(a.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0); });
+  albNotes.forEach(a=>{ if(!byRest[a.restaurant])byRest[a.restaurant]={ordered:0,received:0}; const calcT=(a.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0); byRest[a.restaurant].received+=(a.totalManual!=null?a.totalManual:calcT); });
   const tableRows=Object.entries(byRest).map(([rest,d])=>{
     const diff=d.received-d.ordered;
     const pct=d.ordered>0?((diff/d.ordered)*100).toFixed(1):'-';
@@ -1984,11 +1985,12 @@ function vAlbaranes(){
   return btn+table+`<div class="sh">Albaranes</div>`+notes;
 }
 
-function goAlbaranAdmin(){ S.view='albaran-new';S.albItems=[];S.albRestaurant='';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];render(); }
+function goAlbaranAdmin(){ S.view='albaran-new';S.albItems=[];S.albRestaurant='';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];S.albTotalManual=null;render(); }
 
 function albCard(a){
   const sup=suppliers[a.supId]||{name:'?',emoji:'?'};
-  const tot=(a.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
+  const totCalc=(a.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
+  const tot=a.totalManual!=null?a.totalManual:totCalc;
   const matchOrder=orders.find(o=>o.restaurant===a.restaurant&&o.supId===a.supId&&o.status==='approved');
   const matchingOrders=orders.filter(o=>(o.status==='approved'||o.status==='received')&&o.restaurant===a.restaurant&&o.supId===a.supId);
   const linkedOrder=a.orderId?orders.find(o=>o.id===a.orderId):null;
@@ -2016,7 +2018,7 @@ function albCard(a){
       <div style="display:flex;gap:6px">${hasIncidents?`<span class="badge" style="background:#dc2626;color:#fff">⚠️ Incid.</span>`:''}<button class="btn btn-no btn-xs" onclick="delAlbF('${a.id}')">🗑️</button></div>
     </div>
     ${a.photo?`<img src="${a.photo}" class="alb-photo"/>`:''}
-    <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div>
+    <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}${a.totalManual!=null?` <span style="font-size:11px;color:var(--mut);font-weight:400">(manual)</span>`:''}</div></div>
     ${cmp}
     ${linkSection}
   </div>`;
@@ -2035,6 +2037,7 @@ function linkAlbToOrder(albId,orderId){
 function vAlbaranNew(){
   const isAdmin=S.session&&S.session.isAdmin;
   const sups=supList();
+  const autoTotal=S.albItems.reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
   const restSel=isAdmin?`<div class="fg"><label>Restaurante</label><select id="alb-rest" onchange="S.albRestaurant=this.value"><option value="">— Selecciona —</option>${cfg.users.map(u=>`<option value="${u.restaurant}" ${S.albRestaurant===u.restaurant?'selected':''}>${u.restaurant}</option>`).join('')}</select></div>`:'';
   const supSel=`<div class="fg"><label>Proveedor</label><select id="alb-sup" onchange="S.albSupId=this.value">${sups.map(s=>`<option value="${s.id}" ${S.albSupId===s.id?'selected':''}>${s.emoji} ${s.name}</option>`).join('')}</select></div>`;
   const itemsHtml=S.albItems.map((it,i)=>`
@@ -2047,7 +2050,7 @@ function vAlbaranNew(){
         <div class="fg" style="margin-bottom:0"><label>Cantidad</label><input type="number" value="${it.qty}" step="0.1" min="0" onchange="S.albItems[${i}].qty=parseFloat(this.value)||0"/></div>
         <div class="fg" style="margin-bottom:0"><label>Precio €</label><input type="number" value="${it.price}" step="0.01" min="0" onchange="S.albItems[${i}].price=parseFloat(this.value)||0"/></div>
         <div class="fg" style="margin-bottom:0;grid-column:1/-1"><label style="color:${it.incident?'#dc2626':'var(--mut)'}">⚠️ Incidencia (opcional)</label><input type="text" value="${it.incident||''}" placeholder="Ej: Faltaban 2kg, producto en mal estado..." onchange="S.albItems[${i}].incident=this.value" style="${it.incident?'border-color:#dc2626;background:#fff5f5':''}"/></div>
-        <div class="fg" style="margin-bottom:0"><label>Total</label><input type="text" readonly value="${fmt(it.qty*it.price)}" style="background:var(--bg)"/></div>
+        <div class="fg" style="margin-bottom:0"><label>Total €</label><input type="number" step="0.01" min="0" value="${((parseFloat(it.qty)||0)*(parseFloat(it.price)||0)).toFixed(2)}" onchange="const t=parseFloat(this.value)||0;S.albItems[${i}].price=S.albItems[${i}].qty?(t/S.albItems[${i}].qty):0;render()" style="font-weight:600"/></div>
       </div>
     </div>`).join('');
   return `<div class="main">
@@ -2079,6 +2082,19 @@ function vAlbaranNew(){
     <div class="sh">Productos del albarán</div>
     <div id="alb-items-list">${itemsHtml||`<div style="color:var(--mut);font-size:13px;text-align:center;padding:20px">Añade productos manualmente o usa OCR</div>`}</div>
     <button class="btn btn-ghost" style="width:100%;margin-top:8px;justify-content:center" onclick="albAddItem()">+ Añadir línea</button>
+    <div class="card" style="margin-top:14px;padding:14px 16px">
+      <div style="display:flex;align-items:flex-end;gap:10px">
+        <div class="fg" style="flex:1;margin-bottom:0">
+          <label style="font-weight:600;font-size:13px">💶 Total albarán (€)</label>
+          <input type="number" step="0.01" min="0" id="alb-total-input"
+            value="${S.albTotalManual!==null?S.albTotalManual.toFixed(2):autoTotal.toFixed(2)}"
+            oninput="S.albTotalManual=parseFloat(this.value)||0"
+            style="font-size:18px;font-weight:700;${S.albTotalManual!==null?'border-color:var(--pri);':''}"/>
+        </div>
+        ${S.albTotalManual!==null?`<button class="btn btn-ghost btn-sm" style="margin-bottom:2px;white-space:nowrap" onclick="S.albTotalManual=null;render()">↺ Recalcular</button>`:''}
+      </div>
+      ${S.albTotalManual!==null?`<div style="font-size:12px;color:var(--mut);margin-top:6px">Total calculado por líneas: ${fmt(autoTotal)} · Total introducido manualmente: ${fmt(S.albTotalManual)}</div>`:`<div style="font-size:12px;color:var(--mut);margin-top:4px">Calculado de las líneas — puedes editarlo si el albarán del proveedor es diferente</div>`}
+    </div>
     <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
       <button class="btn btn-pri" onclick="saveAlbaran()">💾 Guardar albarán</button>
       <button class="btn btn-ghost" onclick="${S.session&&S.session.isAdmin?'goAdmin()':'goOrder()'}">Cancelar</button>
@@ -2347,7 +2363,7 @@ function saveAlbaran(){
   if(!rest){toast('Selecciona el restaurante','#dc2626');return;}
   const valid=S.albItems.filter(it=>it.name&&it.qty>0);
   if(!valid.length){toast('Añade al menos un producto con nombre y cantidad','#dc2626');return;}
-  const a={id:uid(),restaurant:rest,supId,date,photo:S.albPhoto,items:valid,createdAt:new Date().toISOString()};
+  const a={id:uid(),restaurant:rest,supId,date,photo:S.albPhoto,items:valid,createdAt:new Date().toISOString(),...(S.albTotalManual!==null?{totalManual:S.albTotalManual}:{})};
   saveAlb(a);
   toast('✅ Albarán guardado','#16a34a');
   if(S.session&&S.session.isAdmin){ S.adminTab='albaranes';goAdmin(); } else goOrder();
@@ -2711,6 +2727,9 @@ function localAddProd(sid){
   // Auto-añadir al carrito con cantidad 1
   if(!S.cart[sid]) S.cart[sid]={};
   S.cart[sid][pid]=1;
+  // Guardar detalles del producto en _cartProds por si el listener de Firebase lo pisa antes de enviar el pedido
+  if(!S._cartProds[sid]) S._cartProds[sid]={};
+  S._cartProds[sid][pid]=newProd;
   render();
   toast(`✅ "${name}" guardado en el proveedor y añadido al pedido`,'#16a34a');
 }
@@ -3244,7 +3263,13 @@ function submitOrder(){
   activeSups.forEach(sid=>{
     const sup=suppliers[sid];if(!sup)return;
     const sc=S.cart[sid]||{};
-    const items=sup.products.filter(p=>sc[p.id]).map(p=>({...p,qty:sc[p.id],unit:(S.cartUnits[sid]&&S.cartUnits[sid][p.id])||p.unit}));
+    // Build product lookup: localStorage + _cartProds (recién añadidos) + Firebase (toma precedencia para los existentes)
+    const _lsProds=(()=>{try{return(JSON.parse(localStorage.getItem('oc_suppliers')||'{}')[sid]?.products)||[];}catch(e){return[];}})();
+    const _prodMap={};
+    _lsProds.forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
+    Object.values(S._cartProds[sid]||{}).forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
+    (sup.products||[]).forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
+    const items=Object.keys(sc).filter(pid=>sc[pid]>0).map(pid=>{const p=_prodMap[pid];if(!p)return null;return{...p,qty:sc[pid],unit:(S.cartUnits[sid]&&S.cartUnits[sid][pid])||p.unit};}).filter(Boolean);
     if(!items.length)return;
     const orderTotal=items.reduce((s,p)=>s+p.qty*p.price,0);
     const needApproval=S.session.needsApproval&&(approvalMinAmount<=0||orderTotal>=approvalMinAmount);
@@ -3253,7 +3278,7 @@ function submitOrder(){
     orders2send.push(o);
   });
   if(!orders2send.length){toast('Añade productos al pedido','#dc2626');return;}
-  S.cart={};S.cartUnits={};S.orderUrgent=false;S.orderDeliveryDate='';S.prodSearch='';S.orderNotes='';
+  S.cart={};S.cartUnits={};S._cartProds={};S.orderUrgent=false;S.orderDeliveryDate='';S.prodSearch='';S.orderNotes='';
   const pendingOrders=orders2send.filter(o=>o.status==='pending');
   const autoOrders=orders2send.filter(o=>o.status==='approved');
   if(pendingOrders.length){
@@ -3485,6 +3510,8 @@ function vEscandallos(){
     <div style="font-size:18px;font-weight:800;color:var(--pri)">${escTab==='menus'?'🍽 Menús':'🧮 Escandallos'}</div>
     <div style="display:flex;gap:8px">
       ${escTab==='escandallos'?`<button class="btn btn-ghost btn-sm" onclick="escExportTodos()">📥 Exportar</button>
+      <button class="btn btn-ghost btn-sm" onclick="escImportarJSON()" title="Importar escandallos desde archivo JSON">⬆️ Importar</button>
+      <input type="file" id="esc-import-input" accept=".json" style="display:none" onchange="escProcesarImport(this)">
       <button class="btn btn-pri btn-sm" onclick="escOpenModal()">+ Nuevo</button>`
       :`<button class="btn btn-pri btn-sm" onclick="menOpenModal()">+ Nuevo menú</button>`}
     </div>
@@ -4257,6 +4284,52 @@ function escExportExcel(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'Escandallo');
   XLSX.writeFile(wb,(nombre.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g,'_'))+'.xlsx');
+}
+
+function escImportarJSON(){
+  document.getElementById('esc-import-input')?.click();
+}
+
+function escProcesarImport(input){
+  const file=input.files[0];
+  if(!file){return;}
+  if(!fbDb){toast('Sin conexión Firebase','#dc2626');return;}
+  const reader=new FileReader();
+  reader.onload=async function(e){
+    let datos;
+    try{ datos=JSON.parse(e.target.result); }
+    catch(err){ toast('El archivo no es un JSON válido','#dc2626'); return; }
+    if(!Array.isArray(datos)||!datos.length){ toast('El archivo no contiene escandallos','#dc2626'); return; }
+
+    const existentes=new Set(Object.values(_escAllData||{}).map(x=>(x.nombre||'').toLowerCase().trim()));
+    const nuevos=datos.filter(d=>!existentes.has((d.nombre||'').toLowerCase().trim()));
+    const duplicados=datos.length-nuevos.length;
+
+    if(!nuevos.length){
+      toast(`Todos los escandallos ya existen (${duplicados} duplicados omitidos)`,'#d97706');
+      input.value=''; return;
+    }
+
+    const msg=duplicados>0
+      ?`Se van a importar ${nuevos.length} escandallos (${duplicados} ya existían y se omiten). ¿Continuar?`
+      :`Se van a importar ${nuevos.length} escandallos. ¿Continuar?`;
+    if(!confirm(msg)){input.value='';return;}
+
+    let ok=0,errors=0;
+    toast(`Importando ${nuevos.length} escandallos...`,'#2563eb');
+    for(const esc of nuevos){
+      try{
+        esc.updatedAt=Date.now();
+        if(!esc.createdAt) esc.createdAt=Date.now();
+        await fbDb.ref('escandallos').push().set(esc);
+        ok++;
+      }catch(err){ errors++; console.error('Error importando',esc.nombre,err); }
+    }
+    input.value='';
+    if(errors) toast(`Importados ${ok} escandallos (${errors} errores)`,'#d97706');
+    else toast(`✅ ${ok} escandallos importados correctamente`,'#16a34a');
+  };
+  reader.readAsText(file);
 }
 
 function escExportTodos(){
