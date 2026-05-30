@@ -1366,7 +1366,7 @@ function vOrder(){
   if(!suppliers[S.supId]||!(sups.find(s=>s.id===S.supId))) S.supId=sups[0].id;
   const sup=suppliers[S.supId];
   const cnt=Object.values(S.cart).reduce((s,sc2)=>s+Object.values(sc2).reduce((a,v)=>a+v,0),0);
-  const tot=Object.entries(S.cart).reduce((s,[sid,sc2])=>{const sp=suppliers[sid];if(!sp)return s;return s+sp.products.reduce((a,p)=>a+(sc2[p.id]||0)*p.price,0);},0);
+  const tot=Object.entries(S.cart).reduce((s,[sid,sc2])=>{const sp=suppliers[sid];if(!sp)return s;return s+(sp.products||[]).reduce((a,p)=>a+(sc2[p.id]||0)*p.price,0);},0);
   const supCnt=Object.keys(S.cart).length;
   const _approvalMin=cfg.approvalMinAmount||0;
   const note=S.session.needsApproval
@@ -3257,7 +3257,7 @@ function chgQ(id,d){
   }
   // Grand total across all suppliers
   const cnt=Object.values(S.cart).reduce((s,sc2)=>s+Object.values(sc2).reduce((a,v)=>a+v,0),0);
-  const tot=Object.entries(S.cart).reduce((s,[sid,sc2])=>{const sp=suppliers[sid];if(!sp)return s;return s+sp.products.reduce((a,p)=>a+(sc2[p.id]||0)*p.price,0);},0);
+  const tot=Object.entries(S.cart).reduce((s,[sid,sc2])=>{const sp=suppliers[sid];if(!sp)return s;return s+(sp.products||[]).reduce((a,p)=>a+(sc2[p.id]||0)*p.price,0);},0);
   const bar=document.getElementById('cbar');if(bar)bar.className='cbar'+(cnt>0?' up':'');
   const cv=document.getElementById('cb-v');if(cv)cv.textContent=`${cnt} art. · ${Object.keys(S.cart).length} prov.`;
   const cs=document.getElementById('cb-s');if(cs)cs.textContent=fmt(tot);
