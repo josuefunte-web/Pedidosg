@@ -3156,16 +3156,10 @@ function pushNotify(title,body,icon='🛒'){
 function sendNtfy(title, body, {priority='default', tags='bell', urgent=false}={}){
   const topic=(cfg.ntfyTopic||'').trim();
   if(!topic) return Promise.resolve();
-  return fetch(`https://ntfy.sh/${topic}`,{
-    method:'POST',
-    headers:{
-      'Title': title,
-      'Priority': urgent?'urgent':priority,
-      'Tags': urgent?'rotating_light,'+tags:tags,
-      'Content-Type':'text/plain'
-    },
-    body
-  });
+  const p=urgent?'urgent':priority;
+  const t=urgent?'rotating_light,'+tags:tags;
+  const url=`https://ntfy.sh/${encodeURIComponent(topic)}?title=${encodeURIComponent(title)}&priority=${encodeURIComponent(p)}&tags=${encodeURIComponent(t)}`;
+  return fetch(url,{method:'POST',body});
 }
 
 function testNtfy(){
