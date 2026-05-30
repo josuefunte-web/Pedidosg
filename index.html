@@ -3084,6 +3084,12 @@ function vSettings(){
           <input type="checkbox" ${cfg.notifSound!==false?'checked':''} onchange="cfg.notifSound=this.checked;saveCfg()" style="width:15px;height:15px;accent-color:var(--pri)"> Sonido de alerta en el ordenador (cuando la pestaña está abierta)
         </label>
         <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="testNotifSound()">🔊 Probar sonido</button>
+        <div style="margin-top:12px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px">🔔 Notificaciones emergentes del navegador</div>
+          <div id="push-status" style="font-size:12px;margin-bottom:8px;color:${typeof Notification!=='undefined'&&Notification.permission==='granted'?'#16a34a':typeof Notification!=='undefined'&&Notification.permission==='denied'?'#dc2626':'#6b7280'}">${typeof Notification==='undefined'?'⚪ No soportadas en este navegador':Notification.permission==='granted'?'✅ Activas — recibirás notificaciones cuando lleguen pedidos':Notification.permission==='denied'?'❌ Bloqueadas — actívalas en los ajustes del navegador':'⚪ Sin activar — pulsa el botón para activarlas'}</div>
+          <button class="btn btn-ghost btn-sm" onclick="requestPushPermission()">🔔 Activar notificaciones del navegador</button>
+          <button class="btn btn-ghost btn-sm" style="margin-left:6px" onclick="pushNotify('🧪 Prueba','Si ves esto, las notificaciones del navegador funcionan ✅','🔔')">Probar</button>
+        </div>
       </div>
     </div>
     <div class="card-t" style="margin-top:20px">🤖 IA para albaranes — Google Gemini</div>
@@ -3107,9 +3113,18 @@ function vSettings(){
 }
 
 /* ═══════════════ PUSH NOTIFICATIONS ═══════════════ */
+let _audioCtx=null;
+function _getAudioCtx(){
+  if(!_audioCtx) _audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  if(_audioCtx.state==='suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+// Desbloquear AudioContext en el primer clic del usuario
+document.addEventListener('click',()=>{ try{_getAudioCtx();}catch(e){} },{once:true});
+
 function playNotifSound(urgent=false){
   try{
-    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const ctx=_getAudioCtx();
     const beep=(freq,start,dur)=>{
       const o=ctx.createOscillator(),g=ctx.createGain();
       o.connect(g);g.connect(ctx.destination);
