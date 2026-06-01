@@ -253,6 +253,43 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
 .esc-ok{border-color:#22c55e;color:#22c55e;background:rgba(34,197,94,.08)}
 .esc-warn{border-color:#f59e0b;color:#f59e0b;background:rgba(245,158,11,.08)}
 .esc-bad{border-color:#ef4444;color:#ef4444;background:rgba(239,68,68,.08)}
+/* ── Menús: tarjetas con cursos ── */
+.men-grid{display:flex;flex-direction:column;gap:14px}
+.men-card{background:var(--card);border:1px solid var(--brd);border-radius:var(--r);padding:16px 18px;cursor:pointer;transition:box-shadow .2s;position:relative;box-shadow:var(--sh)}
+.men-card:hover{box-shadow:0 8px 28px rgba(15,23,42,.13)}
+.men-card-hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.men-card-name{font-size:16px;font-weight:700;color:var(--pri);margin-bottom:4px}
+.men-courses{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+@media(max-width:680px){.men-courses{grid-template-columns:1fr}}
+.men-course{background:var(--srf);border-radius:9px;padding:9px 11px;border-top:3px solid transparent}
+.men-course.c-pri{border-top-color:#3b82f6}
+.men-course.c-seg{border-top-color:#f59e0b}
+.men-course.c-pos{border-top-color:#a855f7}
+.men-course.c-otr{border-top-color:#94a3b8}
+.men-course-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid var(--brd)}
+.men-course.c-pri .men-course-title{color:#3b82f6}
+.men-course.c-seg .men-course-title{color:#d97706}
+.men-course.c-pos .men-course-title{color:#a855f7}
+.men-course.c-otr .men-course-title{color:var(--mut)}
+.men-dish{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid var(--brd);font-size:12px}
+.men-dish:last-child{border-bottom:none}
+.men-dish-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt)}
+.men-dish-cost{color:var(--mut);font-size:11px;white-space:nowrap;margin-left:6px}
+.men-empty-course{font-size:11px;color:var(--mut);font-style:italic}
+.men-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.men-stat{background:var(--srf);border-radius:8px;padding:7px 10px;text-align:center}
+.men-stat .k{font-size:10px;color:var(--mut)}
+.men-stat .v{font-size:13px;font-weight:700;color:var(--txt)}
+/* Selector modal por cursos */
+.men-sel-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;max-height:340px}
+@media(max-width:680px){.men-sel-cols{grid-template-columns:1fr;max-height:none}}
+.men-sel-col{overflow-y:auto;background:var(--srf);border-radius:9px;padding:8px}
+.men-sel-col-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:4px 6px 8px;border-bottom:1px solid var(--brd);margin-bottom:6px;position:sticky;top:0;background:var(--srf)}
+.men-sel-item{display:flex;align-items:flex-start;gap:7px;padding:7px 8px;border-radius:7px;cursor:pointer;border:1px solid transparent;transition:border-color .12s,background .12s;margin-bottom:4px}
+.men-sel-item.sel{border-color:var(--pri);background:rgba(225,29,72,.06)}
+.men-sel-item input[type=checkbox]{margin-top:2px;flex-shrink:0;accent-color:var(--pri)}
+.men-sel-item .isn{font-size:12px;font-weight:600;line-height:1.3;color:var(--txt)}
+.men-sel-item .isc{font-size:11px;color:var(--mut);margin-top:2px}
 /* Modal escandallos */
 .esc-modal-box{width:96vw;max-width:1140px;max-height:92vh;overflow-y:auto;border-radius:18px;background:#fff;box-shadow:0 24px 64px rgba(0,0,0,.3)}
 .esc-modal-body{display:grid;grid-template-columns:1fr 1.6fr}
@@ -3534,7 +3571,7 @@ function vEscandallos(){
     <input type="text" id="men-search" placeholder="Buscar menú..." oninput="menRender()" />
     <select id="men-local-filter" onchange="menRender()"><option value="">Todos los locales</option>${cfg.users.map(u=>`<option>${u.restaurant}</option>`).join('')}</select>
   </div>
-  <div id="men-grid" class="esc-grid"><p style="color:var(--mut)">Cargando...</p></div>
+  <div id="men-grid" class="men-grid"><p style="color:var(--mut)">Cargando...</p></div>
   `:
   `<div class="esc-filtros">
     <input type="text" id="esc-search" placeholder="Buscar plato..." oninput="escRender()" />
@@ -3566,8 +3603,8 @@ function vEscandallos(){
           <div class="fg"><label>PVP del menú €</label><input type="number" id="men-pvp" min="0" step="0.01" placeholder="0.00"/></div>
         </div>
         <div class="fg"><label>Notas</label><textarea id="men-notas" rows="2" placeholder="Descripción, alérgenos..."></textarea></div>
-        <div style="font-weight:700;font-size:13px;margin:14px 0 8px;color:var(--pri)">Escandallos incluidos</div>
-        <div id="men-esc-selector" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px;max-height:380px;overflow-y:auto;border:1px solid var(--brd);border-radius:10px;padding:10px;background:var(--srf)"></div>
+        <div style="font-weight:700;font-size:13px;margin:14px 0 8px;color:var(--pri)">Platos del menú</div>
+        <div id="men-esc-selector" class="men-sel-cols"></div>
         <div style="margin-top:14px;padding:12px 16px;background:var(--srf);border-radius:10px;border:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:13px;color:var(--mut)">Coste total</span>
           <strong id="men-coste-total" style="font-size:18px;color:var(--pri)">0,00 €</strong>
@@ -4471,28 +4508,50 @@ function menRender(){
     grid.innerHTML='<p style="color:var(--mut)">No hay menús. Crea el primero con "+ Nuevo menú".</p>';
     return;
   }
+  const CURSOS=[
+    {key:'pri',label:'Primeros',cats:['Primeros'],cls:'c-pri'},
+    {key:'seg',label:'Segundos',cats:['Segundos','Carnes','Pescados'],cls:'c-seg'},
+    {key:'pos',label:'Postres',cats:['Postres'],cls:'c-pos'},
+    {key:'otr',label:'Otros',cats:['Entrantes','Bebidas','Otros'],cls:'c-otr'},
+  ];
   grid.innerHTML=entries.map(([id,m])=>{
-    const escs=(m.escandallos||[]).map(eid=>_escAllData[eid]).filter(Boolean);
+    const escs=(m.escandallos||[]).map(eid=>({id:eid,...(_escAllData[eid]||{})})).filter(e=>e.nombre);
     const costeTotal=escs.reduce((s,e)=>s+escCosteTotal(e),0);
     const pvp=parseFloat(m.pvp)||0;
     const fcReal=pvp>0?(costeTotal/pvp*100):null;
     const margen=pvp>0?(pvp-costeTotal):null;
+    const margenPct=pvp>0&&margen!==null?(margen/pvp*100):null;
     const rest=m.restaurante||'global';
     const restBadge=rest==='global'
-      ?`<span style="font-size:10px;background:#dbeafe;color:#1d4ed8;border-radius:10px;padding:1px 7px;font-weight:700">🌐 Global</span>`
-      :`<span style="font-size:10px;background:#f3e8ff;color:#7c3aed;border-radius:10px;padding:1px 7px;font-weight:700">🏪 ${rest}</span>`;
+      ?`<span style="font-size:10px;background:#dbeafe;color:#1d4ed8;border-radius:10px;padding:1px 7px;font-weight:600">🌐 Global</span>`
+      :`<span style="font-size:10px;background:#f3e8ff;color:#7c3aed;border-radius:10px;padding:1px 7px;font-weight:600">🏪 ${rest}</span>`;
     const fcCls=fcReal===null?'esc-ok':fcReal>35?'esc-bad':fcReal>30?'esc-warn':'esc-ok';
-    return `<div class="esc-card" onclick="menOpenModal('${id}')">
-      <div class="esc-fc-ind ${fcCls}">${fcReal!==null?fcReal.toFixed(0)+'%':'—'}</div>
-      <div style="margin-bottom:4px">${restBadge}</div>
-      <h4>${m.nombre||'Sin nombre'}</h4>
-      <div class="esc-stats">
-        <div class="esc-stat"><span>Platos</span><strong>${escs.length}</strong></div>
-        <div class="esc-stat"><span>Coste</span><strong>${escFmt(costeTotal)}</strong></div>
-        <div class="esc-stat"><span>PVP</span><strong>${pvp>0?escFmt(pvp):'—'}</strong></div>
-        <div class="esc-stat"><span>Margen</span><strong>${margen!==null?escFmt(margen):'—'}</strong></div>
+    // Cursos con platos
+    const cursoCols=CURSOS.map(curso=>{
+      const platos=escs.filter(e=>{
+        const cat=e.categoria||'Otros';
+        return curso.cats.includes(cat);
+      });
+      const dishRows=platos.length
+        ?platos.map(e=>`<div class="men-dish"><span class="men-dish-name">${e.nombre}</span><span class="men-dish-cost">${escFmt(escCosteTotal(e))}</span></div>`).join('')
+        :`<div class="men-empty-course">—</div>`;
+      return `<div class="men-course ${curso.cls}"><div class="men-course-title">${curso.label}</div>${dishRows}</div>`;
+    }).join('');
+    return `<div class="men-card" onclick="menOpenModal('${id}')">
+      <div class="men-card-hd">
+        <div>
+          <div class="men-card-name">${m.nombre||'Sin nombre'}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${restBadge}${m.notas?`<span style="font-size:11px;color:var(--mut)">${m.notas}</span>`:''}</div>
+        </div>
+        <div class="esc-fc-ind ${fcCls}" style="position:relative;top:0;right:0;flex-shrink:0">${fcReal!==null?fcReal.toFixed(0)+'%':'—'}</div>
       </div>
-      ${m.notas?`<div style="margin-top:8px;font-size:12px;color:var(--mut)">${m.notas}</div>`:''}
+      <div class="men-courses">${cursoCols}</div>
+      <div class="men-stats">
+        <div class="men-stat"><div class="k">Coste</div><div class="v">${escFmt(costeTotal)}</div></div>
+        <div class="men-stat"><div class="k">PVP</div><div class="v">${pvp>0?escFmt(pvp):'—'}</div></div>
+        <div class="men-stat"><div class="k">Margen</div><div class="v">${margen!==null?escFmt(margen):'—'}</div></div>
+        <div class="men-stat"><div class="k">% Margen</div><div class="v">${margenPct!==null?margenPct.toFixed(1)+'%':'—'}</div></div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -4523,19 +4582,34 @@ function menCloseModal(){ document.getElementById('men-modal-ov').style.display=
 function menRenderSelector(){
   const cont=document.getElementById('men-esc-selector');
   if(!cont) return;
-  const escs=Object.entries(_escAllData).sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||'','es'));
-  if(!escs.length){cont.innerHTML='<p style="color:var(--mut);font-size:13px;grid-column:1/-1">No hay escandallos. Crea alguno primero.</p>';return;}
-  cont.innerHTML=escs.map(([id,e])=>{
-    const sel=_menEscIds.includes(id);
-    const coste=escCosteTotal(e);
-    const rest=e.restaurante||'global';
-    const restTag=rest==='global'?'':`<span style="font-size:9px;color:#7c3aed">${rest}</span>`;
-    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:10px 12px;border:1.5px solid ${sel?'var(--pri)':'var(--brd)'};border-radius:10px;cursor:pointer;background:${sel?'#f0f4ff':'#fff'};transition:border-color .15s,background .15s" onclick="menToggleEsc('${id}')">
-      <input type="checkbox" ${sel?'checked':''} style="margin-top:2px;pointer-events:none;accent-color:var(--pri);width:15px;height:15px;flex-shrink:0" readonly/>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;line-height:1.3;color:var(--txt)">${e.nombre}</div>
-        <div style="font-size:12px;color:var(--mut);margin-top:3px">${escFmt(coste)} €${restTag?` · ${restTag}`:''}</div>
-      </div>
+  const allEscs=Object.entries(_escAllData).sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||'','es'));
+  if(!allEscs.length){
+    cont.innerHTML='<p style="color:var(--mut);font-size:13px;grid-column:1/-1">No hay escandallos. Crea alguno primero.</p>';
+    return;
+  }
+  const COLS=[
+    {label:'🔵 Primeros',cats:['Primeros'],cls:'c-pri',color:'#3b82f6'},
+    {label:'🟡 Segundos',cats:['Segundos','Carnes','Pescados'],cls:'c-seg',color:'#d97706'},
+    {label:'🟣 Postres',cats:['Postres','Bebidas','Entrantes','Otros'],cls:'c-pos',color:'#a855f7'},
+  ];
+  cont.innerHTML=COLS.map(col=>{
+    const escs=allEscs.filter(([,e])=>col.cats.includes(e.categoria||'Otros'));
+    const items=escs.length
+      ?escs.map(([id,e])=>{
+          const sel=_menEscIds.includes(id);
+          const coste=escCosteTotal(e);
+          return `<div class="men-sel-item${sel?' sel':''}" onclick="menToggleEsc('${id}')">
+            <input type="checkbox" ${sel?'checked':''} style="pointer-events:none;accent-color:var(--pri);width:14px;height:14px;flex-shrink:0;margin-top:1px" readonly/>
+            <div style="min-width:0">
+              <div class="isn">${e.nombre}</div>
+              <div class="isc">${escFmt(coste)}</div>
+            </div>
+          </div>`;
+        }).join('')
+      :`<p style="font-size:12px;color:var(--mut);padding:6px">Sin escandallos en esta categoría</p>`;
+    return `<div class="men-sel-col">
+      <div class="men-sel-col-title" style="color:${col.color}">${col.label}</div>
+      ${items}
     </div>`;
   }).join('');
   menUpdateCoste();
