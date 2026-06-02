@@ -3596,7 +3596,7 @@ function vEscandallos(){
         <h3 id="men-modal-title">Nuevo menú</h3>
         <button class="btn btn-ghost btn-sm" onclick="menCloseModal()">✕</button>
       </div>
-      <div style="padding:0 24px 20px">
+      <div style="padding:0 24px 16px;overflow-y:auto">
         <div class="fg"><label>Nombre del menú</label><input type="text" id="men-nombre" placeholder="Ej: Menú degustación"/></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="fg"><label>Local</label><select id="men-local"><option value="global">Global (todos)</option>${cfg.users.map(u=>`<option value="${u.restaurant}">${u.restaurant}</option>`).join('')}</select></div>
@@ -3605,17 +3605,17 @@ function vEscandallos(){
         <div class="fg"><label>Notas</label><textarea id="men-notas" rows="2" placeholder="Descripción, alérgenos..."></textarea></div>
         <div style="font-weight:700;font-size:13px;margin:14px 0 8px;color:var(--pri)">Platos del menú</div>
         <div id="men-esc-selector" class="men-sel-cols"></div>
-        <div style="margin-top:14px;padding:12px 16px;background:var(--srf);border-radius:10px;border:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center">
-          <span style="font-size:13px;color:var(--mut)">Coste total</span>
-          <strong id="men-coste-total" style="font-size:18px;color:var(--pri)">0,00 €</strong>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px">
+      </div>
+      <div class="esc-modal-ft">
+        <div style="display:flex;align-items:center;gap:12px">
           <button class="btn btn-no btn-sm" id="men-btn-del" style="display:none" onclick="menDelete()">🗑 Eliminar</button>
-          <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm" onclick="menExportPDF()">📄 PDF</button>
-            <button class="btn btn-ghost btn-sm" onclick="menCloseModal()">Cancelar</button>
-            <button class="btn btn-pri btn-sm" onclick="menSave()">💾 Guardar menú</button>
-          </div>
+          <span style="font-size:13px;color:var(--mut)">Coste total</span>
+          <strong id="men-coste-total" style="font-size:16px;color:var(--pri)">0,00 €</strong>
+        </div>
+        <div class="esc-modal-ft-r">
+          <button class="btn btn-ghost btn-sm" onclick="menExportPDF()">📄 PDF</button>
+          <button class="btn btn-ghost btn-sm" onclick="menCloseModal()">Cancelar</button>
+          <button class="btn btn-pri btn-sm" onclick="menSave()">💾 Guardar menú</button>
         </div>
       </div>
     </div>
@@ -6298,24 +6298,47 @@ function updateStockFromOrder(order, receivedItems){
   });
 }
 
-function exportInventoryExcel(rest){
+function exportInventoryExcel(rest, catFilter){
   if(typeof XLSX==='undefined'){ toast('Librería Excel no cargada','#dc2626'); return; }
-  const items=getInvItems(rest);
-  const rows=[['Producto','Categoría','Cantidad','Unidad','Precio/ud (€)','Valor total (€)','Stock mínimo','Estado','Última actualización']];
-  let grandTotal=0;
-  items.forEach(it=>{
-    const low=(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0)&&(parseFloat(it.minStock)||0)>0;
-    const qty=parseFloat(it.qty)||0;
-    const price=parseFloat(it.price)||0;
-    const valor=qty*price;
-    grandTotal+=valor;
-    rows.push([it.name,it.category||'',qty,it.unit||'',price,valor,parseFloat(it.minStock)||0,low?'⚠️ Bajo stock':'OK',it.updatedAt?new Date(it.updatedAt).toLocaleDateString('es-ES'):'']);
-  });
-  rows.push(['','','','','TOTAL',grandTotal,'','','']);
-  const ws=XLSX.utils.aoa_to_sheet(rows);
+  let items=getInvItems(rest);
+  if(catFilter) items=items.filter(it=>(it.category||'Sin categoría')===catFilter);
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Inventario');
-  XLSX.writeFile(wb,'inventario_'+restKey(rest)+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  if(catFilter){
+    // Una sola hoja con la categoría filtrada
+    const rows=[['Producto','Categoría','Cantidad','Unidad','Precio/ud (€)','Valor total (€)','Stock mínimo','Estado','Última actualización']];
+    let total=0;
+    items.forEach(it=>{
+      const low=(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0)&&(parseFloat(it.minStock)||0)>0;
+      const qty=parseFloat(it.qty)||0; const price=parseFloat(it.price)||0; const valor=qty*price; total+=valor;
+      rows.push([it.name,it.category||'',qty,it.unit||'',price,valor,parseFloat(it.minStock)||0,low?'⚠️ Bajo stock':'OK',it.updatedAt?new Date(it.updatedAt).toLocaleDateString('es-ES'):'']);
+    });
+    rows.push(['','','','','TOTAL',total,'','','']);
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),catFilter.slice(0,31));
+  } else {
+    // Una hoja por proveedor/categoría + hoja resumen
+    const allCats=[...new Set(items.map(it=>it.category||'Sin categoría'))].sort();
+    const summaryRows=[['Proveedor/Categoría','Productos','Valor total (€)','Productos con stock bajo']];
+    allCats.forEach(cat=>{
+      const catItems=items.filter(it=>(it.category||'Sin categoría')===cat);
+      const rows=[['Producto','Categoría','Cantidad','Unidad','Precio/ud (€)','Valor total (€)','Stock mínimo','Estado','Última actualización']];
+      let total=0;
+      catItems.forEach(it=>{
+        const low=(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0)&&(parseFloat(it.minStock)||0)>0;
+        const qty=parseFloat(it.qty)||0; const price=parseFloat(it.price)||0; const valor=qty*price; total+=valor;
+        rows.push([it.name,it.category||'',qty,it.unit||'',price,valor,parseFloat(it.minStock)||0,low?'⚠️ Bajo stock':'OK',it.updatedAt?new Date(it.updatedAt).toLocaleDateString('es-ES'):'']);
+      });
+      rows.push(['','','','','TOTAL',total,'','','']);
+      const lowCount=catItems.filter(it=>(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0)).length;
+      summaryRows.push([cat,catItems.length,total,lowCount]);
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),cat.replace(/[:\\\/\?\*\[\]]/g,'').slice(0,31));
+    });
+    // Hoja resumen al principio
+    const wsSummary=XLSX.utils.aoa_to_sheet(summaryRows);
+    wb.SheetNames.unshift('Resumen');
+    wb.Sheets['Resumen']=wsSummary;
+  }
+  const suffix=catFilter?'_'+catFilter.replace(/[^a-zA-Z0-9]/g,'_'):'_todos_proveedores';
+  XLSX.writeFile(wb,'inventario_'+restKey(rest)+suffix+'_'+new Date().toISOString().slice(0,10)+'.xlsx');
 }
 
 function openInvForm(rest, existingId){
@@ -6373,7 +6396,18 @@ function vInventario(){
   const items=getInvItems(rest);
   const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0));
 
-  const restTabs=allRests.map(r=>`<button class="stab ${rest===r?'act':''}" onclick="S.invRest='${r.replace(/'/g,"\\'")}';S.invEditId=null;render()">${r}</button>`).join('');
+  // Pestañas por proveedor/categoría
+  const allCats=[...new Set(items.map(it=>it.category||'Sin categoría'))].sort();
+  if(S.invCat&&!allCats.includes(S.invCat)) S.invCat=null;
+  const catTabs=[
+    `<button class="stab ${!S.invCat?'act':''}" onclick="S.invCat=null;render()">📦 Todos (${items.length})</button>`,
+    ...allCats.map(c=>{
+      const cnt=items.filter(it=>(it.category||'Sin categoría')===c).length;
+      return `<button class="stab ${S.invCat===c?'act':''}" onclick="S.invCat=${JSON.stringify(c)};render()">${c} (${cnt})</button>`;
+    })
+  ].join('');
+
+  const restTabs=allRests.map(r=>`<button class="stab ${rest===r?'act':''}" onclick="S.invRest='${r.replace(/'/g,"\\'")}';S.invEditId=null;S.invCat=null;render()">${r}</button>`).join('');
 
   const alertBanner=lowItems.length?`<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e;margin-bottom:12px">⚠️ <strong>${lowItems.length} producto${lowItems.length>1?'s':''} con stock bajo:</strong> ${lowItems.map(it=>`${it.name} (${parseFloat(it.qty)||0} ${it.unit||'ud'})`).join(', ')}</div>`:'';
 
@@ -6419,7 +6453,8 @@ function vInventario(){
   </div>`:'';
 
   const invQ=(S.invSearch||'').toLowerCase().trim();
-  const filteredItems=invQ?items.filter(it=>(it.name||'').toLowerCase().includes(invQ)||(it.category||'').toLowerCase().includes(invQ)):items;
+  const catFiltered=S.invCat?items.filter(it=>(it.category||'Sin categoría')===S.invCat):items;
+  const filteredItems=invQ?catFiltered.filter(it=>(it.name||'').toLowerCase().includes(invQ)||(it.category||'').toLowerCase().includes(invQ)):catFiltered;
 
   const searchBox=`<input type="text" value="${S.invSearch||''}" placeholder="🔍 Buscar producto o categoría..." oninput="S.invSearch=this.value;render()" style="width:100%;padding:9px 14px;border:1.5px solid var(--brd);border-radius:10px;font-size:14px;background:#fff;color:var(--txt);outline:none;margin-bottom:12px;box-sizing:border-box" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>`;
 
@@ -6457,12 +6492,13 @@ function vInventario(){
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div style="font-size:16px;font-weight:700">📦 Inventario</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${items.length?`<button class="btn btn-ghost btn-sm" onclick="exportInventoryExcel('${rest.replace(/'/g,"\\'")}')">📥 Excel</button>`:''}
+        ${items.length?`<button class="btn btn-acc btn-sm" onclick="exportInventoryExcel('${rest.replace(/'/g,"\\'")}',${S.invCat?JSON.stringify(S.invCat):'null'})">📥 Exportar Excel${S.invCat?' ('+S.invCat+')':''}</button>`:''}
         <button class="btn btn-ghost btn-sm" onclick="importSupplierProducts('${rest.replace(/'/g,"\\'")}')">📋 Importar catálogo</button>
-        <button class="btn btn-acc btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','new')">➕ Producto</button>
+        <button class="btn btn-ghost btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','new')">➕ Producto</button>
       </div>
     </div>
-    <div class="sup-tabs" style="margin-bottom:14px">${restTabs}</div>
+    <div class="sup-tabs" style="margin-bottom:10px">${restTabs}</div>
+    ${allCats.length>0?`<div class="sup-tabs" style="margin-bottom:14px;flex-wrap:wrap">${catTabs}</div>`:''}
     ${alertBanner}
     ${summaryHtml}
     ${isEditing?formHtml:''}
