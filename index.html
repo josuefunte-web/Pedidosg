@@ -1927,8 +1927,28 @@ function sendOrderChat(oid, author, isAdmin){
   fbDb.ref('orderComments/'+oid+'/'+msg.id).set(msg);
   inp.value='';
 }
-function vPending(){ const p=orders.filter(o=>o.status==='pending');return p.length?p.map(o=>orderCard(o,true)).join(''):`<div class="empty"><div class="ei">🎉</div><div class="et">Sin pedidos pendientes</div></div>`; }
-function vApproved(){ const a=orders.filter(o=>o.status==='approved');return a.length?a.map(o=>orderCard(o,false)).join(''):`<div class="empty"><div class="ei">📋</div><div class="et">Sin pedidos aprobados</div></div>`; }
+function restFilterTabs(ordersForCount, stateKey){
+  const allRests=[...new Set(ordersForCount.map(o=>o.restaurant||'').filter(Boolean))].sort();
+  if(allRests.length<2) return '';
+  const cur=S[stateKey]||null;
+  const tabs=[`<button class="stab ${!cur?'act':''}" onclick="S.${stateKey}=null;render()">🏠 Todos (${ordersForCount.length})</button>`,
+    ...allRests.map(r=>{const cnt=ordersForCount.filter(o=>o.restaurant===r).length;return`<button class="stab ${cur===r?'act':''}" onclick="S.${stateKey}='${r.replace(/'/g,"\\'")}';render()">${r} (${cnt})</button>`;})
+  ].join('');
+  return `<div class="sup-tabs" style="margin-bottom:14px;flex-wrap:wrap">${tabs}</div>`;
+}
+
+function vPending(){
+  const all=orders.filter(o=>o.status==='pending');
+  const tabs=restFilterTabs(all,'pendingRestFilter');
+  const p=S.pendingRestFilter?all.filter(o=>o.restaurant===S.pendingRestFilter):all;
+  return tabs+(p.length?p.map(o=>orderCard(o,true)).join(''):`<div class="empty"><div class="ei">🎉</div><div class="et">Sin pedidos pendientes${S.pendingRestFilter?' en '+S.pendingRestFilter:''}</div></div>`);
+}
+function vApproved(){
+  const all=orders.filter(o=>o.status==='approved');
+  const tabs=restFilterTabs(all,'approvedRestFilter');
+  const a=S.approvedRestFilter?all.filter(o=>o.restaurant===S.approvedRestFilter):all;
+  return tabs+(a.length?a.map(o=>orderCard(o,false)).join(''):`<div class="empty"><div class="ei">📋</div><div class="et">Sin pedidos aprobados${S.approvedRestFilter?' en '+S.approvedRestFilter:''}</div></div>`);
+}
 
 function vConsolidated(){
   const pend=orders.filter(o=>o.status==='pending');
@@ -5380,9 +5400,11 @@ function renderBudgetTrendChart(){
 function vSupHistory(){
   const supIds=Object.keys(suppliers);
   if(!supIds.length) return `<div class="empty"><div class="ei">📦</div><div class="et">Sin proveedores</div></div>`;
+  const allOrd=orders.filter(o=>o.status==='approved'||o.status==='received');
+  const tabs=restFilterTabs(allOrd,'supHistRestFilter');
   const rows=supIds.map(sid=>{
     const sup=suppliers[sid];
-    const supOrders=orders.filter(o=>(o.status==='approved'||o.status==='received')&&o.supId===sid);
+    const supOrders=(S.supHistRestFilter?allOrd.filter(o=>o.restaurant===S.supHistRestFilter):allOrd).filter(o=>o.supId===sid);
     if(!supOrders.length) return '';
     const totalSpend=supOrders.reduce((s,o)=>s+total(o),0);
     const lastOrder=supOrders.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
@@ -5410,8 +5432,8 @@ function vSupHistory(){
     </div>`;
   }).filter(Boolean).join('');
   if(!rows) return `<div class="empty"><div class="ei">📦</div><div class="et">Sin historial de compras aún</div></div>`;
-  const totalAll=orders.filter(o=>o.status==='approved'||o.status==='received').reduce((s,o)=>s+total(o),0);
-  return `<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Total comprado a todos los proveedores: <strong>${fmt(totalAll)}</strong></div>`+rows;
+  const totalAll=(S.supHistRestFilter?allOrd.filter(o=>o.restaurant===S.supHistRestFilter):allOrd).reduce((s,o)=>s+total(o),0);
+  return tabs+`<div style="font-size:13px;color:var(--mut);margin-bottom:12px">Total comprado${S.supHistRestFilter?' en '+S.supHistRestFilter:' a todos los locales'}: <strong>${fmt(totalAll)}</strong></div>`+rows;
 }
 
 /* ═══════════════ NUEVOS PROVEEDORES (tarifas abril 2026) ═══════════════ */
@@ -6396,12 +6418,18 @@ function vInventario(){
   const items=getInvItems(rest);
   const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0));
 
-  // Pestañas por proveedor/categoría
-  const allCats=[...new Set(items.map(it=>it.category||'Sin categoría'))].sort();
-  if(S.invCat&&!allCats.includes(S.invCat)) S.invCat=null;
+  // Pestañas por proveedor/categoría — solo proveedores activos para este restaurante
+  // Solo mostrar pestañas de proveedores activos para este restaurante
+  const restUserIds=(cfg.users||[]).filter(u=>{const rests=u.restaurants||[u.restaurant];return rests.includes(rest);}).map(u=>u.id);
+  const activeSups=supList().filter(s=>{const dis=s.disabledFor||[];return restUserIds.length===0||restUserIds.some(uid=>!dis.includes(uid));});
+  const activeSupCatNames=new Set(activeSups.map(s=>(s.emoji?s.emoji+' ':'')+s.name));
+  const allSupCatNames=new Set(supList().map(s=>(s.emoji?s.emoji+' ':'')+s.name));
+  // Incluir: categorías de proveedores activos + categorías manuales (no coinciden con ningún proveedor)
+  const filteredCats=[...new Set(items.map(it=>it.category||'Sin categoría'))].filter(c=>!allSupCatNames.has(c)||activeSupCatNames.has(c)).sort();
+  if(S.invCat&&!filteredCats.includes(S.invCat)) S.invCat=null;
   const catTabs=[
     `<button class="stab ${!S.invCat?'act':''}" onclick="S.invCat=null;render()">📦 Todos (${items.length})</button>`,
-    ...allCats.map(c=>{
+    ...filteredCats.map(c=>{
       const cnt=items.filter(it=>(it.category||'Sin categoría')===c).length;
       return `<button class="stab ${S.invCat===c?'act':''}" onclick="S.invCat='${c.replace(/'/g,"\\'")}';render()">${c} (${cnt})</button>`;
     })
