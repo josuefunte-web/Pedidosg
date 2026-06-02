@@ -281,9 +281,9 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
 .men-stat .k{font-size:10px;color:var(--mut)}
 .men-stat .v{font-size:13px;font-weight:700;color:var(--txt)}
 /* Selector modal por cursos */
-.men-sel-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;max-height:340px}
-@media(max-width:680px){.men-sel-cols{grid-template-columns:1fr;max-height:none}}
-.men-sel-col{overflow-y:auto;background:var(--srf);border-radius:9px;padding:8px}
+.men-sel-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+@media(max-width:680px){.men-sel-cols{grid-template-columns:1fr}}
+.men-sel-col{overflow-y:auto;max-height:280px;background:var(--srf);border-radius:9px;padding:8px}
 .men-sel-col-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:4px 6px 8px;border-bottom:1px solid var(--brd);margin-bottom:6px;position:sticky;top:0;background:var(--srf)}
 .men-sel-item{display:flex;align-items:flex-start;gap:7px;padding:7px 8px;border-radius:7px;cursor:pointer;border:1px solid transparent;transition:border-color .12s,background .12s;margin-bottom:4px}
 .men-sel-item.sel{border-color:var(--pri);background:rgba(225,29,72,.06)}
@@ -4724,6 +4724,72 @@ function menExportPDF(){
 function menDelete(){
   if(!_menEditId||!confirm('¿Eliminar este menú?')) return;
   fbDb.ref('menus/'+_menEditId).remove().then(()=>{menCloseModal();toast('Menú eliminado','#888');});
+}
+
+/* ═══════════════ AUTO-CLASIFICACIÓN DE ESCANDALLOS ═══════════════ */
+// Llama a esta función desde la consola del navegador: escAutoClasificar()
+function escAutoClasificar(){
+  if(!fbDb){alert('Sin conexión Firebase');return;}
+  const MAP = {
+    // ── PRIMEROS ──
+    'ALCACHOFA CON ROMESO':'Primeros','BRAVAS':'Primeros','BRAVAS (2)':'Primeros',
+    'CANELON':'Primeros','CANELON DE HUMMUS':'Primeros',
+    'COCA BON MOS':'Primeros','COCA BURRATA':'Primeros','COCA EMPORDA':'Primeros',
+    'COCA POLLO':'Primeros','COCAPIZZA':'Primeros',
+    'CROQUETAS DE BOLETUS':'Primeros','CROQUETAS DE JAMON':'Primeros',
+    'CROQUETA DE GAMBA ROJA':'Primeros',
+    'ENSALADA CESAR':'Primeros','ENSALADA DE CALABAZA':'Primeros',
+    'ENSALADA DE QUINOA':'Primeros','ENSALADA DE TRIGUEROS':'Primeros',
+    'ENSALADILLA RUSA':'Primeros','ESPAGUETIS':'Primeros','FINGUERS':'Primeros',
+    'MACARRONES':'Primeros','MEJILLONES AL VAPOR':'Primeros',
+    'MEJILLONES EN ESCABECHE':'Primeros','NACHOS CON GUACAMOLE':'Primeros',
+    'RAVIOLIS':'Primeros','TARTAR DE SALMON':'Primeros',
+    'TORTILLA DE PATATAS':'Primeros','ANCHOA CON PAN Y TOMATE':'Primeros',
+    // ── SEGUNDOS ──
+    'BACALAO':'Segundos','BUTIFARA':'Segundos',
+    'CALAMAR ANDALUZA':'Segundos','CALAMAR POTERA':'Segundos',
+    'CARRILLERA':'Segundos','CARRILLERA A LA BRASA':'Segundos',
+    'COMBINADO PESCADO':'Segundos','COSTILLA BBQ':'Segundos',
+    'ENTRECOT':'Segundos','HAMBURGUESA CON BEICON Y QUESO':'Segundos',
+    'HAMBURGUESA MADURADA':'Segundos','LA MORENA':'Segundos',
+    'LUBINA DONOSTIARRA':'Segundos','MAGRET':'Segundos',
+    'MUSLO DE POLLO':'Segundos','PIES DE CERDO':'Segundos',
+    'PULPO LUCIANA':'Segundos','SECRETO IBERICO':'Segundos','TACOS':'Segundos',
+    // ── POSTRES ──
+    'CRUMBLE DE ALMENDRAS':'Postres','HELADOS':'Postres','MUSSE DE PISTACHO':'Postres',
+    // ── OTROS (bocadillos, bollería, salsas base) ──
+    'BOCADILLO ATUN':'Otros','BOCADILLO BEICON':'Otros','BOCADILLO DE FUET':'Otros',
+    'BOCADILLO DE JAMON SERRANO':'Otros','BOCADILLO DE QUESO TIERNO':'Otros',
+    'BOCADILLO JAMON IBERICO':'Otros','BOCADILLO LOMO':'Otros',
+    'BOCADILLO LONGANIZA':'Otros','BOCADILLO POLLO':'Otros',
+    'BOCADILLO TORTILLA DE PATATAS':'Otros','BOCADILLO TORTILLA FRANCESA':'Otros',
+    'BOLLERIA':'Otros','CROISANT IBERICO':'Otros','CROISANT JAMON':'Otros',
+    'CROISANT NUTELA':'Otros','CROISANT PLANCHADO':'Otros','PLANCHADO':'Otros',
+    'SALSA BRAVA':'Otros','SALSA TARTARA':'Otros',
+  };
+  fbDb.ref('escandallos').once('value', snap=>{
+    const data=snap.val()||{};
+    let actualizados=0, noEncontrados=[];
+    const updates={};
+    Object.entries(data).forEach(([key,e])=>{
+      const nombre=(e.nombre||'').toUpperCase().trim();
+      const nuevaCat=MAP[nombre];
+      if(nuevaCat && nuevaCat!==e.categoria){
+        updates[key+'/categoria']=nuevaCat;
+        actualizados++;
+      } else if(!nuevaCat){
+        noEncontrados.push(e.nombre);
+      }
+    });
+    if(Object.keys(updates).length===0){
+      toast('Todos los escandallos ya están clasificados correctamente ✓','#16a34a');
+      return;
+    }
+    fbDb.ref('escandallos').update(updates).then(()=>{
+      toast(`✅ ${actualizados} escandallos actualizados`,'#16a34a');
+      if(noEncontrados.length) console.warn('Sin clasificar (mantienen categoría actual):', noEncontrados);
+    }).catch(e=>toast('Error: '+e.message,'#dc2626'));
+  });
 }
 
 /* ═══════════════ VISTA LOCAL — ESCANDALLOS (read-only) ═══════════════ */
