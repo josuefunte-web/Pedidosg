@@ -690,6 +690,16 @@ function initFirebaseListeners(){
         if(sup && !sup.products) sup.products = [];
       });
       suppliers = val;
+      // Preservar productos recién añadidos que aún no han llegado a Firebase
+      if(S._cartProds){
+        Object.entries(S._cartProds).forEach(([sid,prods])=>{
+          if(!suppliers[sid]) return;
+          if(!Array.isArray(suppliers[sid].products)) suppliers[sid].products=[];
+          Object.values(prods).forEach(p=>{
+            if(!suppliers[sid].products.find(x=>x.id===p.id)) suppliers[sid].products.push(p);
+          });
+        });
+      }
       localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
     }
     if(S.view==='order'||S.view==='albaran-new'){const _sv=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo(0,_sv));}
@@ -3703,13 +3713,6 @@ function vEscandallos(){
               </div>
             </div>
             <button id="esc-btn-new-prod" class="btn btn-ghost btn-sm" style="display:none;grid-column:1/3;font-size:12px" onclick="escToggleNewProd(true)">+ Crear nuevo producto en este proveedor</button>
-            <input type="text" id="esc-subesc-search" placeholder="🔍 Buscar subelaboración..." style="grid-column:1/3;display:none;padding:7px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt);outline:none" oninput="escFilterSubEsc(this.value)" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>
-            <select id="esc-sel-subesc" style="grid-column:1/3" onchange="escOnSubEscChange()"><option value="">-- O usar otro escandallo como ingrediente --</option></select>
-            <div id="esc-fraccion-row" style="display:none;grid-column:1/3;background:var(--srf);border:1.5px solid #818cf8;border-radius:9px;padding:8px 10px;display:none;align-items:center;gap:8px">
-              <span style="font-size:12px;color:var(--mut);white-space:nowrap">Fracción del escandallo</span>
-              <input type="number" id="esc-sel-fraccion" value="0.25" min="0.01" max="1" step="0.01" style="width:80px;padding:5px 8px;border:1.5px solid var(--brd);border-radius:7px;font-size:13px;background:var(--card);color:var(--txt)" title="0.25 = 1/4 de receta (para 1 de cada 4 raciones)"/>
-              <span style="font-size:11px;color:#818cf8" id="esc-fraccion-hint">= 1/4</span>
-            </div>
             <input type="text" id="esc-libre-nombre" placeholder="O escribe ingrediente libre" style="grid-column:1/3;padding:6px 9px;border:1.5px solid var(--brd);border-radius:7px;font-size:13px;background:var(--card);color:var(--txt)"/>
             <div style="display:flex;gap:4px;align-items:center">
               <input type="number" id="esc-sel-qty" placeholder="Cant." min="0" step="0.001" style="flex:1"/>
@@ -3892,23 +3895,6 @@ function escOpenModal(id=null){
     o.value=pid; o.textContent=(prov.emoji||'')+(prov.name||pid);
     sel.appendChild(o);
   });
-  // Poblar sub-escandallos (excluir el escandallo actual para evitar circulares)
-  const selSub=document.getElementById('esc-sel-subesc');
-  const subSrch=document.getElementById('esc-subesc-search');
-  if(selSub){
-    selSub.innerHTML='<option value="">-- O usar otro escandallo como ingrediente --</option>';
-    const entries=Object.entries(_escAllData).filter(([eid])=>eid!==id).sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||'','es'));
-    entries.forEach(([eid,e])=>{
-      const o=document.createElement('option');
-      o.value=eid;
-      const rend=parseFloat(e.rendimiento)||1;
-      const rendU=e.rendimientoUnidad||'rac.';
-      o.dataset.nombre=(e.nombre||'').toLowerCase();
-      o.textContent=`${e.nombre||'Sin nombre'} (rinde ${rend} ${rendU})`;
-      selSub.appendChild(o);
-    });
-    if(subSrch) subSrch.style.display=entries.length>4?'block':'none';
-  }
   escRenderIngs(); escRecalc();
   document.getElementById('esc-modal-ov').style.display='flex';
   // Cargar elaboración tras mostrar modal
@@ -3963,17 +3949,6 @@ function escLoadProds(){
     o.dataset.price=p.price||0; o.dataset.unit=p.unit||'u.'; o.dataset.name=p.name||''; o.dataset.gr=p.pesoGr||'';
     sel.appendChild(o);
   });
-}
-function escFilterSubEsc(term){
-  const sel=document.getElementById('esc-sel-subesc');
-  if(!sel) return;
-  const q=term.toLowerCase().trim();
-  Array.from(sel.options).forEach(o=>{
-    if(!o.value){o.style.display='';return;}
-    o.style.display=(!q||o.dataset.nombre.includes(q))?'':'none';
-  });
-  const visible=Array.from(sel.options).filter(o=>o.value&&o.style.display!=='none');
-  if(visible.length===1) sel.value=visible[0].value;
 }
 function escFilterProdsSearch(term){
   const sel=document.getElementById('esc-sel-prod');
@@ -4035,31 +4010,9 @@ function escAddIng(){
   const merma=parseFloat(document.getElementById('esc-sel-merma').value)||0;
   const libreNombre=(document.getElementById('esc-libre-nombre').value||'').trim();
   const librePrice=parseFloat(document.getElementById('esc-libre-precio').value)||0;
-  const subEscId=document.getElementById('esc-sel-subesc')?.value||'';
-
   if(!qty||qty<=0){toast('Introduce una cantidad válida','#dc2626');return;}
 
-  if(subEscId){
-    // Sub-escandallo como ingrediente — usar fracción si está disponible
-    const subEsc=_escAllData[subEscId];
-    if(!subEsc){toast('Escandallo no encontrado','#dc2626');return;}
-    const fracInput=document.getElementById('esc-sel-fraccion');
-    const fraccion=fracInput?parseFloat(fracInput.value)||qty:qty;
-    if(fraccion<=0){toast('Introduce una fracción válida (ej: 0.25)','#dc2626');return;}
-    const costeTotal=escCosteTotal(subEsc);
-    _escIngs.push({
-      type:'fracsubesc', escId:subEscId,
-      proveedorId:null, productoId:null,
-      nombre:subEsc.nombre||'Sin nombre',
-      fraccion:fraccion,
-      cantidad:fraccion, unidad:'esc.',
-      precioUnitario:costeTotal,
-      merma:0
-    });
-    document.getElementById('esc-sel-subesc').value='';
-    const fracRow=document.getElementById('esc-fraccion-row');
-    if(fracRow) fracRow.style.display='none';
-  } else if(libreNombre){
+  if(libreNombre){
     // Ingrediente libre (sin proveedor)
     _escIngs.push({proveedorId:null,proveedorNombre:'Libre',productoId:null,nombre:libreNombre,cantidad:qty,unidad:'u.',precioUnitario:librePrice,merma});
   } else {
@@ -4081,34 +4034,6 @@ function escAddIng(){
 
 function escQuitarIng(i){ _escIngs.splice(i,1); escRenderIngs(); escRecalc(); }
 
-function escOnSubEscChange(){
-  const selSub=document.getElementById('esc-sel-subesc');
-  const eid=selSub?.value;
-  const fracRow=document.getElementById('esc-fraccion-row');
-  if(fracRow) fracRow.style.display=eid?'flex':'none';
-  if(!eid) return;
-  // Cuando seleccionan un sub-escandallo, limpiar los otros campos
-  document.getElementById('esc-sel-prov').value='';
-  document.getElementById('esc-sel-prod').innerHTML='<option value="">-- Producto del proveedor --</option>';
-  document.getElementById('esc-libre-nombre').value='';
-  document.getElementById('esc-libre-precio').value='';
-  // Actualizar hint de fracción
-  const fracInput=document.getElementById('esc-sel-fraccion');
-  const hint=document.getElementById('esc-fraccion-hint');
-  if(fracInput&&hint){
-    fracInput.oninput=function(){
-      const v=parseFloat(this.value)||0;
-      hint.textContent=v>0?`= ${escFraccionTexto(v)}`:'';
-    };
-    const v=parseFloat(fracInput.value)||0.25;
-    hint.textContent=v>0?`= ${escFraccionTexto(v)}`:'';
-  }
-}
-function escFraccionTexto(v){
-  const comunes={0.5:'1/2',0.25:'1/4',0.33:'1/3',0.75:'3/4',0.2:'1/5',0.1:'1/10'};
-  const rounded=Math.round(v*100)/100;
-  return comunes[rounded]||(Math.round(v*100)+'%');
-}
 
 function escLivePrice(ing, depth=0){
   // Sub-escandallo con fracción: coste = fraccion * costeTotal
@@ -4436,8 +4361,11 @@ function escProcesarImport(input){
 
 function escExportTodos(){
   if(typeof XLSX==='undefined'){toast('Librería Excel no disponible','#dc2626');return;}
-  const todos=Object.values(_escAllData||{});
+  const localFiltro=document.getElementById('esc-local-filter')?.value||'';
+  let todos=Object.values(_escAllData||{});
   if(!todos.length){toast('No hay escandallos guardados','#dc2626');return;}
+  if(localFiltro) todos=todos.filter(e=>(e.restaurante||'global')===localFiltro);
+  if(!todos.length){toast('No hay escandallos para este local','#f59e0b');return;}
 
   // Ordenar por nombre
   todos.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'','es'));
@@ -4489,7 +4417,8 @@ function escExportTodos(){
 
   XLSX.utils.book_append_sheet(wb,ws,'Escandallos');
   const fecha=new Date().toISOString().split('T')[0];
-  XLSX.writeFile(wb,`Escandallos_${fecha}.xlsx`);
+  const sufijo=localFiltro?'_'+localFiltro.replace(/[^a-zA-Z0-9]/g,'_'):'_todos';
+  XLSX.writeFile(wb,`Escandallos${sufijo}_${fecha}.xlsx`);
   toast(`✅ ${todos.length} escandallos exportados`,'#16a34a');
 }
 
@@ -6526,7 +6455,7 @@ function vInventario(){
       </div>
     </div>
     <div class="sup-tabs" style="margin-bottom:10px">${restTabs}</div>
-    ${allCats.length>0?`<div class="sup-tabs" style="margin-bottom:14px;flex-wrap:wrap">${catTabs}</div>`:''}
+    ${filteredCats.length>0?`<div class="sup-tabs" style="margin-bottom:14px;flex-wrap:wrap">${catTabs}</div>`:''}
     ${alertBanner}
     ${summaryHtml}
     ${isEditing?formHtml:''}
