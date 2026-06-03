@@ -453,7 +453,6 @@ const FB_CONFIG = {
   appId: "1:236536249236:web:6a2cad24995a1bc57cad81"
 };
 const FB_URL = FB_CONFIG.databaseURL;
-const APP_VERSION = '2026-06-03-1'; // ← incrementar con cada deploy
 let fbApp, fbDb, fbAuth;
 let authUsers = {};
 
@@ -728,6 +727,7 @@ function initFirebaseListeners(){
   });
 
   // Config global (ntfyTopic, etc.) — sincronizado en Firebase para todos los dispositivos
+  let _loadedAppVersion = null; // versión vista al abrir la app (null = aún no cargada)
   fbDb.ref('globalCfg').on('value', snap => {
     const val = snap.val();
     if(val){
@@ -738,13 +738,19 @@ function initFirebaseListeners(){
       if(val.adminPhone !== undefined) cfg.adminPhone = val.adminPhone;
       localStorage.setItem('oc_cfg', JSON.stringify(cfg));
 
-      // Forzar actualización: si la versión en Firebase es distinta a la local, recargar
-      if(val.appVersion && val.appVersion !== APP_VERSION){
-        const banner = document.createElement('div');
-        banner.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.92);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:-apple-system,system-ui,sans-serif;text-align:center;padding:24px';
-        banner.innerHTML = `<div style="font-size:18px;font-weight:700;margin-bottom:8px">Nueva versión disponible</div><div style="font-size:14px;opacity:.7;margin-bottom:24px">La aplicación se actualizará en unos segundos...</div><div style="width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#e11d48;border-radius:50%;animation:spin .8s linear infinite"></div>`;
-        document.body.appendChild(banner);
-        setTimeout(()=>{ window.location.reload(true); }, 2500);
+      // Forzar actualización remota
+      if(val.appVersion !== undefined){
+        if(_loadedAppVersion === null){
+          // Primera lectura: guardamos la versión actual, no recargamos
+          _loadedAppVersion = val.appVersion;
+        } else if(val.appVersion !== _loadedAppVersion){
+          // La versión cambió MIENTRAS el usuario tenía la app abierta → recargar
+          const banner = document.createElement('div');
+          banner.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.95);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:-apple-system,system-ui,sans-serif;text-align:center;padding:24px';
+          banner.innerHTML = '<div style="font-size:18px;font-weight:700;margin-bottom:8px">Nueva versión disponible</div><div style="font-size:14px;opacity:.7;margin-bottom:24px">La aplicación se actualizará en unos segundos...</div><div style="width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#e11d48;border-radius:50%;animation:spin .8s linear infinite"></div>';
+          document.body.appendChild(banner);
+          setTimeout(()=>{ window.location.reload(true); }, 2500);
+        }
       }
     }
   });
@@ -3035,7 +3041,7 @@ function vSettings(){
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-pri btn-sm" onclick="forcePushUpdate()">Publicar actualización a todos los dispositivos</button>
-      <span style="font-size:12px;color:var(--mut)">Versión actual: <code style="background:var(--srf);padding:1px 5px;border-radius:4px">${APP_VERSION}</code></span>
+      <span style="font-size:12px;color:var(--mut)">Útil tras subir cambios a GitHub — espera ~1 min a que se publique</span>
     </div>
     <div id="force-update-status" style="font-size:12px;color:var(--mut);margin-top:6px"></div>
     <div class="card-t" style="margin-top:20px">Datos</div>
