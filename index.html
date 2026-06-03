@@ -781,12 +781,12 @@ function initFirebaseListeners(){
   fbDb.ref('inventory').on('value', snap => {
     inventory = snap.val() || {};
     if(S.view==='admin' && S.adminTab==='inventario') renderAdminContent();
-    if(S.view==='order' && S.orderTab==='inventario') render();
+    if(S.view==='order' && S.orderTab==='inventario'){ const _sv=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo(0,_sv)); }
   });
   fbDb.ref('inventoryMovements').on('value', snap => {
     inventoryMovements = snap.val() || {};
     if(S.view==='admin' && S.adminTab==='inventario') renderAdminContent();
-    if(S.view==='order' && S.orderTab==='inventario') render();
+    if(S.view==='order' && S.orderTab==='inventario'){ const _sv=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo(0,_sv)); }
   });
 
   // Recetas — real-time sync
@@ -1287,6 +1287,10 @@ function render(){
 function renderAdminContent(){
   const tc=document.getElementById('tc');
   if(!tc) return;
+  // No interrumpir modales abiertos
+  if(S.adminTab==='escandallos' && document.getElementById('esc-modal-ov')?.style.display==='flex') return;
+  if(S.adminTab==='recetas'     && document.getElementById('rec-modal-ov')?.style.display==='flex') return;
+  if(S.adminTab==='inventario'  && S.invEditId) return; // formulario inline abierto
   const _sv=window.scrollY;
   let content='';
   if(S.adminTab==='pending')       content=vPending();
@@ -6501,11 +6505,20 @@ function submitInvForm(rest){
   }
   S.invEditId=null;
   S.invForm={name:'',unit:'',qty:'',minStock:'',category:'',price:''};
-  toast(S.invEditId?'Producto actualizado':'Producto añadido','#7c3aed');
-  render();
+  toast('Producto guardado','#7c3aed');
+  // Preservar scroll al guardar
+  const _sv=window.scrollY;
+  if(S.view==='admin') renderAdminContent();
+  else { render(); requestAnimationFrame(()=>window.scrollTo(0,_sv)); }
 }
 
-function cancelInvForm(){ S.invEditId=null; S.invForm={name:'',unit:'',qty:'',minStock:'',category:'',price:''}; render(); }
+function cancelInvForm(){
+  S.invEditId=null;
+  S.invForm={name:'',unit:'',qty:'',minStock:'',category:'',price:''};
+  const _sv=window.scrollY;
+  if(S.view==='admin') renderAdminContent();
+  else { render(); requestAnimationFrame(()=>window.scrollTo(0,_sv)); }
+}
 
 function ajusteRapido(rest, id, delta){
   const k=restKey(rest);
