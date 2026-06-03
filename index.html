@@ -1096,6 +1096,13 @@ let S={
 let cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
 let chartInst=null;
 const EMOJIS=['🏠','🌿','⭐','🍽️','🏃','🌅','🎯','🧭','🌊','⚓','🌆','🏙️','🌃'];
+const PROD_CATS=['Carnes','Pescados','Verduras y Frutas','Lácteos','Pasta y Arroces','Conservas','Condimentos','Panadería','Bebidas','Limpieza','Otros'];
+const PROD_CAT_COLORS={'Carnes':'#dc2626','Pescados':'#0ea5e9','Verduras y Frutas':'#16a34a','Lácteos':'#d97706','Pasta y Arroces':'#ca8a04','Conservas':'#7c3aed','Condimentos':'#ea580c','Panadería':'#92400e','Bebidas':'#2563eb','Limpieza':'#0f766e','Otros':'#64748b'};
+const ESC_CAT_COLORS={'Calientes':'#dc2626','Fríos':'#0ea5e9','Postres':'#a855f7','Bebidas':'#2563eb','Aperitivos':'#ea580c','Fondos':'#7c3aed','Entrantes':'#16a34a','Guarniciones':'#d97706','Otros':'#64748b'};
+function catColor(cat,map){ return (map||PROD_CAT_COLORS)[cat]||'#64748b'; }
+function catDot(cat,map){ const c=catColor(cat,map); return `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};flex-shrink:0"></span>`; }
+function catPill(cat,map){ const c=catColor(cat,map); return `<span style="display:inline-flex;align-items:center;gap:5px;background:${c}18;color:${c};border:1px solid ${c}40;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700">${catDot(cat,map)} ${cat}</span>`; }
+function prodCatOpts(sel){ return PROD_CATS.map(c=>`<option${c===sel?' selected':''}>${c}</option>`).join(''); }
 
 /* ═══════════════ HELPERS ═══════════════ */
 const WA_SVG=`<svg class="wa-ic" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
@@ -1248,6 +1255,7 @@ function renderAdminContent(){
   else if(S.adminTab==='received') content=vReceived();
   else if(S.adminTab==='budgets')  content=vBudgets();
   else if(S.adminTab==='compare')  content=vCompare();
+  else if(S.adminTab==='productos')  content=vProductos();
   else if(S.adminTab==='albaranes') content=vAlbaranes();
   else if(S.adminTab==='solicitudes') content=vSolicitudes();
   else if(S.adminTab==='suppliers') content=vSuppliers();
@@ -1415,7 +1423,7 @@ function vOrder(){
   const searchTerm=(S.prodSearch||'').toLowerCase().trim();
   const filteredProds=sup.products.filter(p=>!searchTerm||p.name.toLowerCase().includes(searchTerm));
   const _UNITS=['KG','L','UN','Caja'];
-  const prods=filteredProds.map(p=>{
+  function mkProdCard(p){
     const q=(S.cart[S.supId]||{})[p.id]||0;
     const selUnit=(S.cartUnits[S.supId]||{})[p.id]||p.unit;
     const unitBtns=_UNITS.map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
@@ -1428,7 +1436,25 @@ function vOrder(){
       </div>
       ${q>0?`<div class="urow" id="ur-${p.id}">${unitBtns}</div>`:`<div class="urow" id="ur-${p.id}" style="display:none">${unitBtns}</div>`}
     </div>`;
-  }).join('');
+  }
+  // Agrupar por categoría (solo si no hay búsqueda activa)
+  let prods='';
+  if(searchTerm){
+    prods=`<div class="pgrid">${filteredProds.map(mkProdCard).join('')}</div>`;
+  } else {
+    const byCat={};
+    filteredProds.forEach(p=>{ const c=p.category||'Otros'; if(!byCat[c])byCat[c]=[]; byCat[c].push(p); });
+    const catOrder=[...PROD_CATS,...Object.keys(byCat).filter(c=>!PROD_CATS.includes(c))].filter(c=>byCat[c]);
+    if(catOrder.length<=1){
+      prods=`<div class="pgrid">${filteredProds.map(mkProdCard).join('')}</div>`;
+    } else {
+      prods=catOrder.map(cat=>`
+        <div style="margin-bottom:14px">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:5px 2px 6px;border-bottom:2px solid ${catColor(cat)}40;margin-bottom:8px;display:flex;align-items:center;gap:5px;color:${catColor(cat)}">${catDot(cat)} ${cat}</div>
+          <div class="pgrid">${byCat[cat].map(mkProdCard).join('')}</div>
+        </div>`).join('');
+    }
+  }
   const myTpls=Object.values(templates[S.session.userId]||{}).filter(t=>t.supId===S.supId);
   // Auto-suggest: most ordered products for this restaurant+supplier
   const myHistory=orders.filter(o=>o.restaurant===S.session.restaurant&&o.supId===S.supId&&o.status!=='rejected');
@@ -1499,7 +1525,7 @@ function vOrder(){
       <div class="sh" style="margin:0;flex:1">Productos — ${sup.emoji} ${sup.name}</div>
       <input type="text" id="prod-search-inp" placeholder="🔍 Buscar producto..." value="${S.prodSearch||''}" oninput="filterProds(this.value)" style="padding:6px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:12px;width:180px;background:var(--card);color:var(--txt)">
     </div>
-    <div id="prod-grid-wrap">${filteredProds.length?`<div class="pgrid">${prods}</div>`:`<div class="empty"><div class="ei">🔍</div><div class="et">Sin resultados para "${S.prodSearch}"</div></div>`}</div>
+    <div id="prod-grid-wrap">${filteredProds.length?prods:`<div class="empty"><div class="ei">🔍</div><div class="et">Sin resultados para "${S.prodSearch}"</div></div>`}</div>
     <div style="margin-top:10px">
       <button class="btn btn-ghost btn-sm" onclick="S.showAddProd=!S.showAddProd;render()" style="width:100%;justify-content:center">
         ${S.showAddProd?'✕ Cancelar':'➕ Añadir producto que falta'}
@@ -1717,6 +1743,7 @@ function vAdmin(){
     ${sbItem('compare','Comparar precios')}
     ${sbItem('sup-history','Por proveedor')}
     <div class="sb-section">📋 Operaciones</div>
+    ${sbItem('productos','Productos')}
     ${sbItem('albaranes','Albaranes')}
     ${sbItem('inventario','Inventario')}
     <div class="sb-section">⚙️ Gestión</div>
@@ -1737,6 +1764,7 @@ function vAdmin(){
   else if(S.adminTab==='received')  content=vReceived();
   else if(S.adminTab==='budgets')   content=vBudgets();
   else if(S.adminTab==='compare')   content=vCompare();
+  else if(S.adminTab==='productos')  content=vProductos();
   else if(S.adminTab==='albaranes') content=vAlbaranes();
   else if(S.adminTab==='solicitudes') content=vSolicitudes();
   else if(S.adminTab==='suppliers') content=vSuppliers();
@@ -2388,9 +2416,40 @@ function supForm(sup){
 function supDetailForm(sup){
   const _U=['KG','L','UN','Caja','Bote','Bolsa','g'];
   const sid=sup.id;
-  const prods=(sup.products||[]).map(p=>{
-    const unitOpts=_U.map(u=>`<option${(p.unit||'KG')===u?' selected':''}>${u}</option>`).join('');
-    return `<div class="prod-row"><div class="prod-info" style="flex:1"><div class="prod-name-t">${p.name}</div><div style="display:flex;gap:5px;align-items:center;margin-top:5px;flex-wrap:wrap"><select style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" onchange="editProdUnit('${sid}','${p.id}',this.value)">${unitOpts}</select><input type="number" value="${parseFloat(p.price||0).toFixed(2)}" step="0.01" min="0" title="Precio €" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sid}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">€</span><input type="number" value="${p.pesoGr||''}" step="1" min="0" placeholder="gr" title="Peso en gramos" style="width:66px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdGr('${sid}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">gr</span></div></div><button class="btn btn-no btn-xs" style="align-self:center" onclick="delProd('${sid}','${p.id}')">✕</button></div>`;
+  // Agrupar productos por categoría
+  const byCat={};
+  (sup.products||[]).forEach(p=>{
+    const cat=p.category||'Otros';
+    if(!byCat[cat]) byCat[cat]=[];
+    byCat[cat].push(p);
+  });
+  // Ordenar categorías según PROD_CATS, luego las demás
+  const catOrder=[...PROD_CATS,...Object.keys(byCat).filter(c=>!PROD_CATS.includes(c))];
+  const usedCats=catOrder.filter(c=>byCat[c]);
+  const prodsHtml=usedCats.map(cat=>{
+    const rows=byCat[cat].map(p=>{
+      const unitOpts=_U.map(u=>`<option${(p.unit||'KG')===u?' selected':''}>${u}</option>`).join('');
+      const catSel=`<select title="Categoría" style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;background:var(--card);color:var(--mut);max-width:130px" onchange="editProdCat('${sid}','${p.id}',this.value)">${prodCatOpts(p.category||'Otros')}</select>`;
+      return `<div class="prod-row">
+        <div class="prod-info" style="flex:1">
+          <div class="prod-name-t">${p.name}</div>
+          <div style="display:flex;gap:5px;align-items:center;margin-top:5px;flex-wrap:wrap">
+            ${catSel}
+            <select style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" onchange="editProdUnit('${sid}','${p.id}',this.value)">${unitOpts}</select>
+            <input type="number" value="${parseFloat(p.price||0).toFixed(2)}" step="0.01" min="0" title="Precio €" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sid}','${p.id}',this.value)"/>
+            <span style="font-size:12px;color:var(--mut)">€</span>
+            <input type="number" value="${p.pesoGr||''}" step="1" min="0" placeholder="gr" title="Peso gr" style="width:60px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdGr('${sid}','${p.id}',this.value)"/>
+            <span style="font-size:12px;color:var(--mut)">gr</span>
+          </div>
+        </div>
+        <button class="btn btn-no btn-xs" style="align-self:center" onclick="delProd('${sid}','${p.id}')">✕</button>
+      </div>`;
+    }).join('');
+    const _cc=catColor(cat);
+    return `<div style="margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:6px 0 4px;border-bottom:2px solid ${_cc}40;margin-bottom:6px;display:flex;align-items:center;gap:6px;color:${_cc}">${catDot(cat)} ${cat} <span style="font-weight:400;opacity:.6;color:var(--mut)">(${byCat[cat].length})</span></div>
+      ${rows}
+    </div>`;
   }).join('');
   return `<div class="sh">Información del proveedor</div>
   <div class="two-col">
@@ -2400,16 +2459,16 @@ function supDetailForm(sup){
     <div class="fg"><label>Orden (posición en la lista)</label><input type="number" id="sf-orden-${sid}" value="${sup.orden??''}" min="1" step="1" placeholder="1, 2, 3..."/></div>
   </div>
   <button class="btn btn-pri btn-sm" onclick="saveSup2('${sid}')">✓ Guardar cambios</button>
-  <div class="sh" style="margin-top:20px">Productos (${sup.products.length}) — edita unidad, precio y peso directamente</div>
-  ${sup.products.length>4?`<input type="text" placeholder="🔍 Buscar producto..." oninput="filterSupProds(this.value,'sdp-list-${sid}')" style="width:100%;padding:8px 12px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;margin-bottom:10px;background:#fff;color:var(--txt);outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>`:``}
+  <div class="sh" style="margin-top:20px">Productos (${sup.products.length}) por categoría</div>
+  ${sup.products.length>6?`<input type="text" placeholder="🔍 Buscar producto..." oninput="filterSupProds(this.value,'sdp-list-${sid}')" style="width:100%;padding:8px 12px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;margin-bottom:10px;background:#fff;color:var(--txt);outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>`:``}
   ${!sup.products.length?`<div style="color:var(--mut);font-size:13px;text-align:center;margin:8px 0 12px">Sin productos aún — añade el primero abajo</div>`:''}
-  <div id="sdp-list-${sid}">${prods}</div>
+  <div id="sdp-list-${sid}">${prodsHtml}</div>
   <div class="sh" style="margin-top:16px">Añadir nuevo producto</div>
   <div style="display:grid;grid-template-columns:2fr 1fr 1fr 80px;gap:8px;margin-bottom:8px">
     <div class="fg" style="margin:0"><label>Nombre</label><input type="text" id="pf-name-${sid}" placeholder="Entrecot..."/></div>
+    <div class="fg" style="margin:0"><label>Categoría</label><select id="pf-cat-${sid}">${prodCatOpts('')}</select></div>
     <div class="fg" style="margin:0"><label>Unidad</label><select id="pf-unit-${sid}"><option>KG</option><option>g</option><option>UN</option><option>L</option><option>Caja</option><option>Bote</option></select></div>
     <div class="fg" style="margin:0"><label>Precio €</label><input type="number" id="pf-price-${sid}" placeholder="12.50" step="0.01" min="0"/></div>
-    <div class="fg" style="margin:0"><label>Peso gr</label><input type="number" id="pf-gr-${sid}" placeholder="250" step="1" min="0"/></div>
   </div>
   <button class="btn btn-ok btn-sm" onclick="addProd('${sid}')">+ Añadir producto</button>
   <div class="sh" style="margin-top:20px">🧹 Limpiar nombres de productos</div>
@@ -2614,12 +2673,13 @@ function editProdPrice(sid,pid,val){
 }
 function addProd(sid){
   const name=document.getElementById('pf-name-'+sid)?.value.trim();
+  const category=document.getElementById('pf-cat-'+sid)?.value||'Otros';
   const unit=document.getElementById('pf-unit-'+sid)?.value;
   const price=parseFloat(document.getElementById('pf-price-'+sid)?.value);
   const grRaw=document.getElementById('pf-gr-'+sid)?.value;
   const pesoGr=grRaw&&!isNaN(parseInt(grRaw))?parseInt(grRaw):undefined;
   if(!name||isNaN(price)||price<0){toast('Nombre y precio obligatorios','#dc2626');return;}
-  const prod={id:'p'+uid(),name,unit:unit||'KG',price};
+  const prod={id:'p'+uid(),name,unit:unit||'KG',price,category};
   if(pesoGr!==undefined) prod.pesoGr=pesoGr;
   suppliers[sid].products.push(prod);
   const _sy=window.scrollY;saveSups();renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Producto añadido','#16a34a');
@@ -2633,6 +2693,11 @@ function editProdGr(sid,pid,val){
     else delete prod.pesoGr;
     saveSups();
   }
+}
+function editProdCat(sid,pid,val){
+  if(!suppliers[sid])return;
+  const prod=suppliers[sid].products.find(p=>p.id===pid);
+  if(prod){ prod.category=val; saveSups(); }
 }
 function filterSupProds(term,containerId){
   const container=document.getElementById(containerId);
@@ -3012,7 +3077,7 @@ function filterProds(val){
   const term=(val||'').toLowerCase().trim();
   const filtered=sup.products.filter(p=>!term||p.name.toLowerCase().includes(term));
   const _UNITS=['KG','L','UN','Caja'];
-  const prods=filtered.map(p=>{
+  function mkCard(p){
     const q=(S.cart[S.supId]||{})[p.id]||0;
     const selUnit=(S.cartUnits[S.supId]||{})[p.id]||p.unit;
     const unitBtns=_UNITS.map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
@@ -3025,9 +3090,20 @@ function filterProds(val){
       </div>
       ${q>0?`<div class="urow" id="ur-${p.id}">${unitBtns}</div>`:`<div class="urow" id="ur-${p.id}" style="display:none">${unitBtns}</div>`}
     </div>`;
-  }).join('');
+  }
+  let html='';
+  if(term){
+    html=filtered.length?`<div class="pgrid">${filtered.map(mkCard).join('')}</div>`:`<div class="empty"><div class="ei">🔍</div><div class="et">Sin resultados para "${val}"</div></div>`;
+  } else {
+    const byCat={};
+    filtered.forEach(p=>{ const c=p.category||'Otros'; if(!byCat[c])byCat[c]=[]; byCat[c].push(p); });
+    const cats=[...PROD_CATS,...Object.keys(byCat).filter(c=>!PROD_CATS.includes(c))].filter(c=>byCat[c]);
+    html=cats.length<=1
+      ?`<div class="pgrid">${filtered.map(mkCard).join('')}</div>`
+      :cats.map(cat=>`<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);padding:6px 2px 6px;border-bottom:1px solid var(--brd);margin-bottom:8px">${cat}</div><div class="pgrid">${byCat[cat].map(mkCard).join('')}</div></div>`).join('');
+  }
   const wrap=document.getElementById('prod-grid-wrap');
-  if(wrap) wrap.innerHTML=filtered.length?`<div class="pgrid">${prods}</div>`:`<div class="empty"><div class="ei">🔍</div><div class="et">Sin resultados para "${val}"</div></div>`;
+  if(wrap) wrap.innerHTML=html;
 }
 
 function chgQ(id,d){
@@ -3498,7 +3574,7 @@ function escRender(){
     grid.innerHTML='<p style="color:var(--mut)">No hay escandallos con esos filtros. Crea uno con "+ Nuevo".</p>';
     return;
   }
-  grid.innerHTML = entries.map(([id,e])=>{
+  function escCard([id,e]){
     const coste = escCosteTotal(e);
     const pvp = parseFloat(e.precioVenta)||0;
     const fcObj = parseFloat(e.foodCostObjetivo)||30;
@@ -3515,8 +3591,7 @@ function escRender(){
     const copyBtn=`<button class="btn btn-ghost btn-xs" style="margin-top:8px;width:100%;justify-content:center" onclick="event.stopPropagation();escCopiarParaLocal('${id}')">📋 Copiar para local</button>`;
     return `<div class="esc-card" onclick="escOpenModal('${id}')">
       <div class="esc-fc-ind ${cls}">${fcReal!==null?fcReal.toFixed(0)+'%':'—'}</div>
-      <span class="esc-badge">${e.categoria||'Otros'}</span>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">${restBadge}${baseTag}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${restBadge}${baseTag}</div>
       <h4>${e.nombre||'Sin nombre'}</h4>
       <div class="esc-stats">
         <div class="esc-stat"><span>Coste</span><strong>${escFmt(coste)}</strong></div>
@@ -3527,7 +3602,25 @@ function escRender(){
       <div style="margin-top:8px;font-size:12px;color:var(--mut)">${(e.ingredientes||[]).length} ingredientes</div>
       ${copyBtn}
     </div>`;
-  }).join('');
+  }
+  // Agrupar por categoría si no hay filtro de categoría activo
+  if(cat){
+    grid.innerHTML=`<div class="esc-grid">${entries.map(escCard).join('')}</div>`;
+  } else {
+    const byCat={};
+    entries.forEach(entry=>{ const c=entry[1].categoria||'Otros'; if(!byCat[c])byCat[c]=[]; byCat[c].push(entry); });
+    // Ordenar: categorías de escandallos (Carnes, Fríos, Postres, Bebidas, Aperitivos, Fondos, Otros)
+    const ESC_CATS=['Calientes','Fríos','Postres','Bebidas','Aperitivos','Fondos','Entrantes','Guarniciones','Otros'];
+    const orderedCats=[...ESC_CATS,...Object.keys(byCat).filter(c=>!ESC_CATS.includes(c))].filter(c=>byCat[c]);
+    grid.innerHTML=orderedCats.map(c=>`
+      <div style="grid-column:1/-1;margin-top:${c===orderedCats[0]?'0':'8px'}">
+        <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;padding:8px 0 6px;border-bottom:2px solid ${(ESC_CAT_COLORS[c]||'#64748b')}50;margin-bottom:12px;display:flex;align-items:center;gap:8px;color:${ESC_CAT_COLORS[c]||'#64748b'}">
+          ${catDot(c,ESC_CAT_COLORS)} ${c} <span style="font-size:10px;font-weight:600;background:${(ESC_CAT_COLORS[c]||'#64748b')}15;border:1px solid ${(ESC_CAT_COLORS[c]||'#64748b')}30;border-radius:10px;padding:1px 8px;color:${ESC_CAT_COLORS[c]||'#64748b'}">${byCat[c].length}</span>
+        </div>
+      </div>
+      ${byCat[c].map(escCard).join('')}
+    `).join('');
+  }
 }
 
 function escCosteTotal(e, depth=0){
@@ -3635,14 +3728,23 @@ function escLoadProds(){
   if(btnNew) btnNew.style.display=pid?'block':'none';
   if(wrapNew) wrapNew.style.display='none';
   if(!pid||!_escSupsCache[pid]) return;
-  const prods=_escSupsCache[pid].products||[];
-  (Array.isArray(prods)?prods:Object.values(prods)).forEach(p=>{
-    const o=document.createElement('option');
-    o.value=p.id||p.name;
-    const grInfo=p.pesoGr?` · ${p.pesoGr}gr`:'';
-    o.textContent=`${p.name} (${parseFloat(p.price||0).toFixed(2)}€/${p.unit||'u.'}${grInfo})`;
-    o.dataset.price=p.price||0; o.dataset.unit=p.unit||'u.'; o.dataset.name=p.name||''; o.dataset.gr=p.pesoGr||'';
-    sel.appendChild(o);
+  const prods=(Array.isArray(_escSupsCache[pid].products)?_escSupsCache[pid].products:Object.values(_escSupsCache[pid].products||[]));
+  // Agrupar por categoría
+  const byCat={};
+  prods.forEach(p=>{ const c=p.category||'Otros'; if(!byCat[c])byCat[c]=[]; byCat[c].push(p); });
+  const cats=[...PROD_CATS,...Object.keys(byCat).filter(c=>!PROD_CATS.includes(c))].filter(c=>byCat[c]);
+  cats.forEach(cat=>{
+    const grp=document.createElement('optgroup');
+    grp.label=cat;
+    byCat[cat].forEach(p=>{
+      const o=document.createElement('option');
+      o.value=p.id||p.name;
+      const grInfo=p.pesoGr?` · ${p.pesoGr}gr`:'';
+      o.textContent=`${p.name} (${parseFloat(p.price||0).toFixed(2)}€/${p.unit||'u.'}${grInfo})`;
+      o.dataset.price=p.price||0; o.dataset.unit=p.unit||'u.'; o.dataset.name=p.name||''; o.dataset.gr=p.pesoGr||''; o.dataset.cat=cat;
+      grp.appendChild(o);
+    });
+    sel.appendChild(grp);
   });
 }
 function escFilterProdsSearch(term){
@@ -5018,6 +5120,81 @@ function renderBudgetTrendChart(){
     },
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'€'+v.toLocaleString('es')},grid:{color:'#f0f0f0'}},x:{grid:{display:false}}}}
   });
+}
+
+/* ═══════════════ CATÁLOGO DE PRODUCTOS ═══════════════ */
+function vProductos(){
+  const allSups=supList();
+  if(!allSups.length) return `<div class="empty"><div class="ei">📦</div><div class="et">Sin proveedores configurados</div></div>`;
+
+  // Filtros de estado
+  if(!S.prodCatFilter) S.prodCatFilter='';
+  if(!S.prodSupFilter) S.prodSupFilter='';
+  if(!S.prodSearch2)   S.prodSearch2='';
+
+  const supOpts=allSups.map(s=>`<option value="${s.id}"${S.prodSupFilter===s.id?' selected':''}>${s.emoji} ${s.name}</option>`).join('');
+  const catOpts=PROD_CATS.map(c=>`<option value="${c}"${S.prodCatFilter===c?' selected':''}>${c}</option>`).join('');
+
+  const filtersBar=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;align-items:center">
+    <input type="text" placeholder="🔍 Buscar producto..." value="${S.prodSearch2||''}"
+      oninput="S.prodSearch2=this.value;renderAdminContent()"
+      style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;background:var(--card);color:var(--txt)"/>
+    <select onchange="S.prodSupFilter=this.value;renderAdminContent()"
+      style="padding:8px 10px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;background:var(--card);color:var(--txt)">
+      <option value="">Todos los proveedores</option>${supOpts}
+    </select>
+    <select onchange="S.prodCatFilter=this.value;renderAdminContent()"
+      style="padding:8px 10px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;background:var(--card);color:var(--txt)">
+      <option value="">Todas las categorías</option>${catOpts}
+    </select>
+  </div>`;
+
+  // Recopilar todos los productos con info de proveedor
+  const term=(S.prodSearch2||'').toLowerCase().trim();
+  const allProds=[];
+  allSups.forEach(sup=>{
+    if(S.prodSupFilter && sup.id!==S.prodSupFilter) return;
+    (sup.products||[]).forEach(p=>{
+      const cat=p.category||'Otros';
+      if(S.prodCatFilter && cat!==S.prodCatFilter) return;
+      if(term && !p.name.toLowerCase().includes(term)) return;
+      allProds.push({...p, cat, supId:sup.id, supName:sup.name, supEmoji:sup.emoji});
+    });
+  });
+
+  if(!allProds.length) return filtersBar+`<div class="empty"><div class="ei">🔍</div><div class="et">Sin productos con esos filtros</div></div>`;
+
+  // Agrupar por categoría
+  const byCat={};
+  allProds.forEach(p=>{ if(!byCat[p.cat])byCat[p.cat]=[]; byCat[p.cat].push(p); });
+  const orderedCats=[...PROD_CATS,...Object.keys(byCat).filter(c=>!PROD_CATS.includes(c))].filter(c=>byCat[c]);
+
+  const sections=orderedCats.map(cat=>{
+    const color=catColor(cat);
+    const rows=byCat[cat].map(p=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--brd);transition:.15s" onmouseover="this.style.background='var(--srf)'" onmouseout="this.style.background=''">
+        <div style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--txt)">${p.name}</div>
+          <div style="font-size:11px;color:var(--mut);margin-top:1px">${p.supEmoji} ${p.supName}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:14px;font-weight:700;color:var(--pri)">${fmt(p.price||0)}<span style="font-size:11px;font-weight:400;color:var(--mut)"> / ${p.unit||'u.'}</span></div>
+          ${p.pesoGr?`<div style="font-size:11px;color:var(--mut)">${p.pesoGr} gr</div>`:''}
+        </div>
+      </div>`).join('');
+    return `<div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
+      <div style="padding:12px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--brd);background:${color}08">
+        <div style="width:12px;height:12px;border-radius:50%;background:${color}"></div>
+        <span style="font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:${color}">${cat}</span>
+        <span style="font-size:11px;color:var(--mut);margin-left:auto">${byCat[cat].length} producto${byCat[cat].length!==1?'s':''}</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+
+  const total=allProds.length;
+  return filtersBar+`<div style="font-size:13px;color:var(--mut);margin-bottom:12px">${total} producto${total!==1?'s':''} en ${orderedCats.length} categoría${orderedCats.length!==1?'s':''}</div>`+sections;
 }
 
 /* ═══════════════ HISTORIAL POR PROVEEDOR ═══════════════ */
