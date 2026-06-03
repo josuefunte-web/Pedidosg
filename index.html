@@ -703,7 +703,18 @@ function initFirebaseListeners(){
       }
       localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
     }
-    if(S.view==='order'||S.view==='albaran-new'){const _sv=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo(0,_sv));}
+    // Actualizar UI en TODAS las vistas cuando cambien los proveedores
+    const _sv = window.scrollY;
+    if(S.view==='order' || S.view==='albaran-new'){
+      render();
+    } else if(S.view==='admin'){
+      // En admin: solo refrescar si no estamos editando un proveedor inline
+      // (para no cerrar el formulario de edición al admin)
+      if(S.openSupId === null){
+        renderAdminContent();
+      }
+    }
+    requestAnimationFrame(()=>window.scrollTo(0,_sv));
   });
 
   // Comentarios por pedido — chat interno
