@@ -1050,8 +1050,14 @@ function updateOrder(id, data){
   if(fbDb) fbDb.ref('orders/'+id).update(data);
   else { const o=orders.find(x=>x.id===id); if(o) Object.assign(o,data); }
 }
-function saveSups(){
-  if(fbDb) fbDb.ref('suppliers').set(suppliers);
+// Si se pasa un sid, escribe SOLO esa rama (suppliers/<sid>) para no pisar
+// los cambios que otro dispositivo pueda estar haciendo en otros proveedores.
+// Sin sid, reescribe todo el árbol (solo para operaciones masivas intencionadas).
+function saveSups(sid){
+  if(fbDb){
+    if(sid && suppliers[sid]) fbDb.ref('suppliers/'+sid).set(suppliers[sid]);
+    else fbDb.ref('suppliers').set(suppliers);
+  }
   localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
 }
 
@@ -1074,7 +1080,7 @@ function importarTarifaCWC(){
     if(idx>=0){ sup.products[idx]={...sup.products[idx],id,name,unit,price,code};updated++; }
     else{ sup.products.push({id,name,unit,price,code});added++; }
   });
-  saveSups();
+  saveSups(sid);
   const msg=`Importado en ${suppliers[sid].name}: ${added} nuevos + ${updated} actualizados`;
   if(statusEl) statusEl.innerHTML='<span style="color:#16a34a">'+msg+'</span>';
   toast(msg,'#16a34a',5000);
@@ -2561,10 +2567,10 @@ function saveSup2(id){
   if(!name){toast('Introduce el nombre','#dc2626');return;}
   const _sy=window.scrollY;
   const _rerender=()=>{ renderAdminContent(); requestAnimationFrame(()=>window.scrollTo(0,_sy)); };
-  if(id==='new'){const nid='s'+uid();suppliers[nid]={id:nid,name,emoji,phone,...(orden!==undefined?{orden}:{}),products:[]};saveSups();S.editSupId=null;S.openSupId=nid;_rerender();toast('Proveedor creado — ya puedes añadir productos','#16a34a');}
-  else{if(!suppliers[id])return;suppliers[id].name=name;suppliers[id].emoji=emoji;suppliers[id].phone=phone;if(orden!==undefined)suppliers[id].orden=orden;else delete suppliers[id].orden;saveSups();_rerender();toast('Proveedor guardado','#16a34a');}
+  if(id==='new'){const nid='s'+uid();suppliers[nid]={id:nid,name,emoji,phone,...(orden!==undefined?{orden}:{}),products:[]};saveSups(nid);S.editSupId=null;S.openSupId=nid;_rerender();toast('Proveedor creado — ya puedes añadir productos','#16a34a');}
+  else{if(!suppliers[id])return;suppliers[id].name=name;suppliers[id].emoji=emoji;suppliers[id].phone=phone;if(orden!==undefined)suppliers[id].orden=orden;else delete suppliers[id].orden;saveSups(id);_rerender();toast('Proveedor guardado','#16a34a');}
 }
-function delSup(id){ if(!confirm('¿Eliminar proveedor?'))return;delete suppliers[id];saveSups();render(); }
+function delSup(id){ if(!confirm('¿Eliminar proveedor?'))return;delete suppliers[id];if(fbDb) fbDb.ref('suppliers/'+id).remove();localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));render(); }
 
 function strToColor(str){
   // Genera un color oscuro consistente por nombre de restaurante
@@ -2595,7 +2601,7 @@ function cleanSupProdNames(sid){
   });
   if(!changed){ document.getElementById('sup-clean-status-'+sid).textContent='Todos los nombres ya estaban limpios.'; return; }
   const _sy=window.scrollY;
-  saveSups();
+  saveSups(sid);
   renderAdminContent();
   requestAnimationFrame(()=>window.scrollTo(0,_sy));
   toast(`${changed} nombres corregidos`,'#16a34a');
@@ -2644,7 +2650,7 @@ async function importSupTarifa(sid, input){
         else { sup.products.push({id, name, unit, price, ...(code?{code}:{})}); added++; }
       });
 
-      saveSups();
+      saveSups(sid);
       setStatus(`Tarifa importada: <strong>${added} nuevos</strong> + ${updated} actualizados (${added+updated} total)`, '#16a34a');
       toast(`${added+updated} productos importados en ${sup.name}`, '#16a34a', 4000);
       // Refrescar lista de productos sin cerrar el panel
@@ -2692,7 +2698,7 @@ async function importSupTarifa(sid, input){
         if(idx>=0){ sup.products[idx]={...sup.products[idx],name,unit,price,...(code?{code}:{})}; updated++; }
         else { sup.products.push({id,name,unit,price,...(code?{code}:{})}); added++; }
       });
-      saveSups();
+      saveSups(sid);
       setStatus(`PDF procesado: <strong>${added} nuevos</strong> + ${updated} actualizados (${added+updated} total)`, '#16a34a');
       toast(`${added+updated} productos importados en ${sup.name}`, '#16a34a', 4000);
     } catch(e){ setStatus('Error al procesar el PDF: '+e.message,'#dc2626'); console.error(e); }
@@ -2706,13 +2712,13 @@ function toggleSupVisibility(sid,uid,visible){
   if(!suppliers[sid].disabledFor)suppliers[sid].disabledFor=[];
   if(visible){suppliers[sid].disabledFor=suppliers[sid].disabledFor.filter(id=>id!==uid);}
   else{if(!suppliers[sid].disabledFor.includes(uid))suppliers[sid].disabledFor.push(uid);}
-  saveSups();
+  saveSups(sid);
   toast(visible?'Proveedor activado para este local':'Proveedor desactivado para este local','#16a34a');
 }
 function editProdUnit(sid,pid,val){
   if(!suppliers[sid])return;
   const prod=suppliers[sid].products.find(p=>p.id===pid);
-  if(prod){prod.unit=val;saveSups();toast('Unidad actualizada','#16a34a');}
+  if(prod){prod.unit=val;saveSups(sid);toast('Unidad actualizada','#16a34a');}
 }
 function editProdPrice(sid,pid,val){
   const price=parseFloat(val);
@@ -2721,7 +2727,7 @@ function editProdPrice(sid,pid,val){
   if(prod){
     const oldPrice=parseFloat(prod.price)||0;
     prod.price=price;
-    saveSups();
+    saveSups(sid);
     if(fbDb && Math.abs(oldPrice-price)>0.001){
       const h={id:uid(),supId:sid,supName:suppliers[sid].name,prodId:pid,prodName:prod.name,oldPrice,newPrice:price,changedAt:new Date().toISOString()};
       fbDb.ref('priceHistory/'+h.id).set(h);
@@ -2746,7 +2752,7 @@ function addProd(sid){
   const prod={id:'p'+uid(),name,unit:unit||'KG',price,category};
   if(pesoGr!==undefined) prod.pesoGr=pesoGr;
   suppliers[sid].products.push(prod);
-  const _sy=window.scrollY;saveSups();renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Producto añadido','#16a34a');
+  const _sy=window.scrollY;saveSups(sid);renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Producto añadido','#16a34a');
 }
 function editProdGr(sid,pid,val){
   if(!suppliers[sid])return;
@@ -2755,13 +2761,13 @@ function editProdGr(sid,pid,val){
     const gr=parseInt(val);
     if(!isNaN(gr)&&gr>0) prod.pesoGr=gr;
     else delete prod.pesoGr;
-    saveSups();
+    saveSups(sid);
   }
 }
 function editProdCat(sid,pid,val){
   if(!suppliers[sid])return;
   const prod=suppliers[sid].products.find(p=>p.id===pid);
-  if(prod){ prod.category=val; saveSups(); }
+  if(prod){ prod.category=val; saveSups(sid); }
 }
 function toggleProdAlergeno(sid,pid,aId,checked){
   if(!suppliers[sid])return;
@@ -2770,7 +2776,7 @@ function toggleProdAlergeno(sid,pid,aId,checked){
   if(!prod.alergenos) prod.alergenos=[];
   if(checked){ if(!prod.alergenos.includes(aId)) prod.alergenos.push(aId); }
   else { prod.alergenos=prod.alergenos.filter(a=>a!==aId); }
-  saveSups();
+  saveSups(sid);
 }
 function filterSupProds(term,containerId){
   const container=document.getElementById(containerId);
@@ -2782,7 +2788,7 @@ function filterSupProds(term,containerId){
     r.style.display=(!q||name.includes(q))?'':'none';
   });
 }
-function delProd(sid,pid){ if(!suppliers[sid])return;const _sy=window.scrollY;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups();renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy)); }
+function delProd(sid,pid){ if(!suppliers[sid])return;const _sy=window.scrollY;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups(sid);renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy)); }
 function localAddProd(sid){
   const name=document.getElementById('lp-name')?.value.trim();
   const unit=document.getElementById('lp-unit')?.value||'KG';
@@ -3907,8 +3913,7 @@ function escCrearProd(){
   if(pesoGr!==undefined) prod.pesoGr=pesoGr;
   suppliers[pid].products.push(prod);
   _escSupsCache[pid]=suppliers[pid];
-  saveSups();
-  if(fbDb) fbDb.ref('suppliers/'+pid+'/products').set(suppliers[pid].products);
+  saveSups(pid);
   // Reload product list and select the new product
   escLoadProds();
   setTimeout(()=>{
@@ -5255,8 +5260,7 @@ function recCrearProd(si){
   const prod={id:newId,name,unit,price};
   if(pesoGr!==undefined) prod.pesoGr=pesoGr;
   suppliers[provId].products.push(prod);
-  saveSups();
-  if(fbDb) fbDb.ref('suppliers/'+provId+'/products').set(suppliers[provId].products);
+  saveSups(provId);
   // Add as ingredient immediately
   const cantidad=pesoGr||'';
   if(!_recData.secciones[si].ingredientes) _recData.secciones[si].ingredientes=[];
