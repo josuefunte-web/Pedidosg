@@ -1304,7 +1304,6 @@ function renderAdminContent(){
   if(!tc) return;
   // No interrumpir modales abiertos
   if(S.adminTab==='escandallos' && document.getElementById('esc-modal-ov')?.style.display==='flex') return;
-  if(S.adminTab==='recetas'     && document.getElementById('rec-modal-ov')?.style.display==='flex') return;
   if(S.adminTab==='inventario'  && S.invEditId) return; // formulario inline abierto
   const _sv=window.scrollY;
   let content='';
@@ -1320,7 +1319,6 @@ function renderAdminContent(){
   else if(S.adminTab==='suppliers') content=vSuppliers();
   else if(S.adminTab==='settings') content=vSettings();
   else if(S.adminTab==='escandallos') content=vEscandallos();
-  else if(S.adminTab==='recetas') content=vRecetas();
   else if(S.adminTab==='sup-history') content=vSupHistory();
   else if(S.adminTab==='inventario') content=vInventario();
   tc.innerHTML=content;
@@ -1801,7 +1799,6 @@ function vAdmin(){
     ${sbItem('solicitudes','Solicitudes','sb-sol-badge')}
     ${sbItem('suppliers','Proveedores')}
     ${sbItem('escandallos','Escandallos')}
-    ${sbItem('recetas','Recetas')}
     ${sbItem('settings','Configuración')}
     <div style="border-top:1px solid rgba(255,255,255,.1);margin:12px 10px 8px;padding-top:12px">
       <div class="sg-direct" onclick="S.adminOrderPicker=true;S.sidebarOpen=false;render()" style="background:rgba(251,191,36,.12);border-radius:9px;color:#fbbf24;font-weight:700;border:1px solid rgba(251,191,36,.25)">Hacer pedido</div>
@@ -1821,7 +1818,6 @@ function vAdmin(){
   else if(S.adminTab==='suppliers') content=vSuppliers();
   else if(S.adminTab==='settings')  content=vSettings();
   else if(S.adminTab==='escandallos') content=vEscandallos();
-  else if(S.adminTab==='recetas') content=vRecetas();
   else if(S.adminTab==='sup-history') content=vSupHistory();
   else if(S.adminTab==='inventario') content=vInventario();
 
@@ -3603,6 +3599,7 @@ function toggleDarkMode(){
 /* ═══════════════ ESCANDALLOS ═══════════════ */
 let _escEditId=null, _escIngs=[], _escAllData={}, _escSupsCache={}, _escInit=false;
 let _escElab={texto:'',pasos:[]};
+let _escTemporada=[], _escSecciones=[];
 let _menAllData={}, _menEditId=null, _menEscIds=[], _menInit=false;
 let _recAllData={}, _recEditId=null, _recData=null;
 
@@ -3615,6 +3612,7 @@ function vEscandallos(){
       ${escTab==='escandallos'?`<button class="btn btn-ghost btn-sm" onclick="escExportTodos()">Exportar</button>
       <button class="btn btn-ghost btn-sm" onclick="escImportarJSON()" title="Importar escandallos desde archivo JSON">⬆ Importar</button>
       <input type="file" id="esc-import-input" accept=".json" style="display:none" onchange="escProcesarImport(this)">
+      <button class="btn btn-ghost btn-sm" onclick="escMigrarRecetas()" title="Fusionar recetas existentes en escandallos">🔀 Migrar recetas</button>
       <button class="btn btn-pri btn-sm" onclick="escOpenModal()">+ Nuevo</button>`
       :`<button class="btn btn-pri btn-sm" onclick="menOpenModal()">+ Nuevo menú</button>`}
     </div>
@@ -3771,21 +3769,25 @@ function vEscandallos(){
           </div>
         </div>
       </div>
-      <!-- ELABORACIÓN — ancho completo -->
+      <!-- RECETA — ancho completo -->
       <div style="padding:14px 20px 16px;border-top:1px solid var(--brd)">
-        <div style="font-weight:700;font-size:13px;color:var(--pri);margin-bottom:10px">Elaboración</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="font-weight:700;font-size:13px;color:var(--pri);margin-bottom:12px">📖 Receta</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
           <div>
             <label style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px">Descripción general</label>
-            <textarea id="esc-elab-texto" rows="5" placeholder="Descripción general de la elaboración, técnica, temperatura, presentación..." style="width:100%;padding:8px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt);resize:vertical;box-sizing:border-box" oninput="_escElab.texto=this.value"></textarea>
+            <textarea id="esc-elab-texto" rows="4" placeholder="Técnica, presentación, temperatura..." style="width:100%;padding:8px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt);resize:vertical;box-sizing:border-box" oninput="_escElab.texto=this.value"></textarea>
           </div>
           <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-              <label style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px">Pasos</label>
-              <button class="btn btn-ghost btn-xs" onclick="escAddPaso()">+ Paso</button>
-            </div>
-            <div id="esc-pasos-list"></div>
+            <label style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Temporada</label>
+            <div id="esc-temporada-btns" style="display:flex;gap:4px;flex-wrap:wrap"></div>
           </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <label style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px">Secciones de elaboración</label>
+            <button class="btn btn-ghost btn-xs" onclick="escAddSeccion()">+ Añadir sección</button>
+          </div>
+          <div id="esc-secciones-list"></div>
         </div>
       </div>
       <div class="esc-modal-ft">
@@ -3937,6 +3939,8 @@ function escOpenModal(id=null){
     if(tempEl) tempEl.value=e.temperatura||'';
     _escIngs=JSON.parse(JSON.stringify(e.ingredientes||[]));
     _escElab={texto:e.elaboracion?.texto||'',pasos:JSON.parse(JSON.stringify(e.elaboracion?.pasos||[]))};
+    _escTemporada=JSON.parse(JSON.stringify(e.temporada||[]));
+    _escSecciones=JSON.parse(JSON.stringify(e.recetaSecciones||[]));
   } else {
     document.getElementById('esc-nombre').value='';
     document.getElementById('esc-categoria').value=ESC_CATS[0];
@@ -3955,12 +3959,18 @@ function escOpenModal(id=null){
     const tempEl=document.getElementById('esc-temp');
     if(tempEl) tempEl.value='';
     _escElab={texto:'',pasos:[]};
+    _escTemporada=[];
+    _escSecciones=[];
   }
   // Limpiar campos de añadir ingrediente
   ['esc-sel-qty','esc-sel-merma','esc-libre-nombre','esc-libre-precio'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   // Poblar proveedores
   const sel=document.getElementById('esc-sel-prov');
   sel.innerHTML='<option value="">-- Proveedor (opcional) --</option>';
+  // Opción sub-elaboración
+  const subOpt=document.createElement('option');
+  subOpt.value='__subesc__'; subOpt.textContent='🔗 Sub-elaboración (otro escandallo)';
+  sel.appendChild(subOpt);
   Object.entries(_escSupsCache).forEach(([pid,prov])=>{
     const o=document.createElement('option');
     o.value=pid; o.textContent=(prov.emoji||'')+(prov.name||pid);
@@ -3968,36 +3978,95 @@ function escOpenModal(id=null){
   });
   escRenderIngs(); escRecalc();
   document.getElementById('esc-modal-ov').style.display='flex';
-  // Cargar elaboración tras mostrar modal
+  // Cargar elaboración y receta tras mostrar modal
   requestAnimationFrame(()=>{
     const elabEl=document.getElementById('esc-elab-texto');
     if(elabEl) elabEl.value=_escElab.texto||'';
-    escRenderPasos();
+    escRenderTemporada();
+    escRenderSecciones();
   });
 }
-function escCloseModal(){ document.getElementById('esc-modal-ov').style.display='none'; _escEditId=null; _escIngs=[]; _escElab={texto:'',pasos:[]}; }
+function escCloseModal(){ document.getElementById('esc-modal-ov').style.display='none'; _escEditId=null; _escIngs=[]; _escElab={texto:'',pasos:[]}; _escTemporada=[]; _escSecciones=[]; }
 
-function escAddPaso(){
-  _escElab.pasos.push('');
-  escRenderPasos();
-}
-function escDelPaso(i){
-  _escElab.pasos.splice(i,1);
-  escRenderPasos();
-}
-function escRenderPasos(){
-  const cont=document.getElementById('esc-pasos-list');
+function escRenderTemporada(){
+  const cont=document.getElementById('esc-temporada-btns');
   if(!cont) return;
-  if(!_escElab.pasos.length){
-    cont.innerHTML='<p style="color:var(--mut);font-size:12px">Sin pasos. Pulsa "+ Paso" para añadir.</p>';
+  const MESES=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  cont.innerHTML=MESES.map(m=>{
+    const on=_escTemporada.includes(m);
+    return `<button type="button" onclick="escToggleMes('${m}')" style="cursor:pointer;border:1.5px solid ${on?'var(--pri)':'var(--brd)'};padding:3px 7px;border-radius:5px;font-size:11px;font-weight:700;background:${on?'var(--pri)':'var(--card)'};color:${on?'#fff':'var(--txt)'}">${m}</button>`;
+  }).join('');
+}
+function escToggleMes(m){
+  const i=_escTemporada.indexOf(m);
+  if(i>=0) _escTemporada.splice(i,1); else _escTemporada.push(m);
+  escRenderTemporada();
+}
+function escAddSeccion(){
+  _escSecciones.push({titulo:'',ingredientes:[],pasos:[]});
+  escRenderSecciones();
+}
+function escDelSeccion(si){
+  _escSecciones.splice(si,1);
+  escRenderSecciones();
+}
+function escAddIngSeccion(si){
+  _escSecciones[si].ingredientes.push({cantidad:'',unidad:'',nombre:'',nota:''});
+  escRenderSecciones();
+}
+function escDelIngSeccion(si,ii){
+  _escSecciones[si].ingredientes.splice(ii,1);
+  escRenderSecciones();
+}
+function escAddPasoSeccion(si){
+  _escSecciones[si].pasos.push('');
+  escRenderSecciones();
+}
+function escDelPasoSeccion(si,pi){
+  _escSecciones[si].pasos.splice(pi,1);
+  escRenderSecciones();
+}
+function escRenderSecciones(){
+  const cont=document.getElementById('esc-secciones-list');
+  if(!cont) return;
+  if(!_escSecciones.length){
+    cont.innerHTML=`<p style="color:var(--mut);font-size:12px;margin-bottom:4px">Sin secciones. Pulsa "+ Añadir sección" para empezar.</p>`;
     return;
   }
-  cont.innerHTML=_escElab.pasos.map((p,i)=>`
-    <div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:6px">
-      <span style="min-width:20px;height:20px;background:var(--pri);color:#fff;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:7px">${i+1}</span>
-      <input type="text" value="${p.replace(/"/g,'&quot;')}" placeholder="Paso ${i+1}..." style="flex:1;padding:6px 9px;border:1.5px solid var(--brd);border-radius:7px;font-size:13px;background:var(--card);color:var(--txt)" oninput="_escElab.pasos[${i}]=this.value"/>
-      <button onclick="escDelPaso(${i})" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:16px;margin-top:4px;padding:2px">✕</button>
-    </div>`).join('');
+  cont.innerHTML=_escSecciones.map((sec,si)=>{
+    const ings=(sec.ingredientes||[]).map((ing,ii)=>`
+      <div style="display:grid;grid-template-columns:60px 60px 1fr 1fr auto;gap:4px;margin-bottom:4px;align-items:center">
+        <input type="number" value="${ing.cantidad||''}" placeholder="Cant." min="0" step="0.001" style="padding:4px 6px;border:1.5px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" oninput="_escSecciones[${si}].ingredientes[${ii}].cantidad=this.value"/>
+        <input type="text" value="${ing.unidad||''}" placeholder="Ud." style="padding:4px 6px;border:1.5px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" oninput="_escSecciones[${si}].ingredientes[${ii}].unidad=this.value"/>
+        <input type="text" value="${ing.nombre||''}" placeholder="Ingrediente" style="padding:4px 6px;border:1.5px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt);font-weight:600" oninput="_escSecciones[${si}].ingredientes[${ii}].nombre=this.value"/>
+        <input type="text" value="${ing.nota||''}" placeholder="Nota" style="padding:4px 6px;border:1.5px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt);font-style:italic" oninput="_escSecciones[${si}].ingredientes[${ii}].nota=this.value"/>
+        <button onclick="escDelIngSeccion(${si},${ii})" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:13px;padding:2px">✕</button>
+      </div>`).join('');
+    const pasos=(sec.pasos||[]).map((p,pi)=>`
+      <div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:5px">
+        <span style="min-width:20px;height:20px;background:var(--pri);color:#fff;border-radius:50%;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:5px">${pi+1}</span>
+        <input type="text" value="${p.replace(/"/g,'&quot;')}" placeholder="Paso ${pi+1}..." style="flex:1;padding:5px 8px;border:1.5px solid var(--brd);border-radius:7px;font-size:13px;background:var(--card);color:var(--txt)" oninput="_escSecciones[${si}].pasos[${pi}]=this.value"/>
+        <button onclick="escDelPasoSeccion(${si},${pi})" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:13px;padding:2px;margin-top:4px">✕</button>
+      </div>`).join('');
+    return `<div style="background:var(--srf);border:1px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <input type="text" value="${(sec.titulo||'').replace(/"/g,'&quot;')}" placeholder="Nombre de sección (ej: Salsa, Guarnición...)" style="flex:1;padding:5px 8px;border:1.5px solid var(--brd);border-radius:7px;font-size:13px;font-weight:700;background:var(--card);color:var(--txt)" oninput="_escSecciones[${si}].titulo=this.value"/>
+        <button onclick="escDelSeccion(${si})" style="border:none;background:none;color:#dc2626;cursor:pointer;font-size:14px;margin-left:8px;padding:2px" title="Eliminar sección">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin-bottom:6px">Ingredientes</div>
+          ${ings||'<p style="font-size:12px;color:var(--mut);margin:0 0 6px">Sin ingredientes</p>'}
+          <button class="btn btn-ghost btn-xs" onclick="escAddIngSeccion(${si})">+ Ingrediente</button>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin-bottom:6px">Pasos</div>
+          ${pasos||'<p style="font-size:12px;color:var(--mut);margin:0 0 6px">Sin pasos</p>'}
+          <button class="btn btn-ghost btn-xs" onclick="escAddPasoSeccion(${si})">+ Paso</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function escLoadProds(){
@@ -4007,9 +4076,21 @@ function escLoadProds(){
   const btnNew=document.getElementById('esc-btn-new-prod');
   const wrapNew=document.getElementById('esc-new-prod-wrap');
   sel.innerHTML='<option value="">-- Producto --</option>';
+  if(wrapNew) wrapNew.style.display='none';
+  if(pid==='__subesc__'){
+    if(srch){srch.value='';srch.style.display='none';}
+    if(btnNew) btnNew.style.display='none';
+    sel.innerHTML='<option value="">-- Selecciona escandallo --</option>';
+    Object.entries(_escAllData).filter(([id])=>id!==_escEditId).sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||'','es')).forEach(([id,e])=>{
+      const o=document.createElement('option');
+      o.value=id; o.textContent=(e.nombre||'Sin nombre')+' ['+escFmt(escCosteTotal(e))+'/rac.]';
+      o.dataset.name=e.nombre||'Sin nombre'; o.dataset.unit='rac.'; o.dataset.price='0';
+      sel.appendChild(o);
+    });
+    return;
+  }
   if(srch){srch.value='';srch.style.display=pid?'block':'none';}
   if(btnNew) btnNew.style.display=pid?'block':'none';
-  if(wrapNew) wrapNew.style.display='none';
   if(!pid||!_escSupsCache[pid]) return;
   const prods=(Array.isArray(_escSupsCache[pid].products)?_escSupsCache[pid].products:Object.values(_escSupsCache[pid].products||[]));
   // Agrupar por categoría
@@ -4091,7 +4172,12 @@ function escAddIng(){
   const librePrice=parseFloat(document.getElementById('esc-libre-precio').value)||0;
   if(!qty||qty<=0){toast('Introduce una cantidad válida','#dc2626');return;}
 
-  if(libreNombre){
+  if(pid==='__subesc__'){
+    // Sub-elaboración
+    if(!prodId){toast('Selecciona un escandallo','#dc2626');return;}
+    const opt=sel.options[sel.selectedIndex];
+    _escIngs.push({type:'subesc',escId:prodId,proveedorId:null,proveedorNombre:'Sub-elaboración',productoId:prodId,nombre:opt.dataset.name||opt.textContent.split(' [')[0],cantidad:qty,unidad:'rac.',precioUnitario:0,merma});
+  } else if(libreNombre){
     // Ingrediente libre (sin proveedor)
     _escIngs.push({proveedorId:null,proveedorNombre:'Libre',productoId:null,nombre:libreNombre,cantidad:qty,unidad:'u.',precioUnitario:librePrice,merma});
   } else {
@@ -4241,6 +4327,8 @@ function escSave(){
       alergenos:alergenosFromIngs(_escIngs),
       ingredientes:ingsWithLivePrice,
       elaboracion:{texto:_escElab.texto||'',pasos:_escElab.pasos.filter(p=>p.trim())},
+      temporada:_escTemporada,
+      recetaSecciones:_escSecciones.map(s=>({...s,ingredientes:(s.ingredientes||[]).filter(i=>i.nombre),pasos:(s.pasos||[]).filter(p=>p.trim())})),
       updatedAt:Date.now()
     };
     const ref=_escEditId?fbDb.ref('escandallos/'+_escEditId):fbDb.ref('escandallos').push();
@@ -4522,6 +4610,54 @@ function escDelete(){
   fbDb.ref('escandallos/'+_escEditId).remove().then(()=>{escCloseModal();toast('Escandallo eliminado','#888');});
 }
 
+/* ── Migrar recetas → escandallos ── */
+async function escMigrarRecetas(){
+  if(!fbDb){toast('Sin conexión Firebase','#dc2626');return;}
+  if(!confirm('¿Fusionar todas las recetas en los escandallos?\n\nLas recetas con el mismo nombre se combinarán con su escandallo. Las que no tengan escandallo se crearán como nuevos escandallos.\n\nSe eliminarán todas las recetas de Firebase.')){return;}
+  const [escSnap,recSnap]=await Promise.all([
+    fbDb.ref('escandallos').once('value'),
+    fbDb.ref('recetas').once('value')
+  ]);
+  const escandallos=escSnap.val()||{};
+  const recetas=Object.entries(recSnap.val()||{});
+  if(!recetas.length){toast('No hay recetas que migrar','#d97706');return;}
+  const updates={};
+  let migradas=0, nuevas=0;
+  recetas.forEach(([rid,rec])=>{
+    const nombre=(rec.nombre||'').toLowerCase().trim();
+    // Buscar escandallo con mismo nombre
+    const escEntry=Object.entries(escandallos).find(([,e])=>(e.nombre||'').toLowerCase().trim()===nombre);
+    if(escEntry){
+      const [eid]=escEntry;
+      updates['escandallos/'+eid+'/temporada']=rec.temporada||[];
+      updates['escandallos/'+eid+'/recetaSecciones']=rec.secciones||[];
+      migradas++;
+    } else {
+      // Crear nuevo escandallo desde la receta
+      const newKey=fbDb.ref('escandallos').push().key;
+      updates['escandallos/'+newKey]={
+        nombre:rec.nombre||'Sin nombre',
+        categoria:rec.partida||'Otros',
+        restaurante:'global',
+        rendimiento:rec.rendimiento||1,
+        rendimientoUnidad:rec.rendimientoUnidad||'rac.',
+        precioVenta:0, iva:10, foodCostObjetivo:30,
+        notas:'', alergenos:[],
+        ingredientes:[],
+        elaboracion:{texto:'',pasos:[]},
+        temporada:rec.temporada||[],
+        recetaSecciones:rec.secciones||[],
+        createdAt:rec.createdAt||Date.now(),
+        updatedAt:Date.now()
+      };
+      nuevas++;
+    }
+    updates['recetas/'+rid]=null; // borrar receta
+  });
+  await fbDb.ref().update(updates);
+  toast(`Migración completa: ${migradas} fusionadas, ${nuevas} nuevas creadas`,'#16a34a');
+}
+
 /* ── Copiar escandallo para un local específico ── */
 function escCopiarParaLocal(id){
   if(!_escAllData[id]){toast('Escandallo no encontrado','#dc2626');return;}
@@ -4631,31 +4767,32 @@ function menRenderSelector(){
     cont.innerHTML='<p style="color:var(--mut);font-size:13px;grid-column:1/-1">No hay escandallos. Crea alguno primero.</p>';
     return;
   }
-  const COLS=[
-    {label:' Primeros',cats:['Primeros'],cls:'c-pri',color:'#3b82f6'},
-    {label:' Segundos',cats:['Segundos','Carnes','Pescados'],cls:'c-seg',color:'#d97706'},
-    {label:' Postres',cats:['Postres','Bebidas','Entrantes','Otros'],cls:'c-pos',color:'#a855f7'},
-  ];
-  cont.innerHTML=COLS.map(col=>{
-    const escs=allEscs.filter(([,e])=>col.cats.includes(e.categoria||'Otros'));
-    const items=escs.length
-      ?escs.map(([id,e])=>{
-          const sel=_menEscIds.includes(id);
-          const coste=escCosteTotal(e);
-          return `<div class="men-sel-item${sel?' sel':''}" onclick="menToggleEsc('${id}')">
-            <input type="checkbox" ${sel?'checked':''} style="pointer-events:none;accent-color:var(--pri);width:14px;height:14px;flex-shrink:0;margin-top:1px" readonly/>
-            <div style="min-width:0">
-              <div class="isn">${e.nombre}</div>
-              <div class="isc">${escFmt(coste)}</div>
-            </div>
-          </div>`;
-        }).join('')
-      :`<p style="font-size:12px;color:var(--mut);padding:6px">Sin escandallos en esta categoría</p>`;
-    return `<div class="men-sel-col">
-      <div class="men-sel-col-title" style="color:${col.color}">${col.label}</div>
-      ${items}
+  // Agrupar por categoría (usando ESC_CATS)
+  const byCat={};
+  allEscs.forEach(([id,e])=>{const c=e.categoria||'Otros';if(!byCat[c])byCat[c]=[];byCat[c].push([id,e]);});
+  const orderedCats=[...ESC_CATS,...Object.keys(byCat).filter(c=>!ESC_CATS.includes(c))].filter(c=>byCat[c]);
+  if(!orderedCats.length){
+    cont.innerHTML='<p style="color:var(--mut);font-size:13px;grid-column:1/-1">No hay escandallos con categoría asignada.</p>';
+    menUpdateCoste(); return;
+  }
+  cont.innerHTML=`<div style="display:flex;flex-direction:column;gap:14px;width:100%">${orderedCats.map(cat=>{
+    const color=ESC_CAT_COLORS[cat]||'#64748b';
+    const items=byCat[cat].map(([id,e])=>{
+      const sel=_menEscIds.includes(id);
+      const coste=escCosteTotal(e);
+      return `<div class="men-sel-item${sel?' sel':''}" onclick="menToggleEsc('${id}')">
+        <input type="checkbox" ${sel?'checked':''} style="pointer-events:none;accent-color:var(--pri);width:14px;height:14px;flex-shrink:0;margin-top:1px" readonly/>
+        <div style="min-width:0">
+          <div class="isn">${e.nombre}</div>
+          <div class="isc">${escFmt(coste)}</div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div>
+      <div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:${color};border-bottom:2px solid ${color}40;padding-bottom:4px;margin-bottom:8px">${cat}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">${items}</div>
     </div>`;
-  }).join('');
+  }).join('')}</div>`;
   menUpdateCoste();
 }
 function menToggleEsc(id){
@@ -5149,15 +5286,15 @@ function recModalHTML(){
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
     <div class="fg" style="grid-column:1/3">
       <label>Nombre del plato</label>
-      <input id="rec-nombre" type="text" value="${r.nombre||''}" placeholder="Ej: Escudella tradicional"/>
+      <input id="rec-nombre" type="text" value="${r.nombre||''}" placeholder="Ej: Escudella tradicional" oninput="_recData.nombre=this.value"/>
     </div>
     <div class="fg">
       <label>Partida</label>
-      <select id="rec-partida">${REC_PARTIDAS.map(p=>`<option${r.partida===p?' selected':''}>${p}</option>`).join('')}</select>
+      <select id="rec-partida" onchange="_recData.partida=this.value">${REC_PARTIDAS.map(p=>`<option${r.partida===p?' selected':''}>${p}</option>`).join('')}</select>
     </div>
     <div class="fg">
       <label>Tipo</label>
-      <select id="rec-tipo">${REC_TIPOS.map(t=>`<option${r.tipo===t?' selected':''}>${t}</option>`).join('')}</select>
+      <select id="rec-tipo" onchange="_recData.tipo=this.value">${REC_TIPOS.map(t=>`<option${r.tipo===t?' selected':''}>${t}</option>`).join('')}</select>
     </div>
   </div>
   <div class="fg">
