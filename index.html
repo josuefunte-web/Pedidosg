@@ -1170,6 +1170,15 @@ function prodCatOpts(sel){ return PROD_CATS.map(c=>`<option${c===sel?' selected'
 const WA_SVG=`<svg class="wa-ic" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>`;
 
 function fmt(n){ return (parseFloat(n)||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+// Muestra la cantidad con conversión si aplica: "2 Cajas (18 Kg)"
+function convQtyStr(qty, unit, baseUnit, conversions){
+  if(!conversions||!conversions.length||unit===baseUnit) return `${qty} ${unit}`;
+  const conv=(conversions||[]).find(c=>c.fromUnit===unit);
+  if(!conv) return `${qty} ${unit}`;
+  const bq=parseFloat((qty*conv.factor).toFixed(3));
+  const bqFmt=bq%1===0?bq:bq.toFixed(2);
+  return `${qty} ${unit} (${bqFmt} ${baseUnit})`;
+}
 function pkgLabel(p){
   const price=parseFloat(p.price)||0;
   const unit=(p.unit||'KG').trim();
@@ -1193,7 +1202,7 @@ function waURL(phone,text){ return `https://wa.me/${phone.replace(/\D/g,'')}?tex
 
 function msgAdmin(o){
   const sup=suppliers[o.supId];
-  const lines=(o.items||[]).map(it=>`• ${it.name}: ${it.qty} ${it.unit}`).join('\n');
+  const lines=(o.items||[]).map(it=>`• ${it.name}: ${convQtyStr(it.qty,it.unit,it.baseUnit||it.unit,it.conversions)}`).join('\n');
   const noteLine=o.notes?`\n Nota: ${o.notes}`:'';
   return ` *SOLICITUD PEDIDO — Provea*\n${o.restaurant}\n Proveedor: ${sup?sup.emoji+' '+sup.name:'?'}\n ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n\n${lines}\n\n*Total: ${fmt(total(o))}*${noteLine}\n\n_App Provea_`;
 }
@@ -1642,7 +1651,7 @@ function vMyOrders(){
     const modTag=o.modifiedByAdmin?`<span class="badge b-f" style="margin-left:6px"> Modificado</span>`:'';
     const urgTag=o.urgent?`<span class="badge b-urg" style="margin-left:6px">URGENTE</span>`:'';
     const delTag=o.deliveryDate?`<span style="font-size:11px;color:var(--mut);margin-left:6px"> Entrega: ${o.deliveryDate}</span>`:'';
-    const rows=(o.items||[]).map(it=>`<div class="pr"><span class="pn">${it.name||'?'}</span><span class="pq">${it.qty} ${it.unit||''}</span><span class="pp">${fmt((it.qty||0)*(it.price||0))}</span></div>`).join('');
+    const rows=(o.items||[]).map(it=>`<div class="pr"><span class="pn">${it.name||'?'}</span><span class="pq">${convQtyStr(it.qty,it.unit,it.baseUnit||it.unit,it.conversions)}</span><span class="pp">${fmt((it.qty||0)*(it.price||0))}</span></div>`).join('');
     const rejNote=o.status==='rejected'&&o.rejectReason?`<div class="banner red" style="margin-top:8px">${o.rejectReason}</div>`:'';
     const recvBtn=o.status==='approved'?`<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="markReceived('${o.id}')">Confirmar recepción</button>`:'';
     return `<div class="oc" ${o.urgent?'style="border-color:#dc2626"':''}>
@@ -1910,7 +1919,7 @@ function orderCard(o,showActions){
         <button class="btn btn-ok btn-sm" onclick="editAddProduct('${o.id}','${o.supId}')">Añadir</button>
       </div>`:'');
   } else {
-    itemsHtml=(o.items||[]).map(it=>`<div class="pr"><span class="pn">${it.name||'?'}</span><span class="pq">${it.qty} ${it.unit||''}</span><span class="pp">${fmt((it.qty||0)*(it.price||0))}</span></div>`).join('');
+    itemsHtml=(o.items||[]).map(it=>`<div class="pr"><span class="pn">${it.name||'?'}</span><span class="pq">${convQtyStr(it.qty,it.unit,it.baseUnit||it.unit,it.conversions)}</span><span class="pp">${fmt((it.qty||0)*(it.price||0))}</span></div>`).join('');
   }
   let acts='';
   if(showActions&&o.status==='pending'){
@@ -2308,17 +2317,111 @@ function albDelItem(i){ S.albItems.splice(i,1);render(); }
 
 async function runOCR(){
   if(!S.albPhoto){toast('Añade una foto primero','#dc2626');return;}
-  const apiKey=cfg.ocrSpaceKey||'helloworld'; // helloworld = clave demo (limitada)
+  const mistralKey=cfg.mistralKey||'';
   const prog=document.getElementById('ocr-progress');
+
+  // --- Mistral OCR (principal) ---
+  if(mistralKey){
+    if(prog){prog.style.display='block';prog.textContent='Leyendo documento con Mistral OCR...';}
+    try{
+      // Paso 1: extraer texto con Mistral OCR
+      const isPdf=S.albFileType==='pdf';
+      const mediaType=isPdf?'application/pdf':(S.albPhoto.match(/data:([^;]+)/)||[])[1]||'image/jpeg';
+      const base64=S.albPhoto.replace(/^data:[^;]+;base64,/,'');
+      const ocrBody={
+        model:'mistral-ocr-latest',
+        document: isPdf
+          ? {type:'document_url', document_url:`data:${mediaType};base64,${base64}`}
+          : {type:'image_url',    image_url:`data:${mediaType};base64,${base64}`},
+        table_format:'markdown'
+      };
+      if(prog) prog.textContent='Paso 1/2 — leyendo texto del albarán...';
+      const ocrResp=await fetch('https://api.mistral.ai/v1/ocr',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+mistralKey,'Content-Type':'application/json'},
+        body:JSON.stringify(ocrBody)
+      });
+      if(!ocrResp.ok){
+        const err=await ocrResp.json().catch(()=>({}));
+        throw new Error(err?.message||'Error Mistral OCR ('+ocrResp.status+')');
+      }
+      const ocrData=await ocrResp.json();
+      const markdown=(ocrData.pages||[]).map(p=>p.markdown||'').join('\n');
+      if(!markdown.trim()){toast('No se reconoció texto. Prueba con foto más clara.','#d97706');return;}
+
+      // Paso 2: extraer productos estructurados con mistral-small
+      if(prog) prog.textContent='Paso 2/2 — extrayendo productos...';
+      const chatBody={
+        model:'mistral-small-latest',
+        messages:[{
+          role:'user',
+          content:`Eres un asistente que extrae líneas de productos de albaranes de proveedor.
+Del siguiente texto OCR de un albarán, extrae TODOS los productos con su nombre, cantidad, unidad y precio unitario.
+Responde ÚNICAMENTE con un JSON array, sin texto adicional:
+[{"code":"12345","name":"Entrecot","qty":5,"unit":"KG","price":18.50}]
+- code: código del artículo si aparece, si no ""
+- name: nombre del producto (sin códigos ni referencias)
+- qty: cantidad numérica
+- unit: "KG", "UN", "L", "Caja" o "Bote" según corresponda
+- price: precio unitario en €
+
+Ignora líneas de totales, IVA, cabeceras, direcciones o textos que no sean productos.
+
+TEXTO DEL ALBARÁN:
+${markdown}`
+        }],
+        response_format:{type:'json_object'}
+      };
+      const chatResp=await fetch('https://api.mistral.ai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Authorization':'Bearer '+mistralKey,'Content-Type':'application/json'},
+        body:JSON.stringify(chatBody)
+      });
+      if(!chatResp.ok){
+        const err=await chatResp.json().catch(()=>({}));
+        throw new Error(err?.message||'Error Mistral chat ('+chatResp.status+')');
+      }
+      const chatData=await chatResp.json();
+      let parsed=[];
+      try{
+        const raw=chatData.choices?.[0]?.message?.content||'[]';
+        const obj=JSON.parse(raw);
+        // El modelo puede devolver {items:[...]} o directamente [...]
+        const arr=Array.isArray(obj)?obj:(obj.items||obj.products||obj.lineas||Object.values(obj).find(v=>Array.isArray(v))||[]);
+        parsed=arr.filter(it=>it.name&&it.qty>0).map(it=>({
+          code:String(it.code||''),
+          name:String(it.name).slice(0,60),
+          qty:Math.round(parseFloat(it.qty)*100)/100,
+          unit:it.unit||'UN',
+          price:Math.round(parseFloat(it.price||0)*100)/100
+        }));
+      }catch(e){ console.warn('Parse error:',e); }
+
+      if(parsed.length>0){
+        S.albItems=[...S.albItems,...parsed];
+        toast(`${parsed.length} producto${parsed.length!==1?'s':''} reconocido${parsed.length!==1?'s':''}. Revisa y corrige.`,'#16a34a');
+      } else {
+        toast('No se identificaron productos. Revisa la foto o añade manualmente.','#d97706');
+      }
+    }catch(e){
+      console.error(e);
+      toast('Error Mistral OCR: '+e.message,'#dc2626',5000);
+    }finally{
+      if(prog)prog.style.display='none';render();
+    }
+    return;
+  }
+
+  // --- Fallback: OCR.space (si no hay clave Mistral) ---
+  const apiKey=cfg.ocrSpaceKey||'helloworld';
   if(prog){prog.style.display='block';prog.textContent='Reconociendo texto...';}
   try{
-    // OCR.space API — OCR tradicional (no IA), soporte imágenes y PDFs
     const formData=new FormData();
     formData.append('base64Image', S.albPhoto);
     formData.append('language','spa');
-    formData.append('OCREngine','2');        // Motor 2: mejor para documentos densos
-    formData.append('isTable','true');        // Optimizado para filas/columnas
-    formData.append('scale','true');          // Mejor escala para fotos de móvil
+    formData.append('OCREngine','2');
+    formData.append('isTable','true');
+    formData.append('scale','true');
     formData.append('detectOrientation','true');
     if(S.albFileType==='pdf') formData.append('filetype','PDF');
     const resp=await fetch('https://api.ocr.space/parse/image',{
@@ -2329,8 +2432,8 @@ async function runOCR(){
     const data=await resp.json();
     if(data.IsErroredOnProcessing||data.OCRExitCode===99){
       const msg=data.ErrorMessage?.[0]||'Error OCR';
-      if(msg.includes('Limit') || msg.includes('limit') || msg.includes('apikey') || apiKey==='helloworld'){
-        toast('Configura tu API key gratuita de OCR.space en Configuración','#d97706',7000);
+      if(msg.includes('Limit')||msg.includes('apikey')||apiKey==='helloworld'){
+        toast('Configura tu API key de Mistral en Configuración para mejor OCR','#d97706',7000);
       } else {
         toast('Error OCR: '+msg,'#dc2626');
       }
@@ -2512,6 +2615,9 @@ function supDetailForm(sup){
           </div>
           <div style="margin-top:6px;font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Alérgenos</div>
           <div style="display:flex;flex-wrap:wrap">${alerSel}</div>
+          <div style="margin-top:8px;font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Conversiones de unidad</div>
+          <div id="conv-list-${sid}-${p.id}">${renderConvRows(sid,p)}</div>
+          <button class="btn btn-ghost btn-xs" style="margin-top:4px" onclick="addProdConv('${sid}','${p.id}')">+ Añadir conversión</button>
         </div>
       </div>`;
     }).join('');
@@ -2769,6 +2875,74 @@ function editProdCat(sid,pid,val){
   const prod=suppliers[sid].products.find(p=>p.id===pid);
   if(prod){ prod.category=val; saveSups(sid); }
 }
+// --- Conversiones de unidad ---
+// Devuelve las unidades disponibles para un producto: unidad base + fromUnits de conversiones
+function _prodUnits(p){
+  const base=p.unit||'KG';
+  const extras=(p.conversions||[]).map(c=>c.fromUnit).filter(u=>u&&u!==base);
+  return [base,...extras];
+}
+function renderConvRows(sid,p){
+  const convs=p.conversions||[];
+  if(!convs.length) return `<span style="font-size:12px;color:var(--mut)">Sin conversiones</span>`;
+  const unitOpts=_U.map(u=>`<option>${u}</option>`).join('');
+  return convs.map((c,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--mut)">1</span>
+      <select style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" onchange="editConvUnit('${sid}','${p.id}',${i},this.value)">${_U.map(u=>`<option${(c.fromUnit||'Caja')===u?' selected':''}>${u}</option>`).join('')}</select>
+      <span style="font-size:12px;color:var(--mut)">=</span>
+      <input type="number" value="${c.factor||''}" step="0.001" min="0" placeholder="9" style="width:70px;padding:3px 7px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editConvFactor('${sid}','${p.id}',${i},this.value)"/>
+      <span style="font-size:12px;color:var(--mut)">${p.unit||'KG'}</span>
+      <button class="btn btn-ghost btn-xs" onclick="invertProdConv('${sid}','${p.id}',${i})" title="Invertir conversión">⇄ Invertir</button>
+      <button class="btn btn-no btn-xs" onclick="delProdConv('${sid}','${p.id}',${i})">✕</button>
+    </div>`).join('');
+}
+function _refreshConvList(sid,pid){
+  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
+  if(!prod)return;
+  const el=document.getElementById(`conv-list-${sid}-${pid}`);
+  if(el) el.innerHTML=renderConvRows(sid,prod);
+}
+function addProdConv(sid,pid){
+  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
+  if(!prod)return;
+  if(!prod.conversions) prod.conversions=[];
+  prod.conversions.push({fromUnit:'Caja',factor:1});
+  saveSups(sid);_refreshConvList(sid,pid);
+}
+function delProdConv(sid,pid,idx){
+  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
+  if(!prod||!prod.conversions)return;
+  prod.conversions.splice(idx,1);
+  saveSups(sid);_refreshConvList(sid,pid);
+}
+function editConvUnit(sid,pid,idx,val){
+  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
+  if(!prod||!prod.conversions||!prod.conversions[idx])return;
+  prod.conversions[idx].fromUnit=val;saveSups(sid);
+}
+function editConvFactor(sid,pid,idx,val){
+  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
+  if(!prod||!prod.conversions||!prod.conversions[idx])return;
+  const f=parseFloat(val);if(isNaN(f)||f<=0){toast('Factor inválido','#dc2626');return;}
+  prod.conversions[idx].factor=f;saveSups(sid);toast('Conversión guardada','#16a34a');
+}
+function invertProdConv(sid,pid,idx){
+  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
+  if(!prod||!prod.conversions||!prod.conversions[idx])return;
+  const c=prod.conversions[idx];
+  const oldBase=prod.unit||'KG';
+  const newBase=c.fromUnit;
+  const newFactor=c.factor>0?parseFloat((1/c.factor).toFixed(6)):1;
+  // Swap: new base unit = oldFromUnit, fromUnit = oldBase
+  prod.unit=newBase;
+  c.fromUnit=oldBase;
+  c.factor=newFactor;
+  saveSups(sid);_refreshConvList(sid,prod.id);
+  const el=document.querySelector(`[onchange*="editProdUnit('${sid}','${pid}'"]`);
+  if(el) el.value=newBase;
+  toast('Conversión invertida','#16a34a');
+}
 function toggleProdAlergeno(sid,pid,aId,checked){
   if(!suppliers[sid])return;
   const prod=suppliers[sid].products.find(p=>p.id===pid);
@@ -3022,22 +3196,26 @@ function vSettings(){
         </div>
       </div>
     </div>
-    <div class="card-t" style="margin-top:20px">OCR para albaranes — OCR.space</div>
+    <div class="card-t" style="margin-top:20px">OCR para albaranes — Mistral OCR</div>
     <div class="fg">
       <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px">
-        <strong>Cómo configurar OCR gratuito:</strong>
+        <strong>OCR con IA — Mistral OCR</strong> (recomendado)
         <ol style="margin:8px 0 0 16px;padding:0;line-height:1.8">
-          <li>Ve a <a href="https://ocr.space/ocrapi" target="_blank" style="color:var(--pri)">ocr.space/ocrapi</a></li>
-          <li>Regístrate gratis (500 usos/día)</li>
-          <li>Copia tu API key y pégala aquí</li>
+          <li>Ve a <a href="https://console.mistral.ai" target="_blank" style="color:var(--pri)">console.mistral.ai</a> → Claves API</li>
+          <li>Crea una clave y pégala aquí</li>
+          <li>~2€ por cada 1.000 albaranes escaneados</li>
         </ol>
-        <div style="margin-top:8px;padding-top:8px;border-top:1px solid #bbf7d0;color:#15803d">
-          Sin API key usa la clave demo <em>helloworld</em> (limitada). Con tu propia key tienes 500 lecturas diarias gratuitas — más que suficiente.
-        </div>
       </div>
+      <label>API Key de Mistral</label>
+      <input type="password" value="${cfg.mistralKey||''}" placeholder="aytq3E..." onchange="cfg.mistralKey=this.value.trim();saveCfg()"/>
+      <div style="font-size:12px;color:${cfg.mistralKey?'#16a34a':'var(--mut)'};margin-top:4px">${cfg.mistralKey?'✓ Configurada — el OCR usará Mistral OCR (IA)':'Sin configurar — se usará OCR.space como alternativa'}</div>
+    </div>
+    <div class="card-t" style="margin-top:20px">OCR alternativo — OCR.space</div>
+    <div class="fg">
+      <div style="font-size:12px;color:var(--mut);margin-bottom:8px">Se usa solo si no hay clave Mistral configurada.</div>
       <label>API Key de OCR.space</label>
       <input type="password" value="${cfg.ocrSpaceKey||''}" placeholder="helloworld" onchange="cfg.ocrSpaceKey=this.value.trim();saveCfg()"/>
-      <div style="font-size:12px;color:var(--mut);margin-top:4px">${cfg.ocrSpaceKey?'Configurada — el OCR usará tu clave personal':'Usando clave demo — funciona pero con límites. Consigue la tuya en <a href="https://ocr.space/ocrapi" target="_blank" style="color:var(--pri)">ocr.space/ocrapi</a> (gratis)'}</div>
+      <div style="font-size:12px;color:var(--mut);margin-top:4px">${cfg.ocrSpaceKey?'Configurada':'Usando clave demo (limitada)'}</div>
     </div>
     <div class="card-t" style="margin-top:20px">Firebase</div>
     <div class="banner green">Conectado a Firebase — los pedidos se sincronizan en tiempo real entre todos los dispositivos.</div>
@@ -3179,7 +3357,8 @@ function filterProds(val){
   function mkCard(p){
     const q=(S.cart[S.supId]||{})[p.id]||0;
     const selUnit=(S.cartUnits[S.supId]||{})[p.id]||p.unit;
-    const unitBtns=_UNITS.map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
+    const prodUnits=_prodUnits(p);
+    const unitBtns=prodUnits.map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
     return `<div class="pi ${q>0?'ic':''}" id="pi-${p.id}">
       <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${pkgLabel(p)}</div></div>
       <div class="qc">
@@ -3219,11 +3398,11 @@ function chgQ(id,d){
     if(nq>0){
       ur.style.display='flex';
       if(!ur.innerHTML.trim()){
-        const _UNITS=['KG','L','UN','Caja'];
         const sup=suppliers[S.supId];
         const prod=sup&&sup.products.find(p=>p.id===id);
         const selUnit=(S.cartUnits[S.supId]||{})[id]||(prod&&prod.unit)||'UN';
-        ur.innerHTML=_UNITS.map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${id}','${u}');event.stopPropagation()">${u}</button>`).join('');
+        const _pu=prod?_prodUnits(prod):['KG','L','UN','Caja'];
+        ur.innerHTML=_pu.map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${id}','${u}');event.stopPropagation()">${u}</button>`).join('');
       }
     } else { ur.style.display='none'; }
   }
@@ -3250,7 +3429,7 @@ function submitOrder(){
     _lsProds.forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
     Object.values(S._cartProds[sid]||{}).forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
     (sup.products||[]).forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
-    const items=Object.keys(sc).filter(pid=>sc[pid]>0).map(pid=>{const p=_prodMap[pid];if(!p)return null;return{...p,qty:sc[pid],unit:(S.cartUnits[sid]&&S.cartUnits[sid][pid])||p.unit};}).filter(Boolean);
+    const items=Object.keys(sc).filter(pid=>sc[pid]>0).map(pid=>{const p=_prodMap[pid];if(!p)return null;const selUnit=(S.cartUnits[sid]&&S.cartUnits[sid][pid])||p.unit;return{...p,qty:sc[pid],unit:selUnit,baseUnit:p.unit};}).filter(Boolean);
     if(!items.length)return;
     const orderTotal=items.reduce((s,p)=>s+p.qty*p.price,0);
     const needApproval=S.session.needsApproval&&(approvalMinAmount<=0||orderTotal>=approvalMinAmount);
