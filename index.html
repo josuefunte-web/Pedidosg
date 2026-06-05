@@ -1009,11 +1009,12 @@ function vSolicitudes(){
         <div class="uc-hd">
           <div style="flex:1;min-width:0">
             <div class="uc-name"> ${u.email}${u.name&&u.name!==u.email?` <span style="font-weight:400;font-size:13px;color:var(--mut)">· ${u.name}</span>`:''}</div>
-            <div class="uc-info" style="margin-top:4px">${restBadges(u)} · ${u.needsApproval?'Aprobación manual':'Auto-aprobado'}</div>
+            <div class="uc-info" style="margin-top:4px">${restBadges(u)} · ${u.needsApproval?'Aprobación manual':'Auto-aprobado'}${u.isAdmin?' · <strong style="color:var(--pri)">Admin</strong>':''}</div>
           </div>
           <div class="uc-acts" style="flex-wrap:wrap;gap:4px">
             <button class="btn btn-blue btn-sm" onclick="S.editingPermsUid='${isEditing?'':u.uid}';render()"> ${isEditing?'Cerrar':'Permisos'}</button>
             <button class="btn btn-ghost btn-sm" title="${u.needsApproval?'Cambiar a auto-aprobado':'Cambiar a requiere aprobación'}" onclick="toggleNeedsApprovalAuth('${u.uid}',${!u.needsApproval})">${u.needsApproval?'Auto':'Manual'}</button>
+            <button class="btn btn-ghost btn-sm" title="${u.isAdmin?'Quitar rol admin':'Dar acceso de administrador'}" onclick="toggleAdminRole('${u.uid}',${!u.isAdmin})" style="${u.isAdmin?'background:#ede9fe;color:#7c3aed;border-color:#c4b5fd':''}"> ${u.isAdmin?'Admin ✓':'+ Admin'}</button>
             <button class="btn btn-no btn-xs" title="Revocar acceso" onclick="revokeUser('${u.uid}')"></button>
           </div>
         </div>
@@ -1056,6 +1057,12 @@ function rejectRegistration(uid){
 function toggleNeedsApprovalAuth(uid,val){
   fbDb.ref('authUsers/'+uid).update({needsApproval:val})
     .then(()=>toast(val?'Ahora requiere aprobación manual':'Ahora se aprueba automáticamente','#16a34a'));
+}
+function toggleAdminRole(uid,val){
+  const u=authUsers[uid]; if(!u)return;
+  if(val && !confirm('¿Dar acceso de administrador completo a '+u.email+'?'))return;
+  fbDb.ref('authUsers/'+uid).update({isAdmin:val})
+    .then(()=>toast(val?'Ya es administrador: '+u.email:'Rol admin retirado','#16a34a'));
 }
 function revokeUser(uid){
   const u=authUsers[uid]; if(!u)return;
@@ -1296,11 +1303,7 @@ function confirmPIN(){
   const {type,userId}=S.pinTarget;
   if(type==='admin'){
     if(S.pinBuf===cfg.adminPIN){closePIN();S.session={isAdmin:true,name:cfg.adminName};goAdmin();}
-    else{
-      const extra=(cfg.extraAdmins||[]).find(a=>a.pin===S.pinBuf);
-      if(extra){closePIN();S.session={isAdmin:true,name:extra.name};goAdmin();}
-      else wrong();
-    }
+    else wrong();
   } else {
     const u=cfg.users.find(u=>u.id===userId);
     if(u&&S.pinBuf===u.pin){closePIN();S.session={userId:u.id,name:u.name,restaurant:u.restaurant,isAdmin:false,needsApproval:u.needsApproval};goOrder();}
@@ -3175,11 +3178,7 @@ function vSettings(){
     <div class="card-t">Administrador</div>
     <div class="fg"><label>Nombre</label><input type="text" value="${cfg.adminName}" onchange="cfg.adminName=this.value;saveCfg()"/></div>
     <div class="fg"><label>Email administrador</label><input type="email" value="${cfg.adminEmail||'josue.funte@gmail.com'}" onchange="cfg.adminEmail=this.value.trim();saveCfg()"/><div style="font-size:12px;color:var(--mut);margin-top:4px">Usa este correo para iniciar sesión como administrador</div></div>
-    <div class="fg"><label>PIN administrador principal (4 dígitos)</label><input type="password" value="${cfg.adminPIN}" maxlength="4" onchange="cfg.adminPIN=this.value;saveCfg()"/></div>
-    <div class="card-t" style="margin-top:20px">Administradores adicionales</div>
-    <div style="font-size:13px;color:var(--mut);margin-bottom:10px">Otros usuarios con acceso completo al panel de admin. Cada uno tiene su propio nombre y PIN.</div>
-    <div id="extra-admins-list">${renderExtraAdmins()}</div>
-    <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="addExtraAdmin()">+ Añadir administrador</button>
+    <div class="fg"><label>PIN administrador (acceso rápido, 4 dígitos)</label><input type="password" value="${cfg.adminPIN}" maxlength="4" onchange="cfg.adminPIN=this.value;saveCfg()"/></div>
     <div class="fg">
       <label>Tu WhatsApp — para recibir notificaciones de pedidos</label>
       <input type="tel" value="${cfg.adminPhone||''}" placeholder="34612345678" onchange="cfg.adminPhone=this.value.replace(/\\D/g,'');saveCfg()"/>
