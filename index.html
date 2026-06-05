@@ -618,6 +618,39 @@ function saveCfg(){
   });
 }
 
+// --- Admins extra ---
+function renderExtraAdmins(){
+  const admins=cfg.extraAdmins||[];
+  if(!admins.length) return `<div style="font-size:13px;color:var(--mut);padding:6px 0">Sin administradores adicionales</div>`;
+  return admins.map((a,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;padding:8px 10px;background:var(--srf);border:1px solid var(--brd);border-radius:8px;margin-bottom:6px;flex-wrap:wrap">
+      <input type="text" value="${a.name}" placeholder="Nombre" style="flex:1;min-width:120px;padding:5px 9px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editExtraAdmin(${i},'name',this.value)"/>
+      <input type="password" value="${a.pin}" placeholder="PIN 4 dígitos" maxlength="4" style="width:110px;padding:5px 9px;border:1px solid var(--brd);border-radius:6px;font-size:13px;letter-spacing:4px" onchange="editExtraAdmin(${i},'pin',this.value)"/>
+      <button class="btn btn-no btn-xs" onclick="delExtraAdmin(${i})">Eliminar</button>
+    </div>`).join('');
+}
+function addExtraAdmin(){
+  if(!cfg.extraAdmins) cfg.extraAdmins=[];
+  cfg.extraAdmins.push({name:'',pin:''});
+  saveCfg();
+  const el=document.getElementById('extra-admins-list');
+  if(el) el.innerHTML=renderExtraAdmins();
+}
+function editExtraAdmin(idx,field,val){
+  if(!cfg.extraAdmins||!cfg.extraAdmins[idx])return;
+  cfg.extraAdmins[idx][field]=val.trim();
+  saveCfg();
+  if(field==='pin') toast('PIN guardado','#16a34a');
+}
+function delExtraAdmin(idx){
+  if(!cfg.extraAdmins)return;
+  cfg.extraAdmins.splice(idx,1);
+  saveCfg();
+  const el=document.getElementById('extra-admins-list');
+  if(el) el.innerHTML=renderExtraAdmins();
+  toast('Administrador eliminado','#16a34a');
+}
+
 /* ═══════════════ FIREBASE DATA (pedidos, proveedores, albaranes, revenue) ═══════════════ */
 let orders      = [];
 let suppliers   = JSON.parse(localStorage.getItem('oc_suppliers')||JSON.stringify(DEFAULT_SUPS));
@@ -1263,7 +1296,11 @@ function confirmPIN(){
   const {type,userId}=S.pinTarget;
   if(type==='admin'){
     if(S.pinBuf===cfg.adminPIN){closePIN();S.session={isAdmin:true,name:cfg.adminName};goAdmin();}
-    else wrong();
+    else{
+      const extra=(cfg.extraAdmins||[]).find(a=>a.pin===S.pinBuf);
+      if(extra){closePIN();S.session={isAdmin:true,name:extra.name};goAdmin();}
+      else wrong();
+    }
   } else {
     const u=cfg.users.find(u=>u.id===userId);
     if(u&&S.pinBuf===u.pin){closePIN();S.session={userId:u.id,name:u.name,restaurant:u.restaurant,isAdmin:false,needsApproval:u.needsApproval};goOrder();}
@@ -3138,7 +3175,11 @@ function vSettings(){
     <div class="card-t">Administrador</div>
     <div class="fg"><label>Nombre</label><input type="text" value="${cfg.adminName}" onchange="cfg.adminName=this.value;saveCfg()"/></div>
     <div class="fg"><label>Email administrador</label><input type="email" value="${cfg.adminEmail||'josue.funte@gmail.com'}" onchange="cfg.adminEmail=this.value.trim();saveCfg()"/><div style="font-size:12px;color:var(--mut);margin-top:4px">Usa este correo para iniciar sesión como administrador</div></div>
-    <div class="fg"><label>PIN administrador (acceso rápido, 4 dígitos)</label><input type="password" value="${cfg.adminPIN}" maxlength="4" onchange="cfg.adminPIN=this.value;saveCfg()"/></div>
+    <div class="fg"><label>PIN administrador principal (4 dígitos)</label><input type="password" value="${cfg.adminPIN}" maxlength="4" onchange="cfg.adminPIN=this.value;saveCfg()"/></div>
+    <div class="card-t" style="margin-top:20px">Administradores adicionales</div>
+    <div style="font-size:13px;color:var(--mut);margin-bottom:10px">Otros usuarios con acceso completo al panel de admin. Cada uno tiene su propio nombre y PIN.</div>
+    <div id="extra-admins-list">${renderExtraAdmins()}</div>
+    <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="addExtraAdmin()">+ Añadir administrador</button>
     <div class="fg">
       <label>Tu WhatsApp — para recibir notificaciones de pedidos</label>
       <input type="tel" value="${cfg.adminPhone||''}" placeholder="34612345678" onchange="cfg.adminPhone=this.value.replace(/\\D/g,'');saveCfg()"/>
