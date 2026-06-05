@@ -137,14 +137,6 @@ select:focus,input:focus{border-color:var(--pri);box-shadow:0 0 0 3px rgba(30,41
 .login-wrap{max-width:880px;margin:0 auto;padding:28px 16px}
 .login-title{text-align:center;font-size:24px;font-weight:800;color:var(--pri);margin-bottom:6px;letter-spacing:-.3px}
 .login-sub{text-align:center;font-size:14px;color:var(--mut);margin-bottom:28px}
-.rest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:22px}
-.rest-card{background:#fff;border-radius:var(--r);padding:20px 16px;cursor:pointer;border:1.5px solid var(--brd);transition:all .2s;text-align:center;box-shadow:var(--sh)}
-.rest-card:hover{border-color:var(--pri);transform:translateY(-3px);box-shadow:0 8px 24px rgba(15,23,42,.12)}
-.rest-emoji{font-size:30px;margin-bottom:10px}
-.rest-name{font-size:13px;font-weight:700;color:var(--pri);line-height:1.3}
-.admin-row{display:flex;justify-content:center;margin-top:12px}
-.admin-btn{background:transparent;border:2px solid var(--pri);color:var(--pri);padding:10px 30px;border-radius:10px;cursor:pointer;font-size:14px;font-weight:700;transition:all .2s}
-.admin-btn:hover{background:var(--pri);color:#fff}
 .user-card,.sup-card{border:1px solid var(--brd);border-radius:12px;padding:16px;margin-bottom:10px;background:#fff;box-shadow:var(--sh)}
 .uc-hd,.sc-hd{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
 .uc-name,.sc-name{font-size:15px;font-weight:700;color:var(--pri)}
@@ -160,11 +152,10 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
 .rest-pill{display:inline-block;background:var(--srf);border:1px solid var(--brd);border-radius:20px;padding:2px 9px;font-size:11px;font-weight:700;margin:2px 2px 0 0}
 .rest-picker{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:12px 14px;background:var(--srf);border-radius:10px;border:1px solid var(--brd)}
 .rest-picker-lbl{font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;width:100%;margin-bottom:4px}
-.uc-body,.sc-body{margin-top:12px;padding-top:12px;border-top:1px solid var(--brd)}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .three-col{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
 .prod-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--brd);border-radius:8px;margin-bottom:6px;background:var(--srf)}
-.prod-info{flex:1}.prod-name-t{font-size:13px;font-weight:600}.prod-meta{font-size:11px;color:var(--mut)}
+.prod-info{flex:1}.prod-name-t{font-size:13px;font-weight:600}
 .banner{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#92400e;display:flex;gap:10px;align-items:flex-start;line-height:1.5}
 .banner.blue{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
 .banner.red{background:#fef2f2;border-color:#fecaca;color:#991b1b}
@@ -215,15 +206,9 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
 .sb-ms{padding:12px;text-align:center}
 .sb-msv{font-size:19px;font-weight:800;line-height:1}
 .sb-msl{font-size:10px;opacity:.55;text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
-.sg-hd{padding:10px 14px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;opacity:.45;cursor:pointer;display:flex;justify-content:space-between;align-items:center;user-select:none;transition:.15s}
-.sg-hd:hover,.sg-hd.has-act{opacity:.8;background:rgba(255,255,255,.04)}
-.sg-arrow{font-size:9px;transition:.2s}
 .sg-direct{padding:9px 14px;font-size:13px;font-weight:500;cursor:pointer;opacity:.65;transition:.15s;display:flex;align-items:center;gap:8px;border-radius:8px;margin:1px 6px}
 .sg-direct:hover{opacity:1;background:rgba(255,255,255,.07)}
 .sg-direct.act{opacity:1;background:rgba(225,29,72,.18);color:#fff;font-weight:700;border-left:3px solid var(--acc);padding-left:11px;margin-left:6px}
-.sg-item{padding:9px 14px 9px 34px;font-size:13px;cursor:pointer;opacity:.65;transition:.15s;display:flex;align-items:center;justify-content:space-between}
-.sg-item:hover{opacity:1;background:rgba(255,255,255,.05)}
-.sg-item.act{opacity:1;background:rgba(255,255,255,.1);font-weight:700;border-left:3px solid var(--acc);padding-left:31px}
 .sb-badge{background:var(--acc);border-radius:10px;padding:2px 7px;font-size:11px;font-weight:800}
 .sb-section{padding:18px 14px 6px;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.3);pointer-events:none}
 .adm-content{flex:1;overflow-y:auto;padding:24px;min-width:0;background:var(--bg)}
@@ -244,7 +229,6 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
 .esc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
 .esc-card{background:var(--card);border:1px solid var(--brd);border-radius:var(--r);padding:18px;cursor:pointer;transition:box-shadow .2s,transform .15s;position:relative;box-shadow:var(--sh)}
 .esc-card:hover{box-shadow:0 8px 24px rgba(15,23,42,.12);transform:translateY(-2px)}
-.esc-badge{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;background:var(--srf);color:var(--mut);margin-bottom:8px;border:1px solid var(--brd)}
 .esc-card h4{margin:0 0 10px;font-size:16px;color:var(--pri)}
 .esc-stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px}
 .esc-stat{display:flex;flex-direction:column}
@@ -338,14 +322,11 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
 .rec-seccion{border:1px solid var(--brd);border-radius:12px;padding:16px;background:var(--srf);position:relative}
 .rec-seccion-hd{font-size:13px;font-weight:700;color:var(--pri);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
 .rec-ing-row{display:grid;grid-template-columns:70px 55px 2fr 1fr auto;gap:6px;align-items:center;margin-bottom:6px}
-.rec-paso-row{display:flex;gap:6px;align-items:flex-start;margin-bottom:6px}
 .rec-paso-num{min-width:22px;height:22px;border-radius:50%;background:var(--pri);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:7px;flex-shrink:0}
 .rec-modal-ft{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-top:1px solid var(--brd)}
 .rec-modal-ft-r{display:flex;gap:8px;flex-wrap:wrap}
 @media print {
   .sidebar, .hdr, .sb-overlay, .btn, #toast, .cbar, #wa-ov, #recv-ov { display:none!important; }
-  .admin-wrap { display:block!important; }
-  .main-content { margin:0!important; padding:0!important; }
   body { background:white!important; color:black!important; }
   .card { box-shadow:none!important; border:1px solid #ccc!important; margin-bottom:12px; break-inside:avoid; }
   .ch-wrap { height:300px!important; }
@@ -414,9 +395,9 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
   <div class="hdr-r">
     <span class="ses-info" id="ses-info"></span>
     <button class="hbtn" id="btn-np" style="display:none" onclick="goOrder()">+ Pedido</button>
-    <button class="hbtn" id="btn-alb-r" style="display:none" onclick="goAlbaran()"></button>
+    <button class="hbtn" id="btn-alb-r" style="display:none" onclick="goAlbaran()">📋 Albarán</button>
     <button class="hbtn act" id="btn-adm" style="display:none" onclick="goAdmin()"> Admin</button>
-    <button class="hbtn" id="btn-dark" onclick="toggleDarkMode()" title="Modo oscuro" style="font-size:16px;padding:6px 10px"></button>
+    <button class="hbtn" id="btn-dark" onclick="toggleDarkMode()" title="Modo oscuro" style="font-size:16px;padding:6px 10px">🌙</button>
     <button class="hbtn" onclick="logout()">↩</button>
   </div>
 </header>
@@ -452,7 +433,6 @@ const FB_CONFIG = {
   messagingSenderId: "236536249236",
   appId: "1:236536249236:web:6a2cad24995a1bc57cad81"
 };
-const FB_URL = FB_CONFIG.databaseURL;
 let fbApp, fbDb, fbAuth;
 let authUsers = {};
 
@@ -619,38 +599,6 @@ function saveCfg(){
 }
 
 // --- Admins extra ---
-function renderExtraAdmins(){
-  const admins=cfg.extraAdmins||[];
-  if(!admins.length) return `<div style="font-size:13px;color:var(--mut);padding:6px 0">Sin administradores adicionales</div>`;
-  return admins.map((a,i)=>`
-    <div style="display:flex;gap:8px;align-items:center;padding:8px 10px;background:var(--srf);border:1px solid var(--brd);border-radius:8px;margin-bottom:6px;flex-wrap:wrap">
-      <input type="text" value="${a.name}" placeholder="Nombre" style="flex:1;min-width:120px;padding:5px 9px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editExtraAdmin(${i},'name',this.value)"/>
-      <input type="password" value="${a.pin}" placeholder="PIN 4 dígitos" maxlength="4" style="width:110px;padding:5px 9px;border:1px solid var(--brd);border-radius:6px;font-size:13px;letter-spacing:4px" onchange="editExtraAdmin(${i},'pin',this.value)"/>
-      <button class="btn btn-no btn-xs" onclick="delExtraAdmin(${i})">Eliminar</button>
-    </div>`).join('');
-}
-function addExtraAdmin(){
-  if(!cfg.extraAdmins) cfg.extraAdmins=[];
-  cfg.extraAdmins.push({name:'',pin:''});
-  saveCfg();
-  const el=document.getElementById('extra-admins-list');
-  if(el) el.innerHTML=renderExtraAdmins();
-}
-function editExtraAdmin(idx,field,val){
-  if(!cfg.extraAdmins||!cfg.extraAdmins[idx])return;
-  cfg.extraAdmins[idx][field]=val.trim();
-  saveCfg();
-  if(field==='pin') toast('PIN guardado','#16a34a');
-}
-function delExtraAdmin(idx){
-  if(!cfg.extraAdmins)return;
-  cfg.extraAdmins.splice(idx,1);
-  saveCfg();
-  const el=document.getElementById('extra-admins-list');
-  if(el) el.innerHTML=renderExtraAdmins();
-  toast('Administrador eliminado','#16a34a');
-}
-
 /* ═══════════════ FIREBASE DATA (pedidos, proveedores, albaranes, revenue) ═══════════════ */
 let orders      = [];
 let suppliers   = JSON.parse(localStorage.getItem('oc_suppliers')||JSON.stringify(DEFAULT_SUPS));
@@ -1167,8 +1115,6 @@ let S={
   _cartProds:{},
 };
 let cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
-let chartInst=null;
-const EMOJIS=['🏠','🌿','⭐','🍽','🏃','🌅','🎯','🧭','🌊','⚓','🌆','🏙','🌃'];
 const PROD_CATS=['Carnes','Pescados','Verduras y Frutas','Lácteos','Pasta y Arroces','Conservas','Condimentos','Panadería','Bebidas','Limpieza','Otros'];
 const PROD_CAT_COLORS={'Carnes':'#dc2626','Pescados':'#0ea5e9','Verduras y Frutas':'#16a34a','Lácteos':'#d97706','Pasta y Arroces':'#ca8a04','Conservas':'#7c3aed','Condimentos':'#ea580c','Panadería':'#92400e','Bebidas':'#2563eb','Limpieza':'#0f766e','Otros':'#64748b'};
 const ESC_CATS=['Calientes','Fríos','Entrantes','Postres','Bebidas','Aperitivos','Fondos','Guarniciones','Otros'];
@@ -1203,7 +1149,6 @@ function alergenosFromIngs(ings){
 }
 function catColor(cat,map){ return (map||PROD_CAT_COLORS)[cat]||'#64748b'; }
 function catDot(cat,map){ const c=catColor(cat,map); return `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};flex-shrink:0"></span>`; }
-function catPill(cat,map){ const c=catColor(cat,map); return `<span style="display:inline-flex;align-items:center;gap:5px;background:${c}18;color:${c};border:1px solid ${c}40;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700">${catDot(cat,map)} ${cat}</span>`; }
 function prodCatOpts(sel){ return PROD_CATS.map(c=>`<option${c===sel?' selected':''}>${c}</option>`).join(''); }
 
 /* ═══════════════ HELPERS ═══════════════ */
@@ -1338,9 +1283,8 @@ function logout(){
 }
 function goOrder(){ S.view='order';S.cart={};S.cartUnits={};S._cartProds={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
 function goAdmin(){ S.view='admin';S.session={isAdmin:true,name:cfg.adminName};S.adminOrderPicker=false;localStorage.setItem('oc_admin_session','1');showHdr(true);render(); }
-function goOrderAsAdmin(rest){ S.session={isAdmin:true,name:cfg.adminName,restaurant:rest,isAdminOrder:true,needsApproval:false};S.adminOrderPicker=false;S.cart={};S.cartUnits={};S._cartProds={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
+function goOrderAsAdmin(rest){ S.session={isAdmin:true,name:cfg.adminName,restaurant:rest,isAdminOrder:true,needsApproval:false};S.adminOrderPicker=false;S.cart={};S.cartUnits={};S._cartProds={};S.orderTab='new';S.view='order';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
 function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];S.albTotalManual=null;showHdr(false);render(); }
-function setTab(t){ S.adminTab=t;render(); }
 function setTabSb(t){ S.adminTab=t;S.sidebarOpen=false;render(); }
 
 /* ═══════════════ RENDER ═══════════════ */
@@ -1815,14 +1759,6 @@ function vLocalGastos(){
 }
 
 /* ═══════════════ ADMIN VIEW ═══════════════ */
-function buildStats(pend,appr){
-  return `
-    <div class="stat"><div class="sv">${pend.length}</div><div class="sl">Pendientes</div></div>
-    <div class="stat"><div class="sv" style="color:var(--acc);font-size:20px">${fmt(pend.reduce((s,o)=>s+total(o),0))}</div><div class="sl">Por aprobar</div></div>
-    <div class="stat"><div class="sv" style="color:#16a34a">${appr.length}</div><div class="sl">Aprobados</div></div>
-    <div class="stat"><div class="sv" style="color:#16a34a;font-size:20px">${fmt(appr.reduce((s,o)=>s+total(o),0))}</div><div class="sl">Gasto</div></div>`;
-}
-
 function buildSbStats(pend,appr){
   return `
     <div class="sb-ms"><div class="sb-msv">${pend.length}</div><div class="sb-msl">Pendientes</div></div>
@@ -1903,7 +1839,7 @@ function vAdmin(){
             const cfgRests=cfg.users.map(u=>u.restaurant).filter(r=>r&&!fbRests.includes(r));
             const allRests=[...fbRests,...cfgRests].sort();
             if(!allRests.length) return `<div style="font-size:13px;color:var(--mut);text-align:center;padding:12px">Sin restaurantes registrados</div>`;
-            return allRests.map(r=>`<button class="btn btn-ghost" style="text-align:left;padding:11px 14px;font-size:14px" onclick="goOrderAsAdmin('${r.replace(/'/g,"\\'")}')">${r}</button>`).join('');
+            return allRests.map(r=>`<button class="btn btn-ghost" style="text-align:left;padding:11px 14px;font-size:14px" onclick="event.stopPropagation();goOrderAsAdmin('${r.replace(/'/g,"\\'")}')">${r}</button>`).join('');
           })()}
         </div>
         <button class="btn btn-ghost btn-sm" style="margin-top:14px;width:100%" onclick="S.adminOrderPicker=false;render()">Cancelar</button>
@@ -3659,6 +3595,8 @@ function toggleDarkMode(){
   S.darkMode=!S.darkMode;
   localStorage.setItem('oc_dark',S.darkMode?'1':'0');
   document.body.classList.toggle('dark',S.darkMode);
+  const btn=document.getElementById('btn-dark');
+  if(btn) btn.textContent=S.darkMode?'☀️':'🌙';
   render();
 }
 
@@ -6542,7 +6480,7 @@ window.addEventListener('DOMContentLoaded',()=>{
       }
     },3000);
   }
-  if(S.darkMode) document.body.classList.add('dark');
+  if(S.darkMode){ document.body.classList.add('dark'); const btn=document.getElementById('btn-dark'); if(btn) btn.textContent='☀️'; }
 
   // ── PWA SETUP ────────────────────────────────────────────────────────────
   (function initPWA(){
