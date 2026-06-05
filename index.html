@@ -686,7 +686,12 @@ function initFirebaseListeners(){
     }
     // Actualizar UI en TODAS las vistas cuando cambien los proveedores
     const _sv = window.scrollY;
-    if(S.view==='order' || S.view==='albaran-new'){
+    // No re-renderizar si el usuario está escribiendo (p.ej. añadiendo un
+    // producto nuevo) o tiene el formulario abierto: el render borraría lo que
+    // está escribiendo. Esto causaba que "no dejara entrar productos nuevos".
+    const _ae = document.activeElement;
+    const _typing = _ae && /^(INPUT|TEXTAREA|SELECT)$/.test(_ae.tagName);
+    if((S.view==='order' || S.view==='albaran-new') && !(S.showAddProd || _typing)){
       render();
     } else if(S.view==='admin'){
       // En admin: solo refrescar si no estamos editando un proveedor inline
@@ -2829,8 +2834,19 @@ function addProd(sid){
   if(!name||isNaN(price)||price<0){toast('Nombre y precio obligatorios','#dc2626');return;}
   const prod={id:'p'+uid(),name,unit:unit||'KG',price,category};
   if(pesoGr!==undefined) prod.pesoGr=pesoGr;
+  if(!Array.isArray(suppliers[sid].products)) suppliers[sid].products=Object.values(suppliers[sid].products||{});
   suppliers[sid].products.push(prod);
-  const _sy=window.scrollY;saveSups(sid);renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Producto añadido','#16a34a');
+  // Transacción: añade el producto sin pisar lo que otros dispositivos hayan
+  // grabado (mismo problema de "lost update" que en localAddProd).
+  if(fbDb){
+    fbDb.ref('suppliers/'+sid+'/products').transaction(curr=>{
+      let arr = Array.isArray(curr) ? curr : (curr ? Object.values(curr) : []);
+      if(!arr.find(p=>p && p.id===prod.id)) arr.push(prod);
+      return arr;
+    });
+    localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
+  } else { saveSups(sid); }
+  const _sy=window.scrollY;renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy));toast('Producto añadido','#16a34a');
 }
 function editProdGr(sid,pid,val){
   if(!suppliers[sid])return;
@@ -2948,9 +2964,20 @@ function localAddProd(sid){
   // Garantizar que products es array (Firebase puede devolver objeto con claves numéricas)
   if(!Array.isArray(suppliers[sid].products)) suppliers[sid].products=Object.values(suppliers[sid].products||{});
   suppliers[sid].products.push(newProd);
-  // Escritura dirigida — solo actualiza los productos de este proveedor, no todo suppliers
-  // Esto evita condiciones de carrera donde otro dispositivo pueda sobreescribir el producto
-  if(fbDb) fbDb.ref('suppliers/'+sid+'/products').set(suppliers[sid].products);
+  // Escritura mediante TRANSACCIÓN sobre suppliers/<sid>/products.
+  // Antes se hacía un .set() del array completo, lo que provocaba "lost update":
+  // si dos locales añadían un producto casi a la vez, el último set borraba el
+  // producto del otro → "no quedaban grabados". La transacción relee el valor
+  // actual de Firebase y AÑADE el producto sin pisar lo que otros añadieron.
+  if(fbDb){
+    fbDb.ref('suppliers/'+sid+'/products').transaction(curr=>{
+      let arr = Array.isArray(curr) ? curr : (curr ? Object.values(curr) : []);
+      if(!arr.find(p=>p && p.id===pid)) arr.push(newProd);
+      return arr;
+    }, (err)=>{
+      if(err){ toast('Error al guardar el producto, reintenta','#dc2626'); }
+    });
+  }
   localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
   S.showAddProd=false;
   // Auto-añadir al carrito con cantidad 1
