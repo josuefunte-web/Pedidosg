@@ -398,9 +398,12 @@ window.onerror = function(msg, src, line, col, err){
     const banner = document.createElement('div');
     banner.id = 'error-banner';
     banner.style.cssText = 'background:#fef2f2;border:1.5px solid #fca5a5;color:#991b1b;padding:12px 16px;margin:12px 14px;border-radius:10px;font-size:13px;font-weight:600';
-    banner.innerHTML = 'Error inesperado. Recarga la página si algo no funciona.';
+    const detalle = (String(msg||'')+' — '+String(src||'').split('/').pop()+':'+line).replace(/[<>]/g,'');
+    banner.innerHTML = 'Error inesperado. Recarga la página si algo no funciona.'
+      + '<div style="font-weight:400;font-size:11px;color:#b45309;margin-top:6px;word-break:break-word">Detalle: '+detalle+'</div>'
+      + '<button onclick="navigator.clipboard&&navigator.clipboard.writeText(this.parentNode.innerText);this.textContent=\'Copiado\'" style="margin-top:6px;font-size:11px;padding:3px 8px;border:1px solid #fca5a5;border-radius:6px;background:#fff;color:#991b1b;cursor:pointer">Copiar detalle</button>';
     app.prepend(banner);
-    setTimeout(()=>banner.remove(), 5000);
+    setTimeout(()=>banner.remove(), 12000);
   }
   return false;
 };
@@ -1149,6 +1152,10 @@ let S={
 };
 let cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
 const PROD_CATS=['Carnes','Pescados','Verduras y Frutas','Lácteos','Pasta y Arroces','Conservas','Condimentos','Panadería','Bebidas','Limpieza','Otros'];
+// Lista global de unidades (la usa renderConvRows y otras funciones que no son
+// internas de supDetailForm). Antes _U solo existía localmente y renderConvRows
+// lanzaba "Can't find variable: _U" al editar un proveedor con productos.
+const _U=['KG','L','UN','Caja','Bote','Bolsa','g'];
 const PROD_CAT_COLORS={'Carnes':'#dc2626','Pescados':'#0ea5e9','Verduras y Frutas':'#16a34a','Lácteos':'#d97706','Pasta y Arroces':'#ca8a04','Conservas':'#7c3aed','Condimentos':'#ea580c','Panadería':'#92400e','Bebidas':'#2563eb','Limpieza':'#0f766e','Otros':'#64748b'};
 const ESC_CATS=['Calientes','Fríos','Entrantes','Postres','Bebidas','Aperitivos','Fondos','Guarniciones','Otros'];
 const ESC_CAT_COLORS={'Calientes':'#dc2626','Fríos':'#0ea5e9','Postres':'#a855f7','Bebidas':'#2563eb','Aperitivos':'#ea580c','Fondos':'#7c3aed','Entrantes':'#16a34a','Guarniciones':'#d97706','Otros':'#64748b'};
