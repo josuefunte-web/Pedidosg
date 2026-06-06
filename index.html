@@ -2615,7 +2615,7 @@ function supDetailForm(sup){
   const prodsHtml=usedCats.map(cat=>{
     const rows=byCat[cat].map(p=>{
       const unitOpts=_U.map(u=>`<option${(p.unit||'KG')===u?' selected':''}>${u}</option>`).join('');
-      const catSel=`<select title="Categoría" style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:11px;background:var(--card);color:var(--mut);max-width:130px" onchange="editProdCat('${sid}','${p.id}',this.value)">${prodCatOpts(p.category||'Otros')}</select>`;
+      const catSel=`<span style="display:inline-flex;align-items:center;gap:5px"><span style="font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.3px">Categoría</span><select title="Clasificación del producto" style="padding:4px 8px;border:1.5px solid var(--brd);border-radius:7px;font-size:12px;font-weight:600;background:var(--card);color:var(--txt)" onchange="editProdCat('${sid}','${p.id}',this.value)">${prodCatOpts(p.category||'Otros')}</select></span>`;
       const alerSel=ALERGENOS.map(a=>`<label style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--mut);cursor:pointer;margin:1px 3px 1px 0;padding:1px 5px;border-radius:4px;background:${(p.alergenos||[]).includes(a.id)?'#fff3cd':'var(--srf)'};border:1px solid ${(p.alergenos||[]).includes(a.id)?'#ffc107':'var(--brd)'}"><input type="checkbox" ${(p.alergenos||[]).includes(a.id)?'checked':''} onchange="toggleProdAlergeno('${sid}','${p.id}','${a.id}',this.checked)" style="width:11px;height:11px;accent-color:#d97706"> ${a.label}</label>`).join('');
       return `<div class="prod-row" style="flex-direction:column;align-items:flex-start;gap:8px">
         <div class="prod-info" style="width:100%">
@@ -2651,6 +2651,14 @@ function supDetailForm(sup){
     <div class="fg"><label>Orden (posición en la lista)</label><input type="number" id="sf-orden-${sid}" value="${sup.orden??''}" min="1" step="1" placeholder="1, 2, 3..."/></div>
   </div>
   <button class="btn btn-pri btn-sm" onclick="saveSup2('${sid}')">✓ Guardar cambios</button>
+  ${sup.products.length?`<div style="margin-top:18px;background:var(--srf);border:1.5px solid var(--brd);border-radius:10px;padding:12px 14px">
+    <div style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Clasificar todo el proveedor</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Pon la misma categoría a los ${sup.products.length} productos de golpe (p.ej. si este proveedor solo trae carne). Luego puedes cambiar los productos sueltos uno a uno.</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="sup-bulk-cat-${sid}" style="padding:6px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;font-weight:600;background:var(--card);color:var(--txt)">${prodCatOpts('')}</select>
+      <button class="btn btn-ok btn-sm" onclick="clasificarProveedorTodo('${sid}')">Aplicar a todos</button>
+    </div>
+  </div>`:''}
   <div class="sh" style="margin-top:20px">Productos (${sup.products.length}) por categoría</div>
   ${sup.products.length>6?`<input type="text" placeholder="Buscar producto..." oninput="filterSupProds(this.value,'sdp-list-${sid}')" style="width:100%;padding:8px 12px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;margin-bottom:10px;background:#fff;color:var(--txt);outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>`:``}
   ${!sup.products.length?`<div style="color:var(--mut);font-size:13px;text-align:center;margin:8px 0 12px">Sin productos aún — añade el primero abajo</div>`:''}
@@ -2901,6 +2909,22 @@ function editProdCat(sid,pid,val){
   if(!suppliers[sid])return;
   const prod=suppliers[sid].products.find(p=>p.id===pid);
   if(prod){ prod.category=val; saveSups(sid); }
+}
+// Pone la misma categoría a TODOS los productos del proveedor de una vez
+function clasificarProveedorTodo(sid){
+  const sup=suppliers[sid];
+  if(!sup){toast('Proveedor no encontrado','#dc2626');return;}
+  if(!Array.isArray(sup.products)) sup.products=Object.values(sup.products||{});
+  if(!sup.products.length){toast('Este proveedor no tiene productos','#d97706');return;}
+  const cat=document.getElementById('sup-bulk-cat-'+sid)?.value;
+  if(!cat) return;
+  if(!confirm(`Poner la categoría "${cat}" a los ${sup.products.length} productos de ${sup.name}?\n\nLuego podrás cambiar los productos sueltos a mano.`)) return;
+  sup.products.forEach(p=>{ p.category=cat; });
+  const _sy=window.scrollY;
+  saveSups(sid);
+  renderAdminContent();
+  requestAnimationFrame(()=>window.scrollTo(0,_sy));
+  toast(`${sup.products.length} productos clasificados como ${cat}`,'#16a34a',4000);
 }
 // --- Conversiones de unidad ---
 // Devuelve las unidades disponibles para un producto: unidad base + fromUnits de conversiones
