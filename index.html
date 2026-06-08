@@ -5479,6 +5479,8 @@ function vProductos(){
       style="padding:8px 10px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;background:var(--card);color:var(--txt)">
       <option value="">Todas las categorías</option>${catOpts}
     </select>
+    <button onclick="exportProductosExcel()" class="btn btn-ok btn-sm"
+      style="white-space:nowrap"> Exportar Excel</button>
   </div>`;
 
   // Recopilar todos los productos con info de proveedor
@@ -5527,6 +5529,37 @@ function vProductos(){
 
   const total=allProds.length;
   return filtersBar+`<div style="font-size:13px;color:var(--mut);margin-bottom:12px">${total} producto${total!==1?'s':''} en ${orderedCats.length} categoría${orderedCats.length!==1?'s':''}</div>`+sections;
+}
+
+// Exporta todos los productos (nombre, precio, unidad, categoría, proveedor) a Excel.
+// Respeta los filtros activos en la vista de Productos.
+function exportProductosExcel(){
+  const allSups=supList();
+  const term=(S.prodSearch2||'').toLowerCase().trim();
+  const rows=[];
+  allSups.forEach(sup=>{
+    if(S.prodSupFilter && sup.id!==S.prodSupFilter) return;
+    (sup.products||[]).forEach(p=>{
+      const cat=p.category||'Otros';
+      if(S.prodCatFilter && cat!==S.prodCatFilter) return;
+      if(term && !p.name.toLowerCase().includes(term)) return;
+      rows.push({
+        'Producto': p.name||'',
+        'Precio (€)': p.price!=null?Number(p.price):'',
+        'Unidad': p.unit||'',
+        'Categoría': cat,
+        'Proveedor': sup.name||''
+      });
+    });
+  });
+  if(!rows.length){ alert('No hay productos para exportar con los filtros actuales.'); return; }
+  rows.sort((a,b)=> (a['Proveedor']||'').localeCompare(b['Proveedor']||'') || (a['Producto']||'').localeCompare(b['Producto']||''));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:32},{wch:12},{wch:10},{wch:18},{wch:24}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Productos');
+  const fecha=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,`Productos_OCarro_${fecha}.xlsx`);
 }
 
 /* ═══════════════ HISTORIAL POR PROVEEDOR ═══════════════ */
