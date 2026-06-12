@@ -2339,35 +2339,11 @@ async function runOCR(){
   if(mistralKey){
     if(prog){prog.style.display='block';prog.textContent='Leyendo documento con Mistral OCR...';}
     try{
-      // Paso 1: extraer texto con Mistral OCR
       const isPdf=S.albFileType==='pdf';
       const mediaType=isPdf?'application/pdf':(S.albPhoto.match(/data:([^;]+)/)||[])[1]||'image/jpeg';
       const base64=S.albPhoto.replace(/^data:[^;]+;base64,/,'');
-      const ocrBody={
-        model:'mistral-ocr-latest',
-        document: isPdf
-          ? {type:'document_url', document_url:`data:${mediaType};base64,${base64}`}
-          : {type:'image_url',    image_url:`data:${mediaType};base64,${base64}`},
-        table_format:'markdown'
-      };
-      if(prog) prog.textContent='Paso 1/2 — leyendo texto del albarán...';
-      const ocrResp=await fetch('https://api.mistral.ai/v1/ocr',{
-        method:'POST',
-        headers:{'Authorization':'Bearer '+mistralKey,'Content-Type':'application/json'},
-        body:JSON.stringify(ocrBody)
-      });
-      if(!ocrResp.ok){
-        const err=await ocrResp.json().catch(()=>({}));
-        throw new Error(err?.message||'Error Mistral OCR ('+ocrResp.status+')');
-      }
-      const ocrData=await ocrResp.json();
-      const markdown=(ocrData.pages||[]).map(p=>p.markdown||'').join('\n');
-      console.log('[OCR] Texto leído por Mistral OCR:\n',markdown);
-      window._lastOcrText=markdown;
-      if(!markdown.trim()){toast('Mistral no leyó texto de la foto. Prueba con foto más nítida o recorta.','#d97706',6000);return;}
+      const dataUri=`data:${mediaType};base64,${base64}`;
 
-      // Paso 2: extraer productos estructurados con IA + catálogo del proveedor
-      if(prog) prog.textContent='Paso 2/2 — extrayendo productos...';
       // Catálogo del proveedor seleccionado, para que la IA empareje en vez de adivinar
       const _sup=suppliers[S.albSupId]||{};
       const _cat=(Array.isArray(_sup.products)?_sup.products:Object.values(_sup.products||{}))
@@ -2381,28 +2357,43 @@ Reglas de emparejamiento:
 - Solo la cantidad (qty) y el precio (price) se toman del albarán. Si el albarán no trae precio, usa el del catálogo.
 - Si una línea NO está en el catálogo, inclúyela igual con "matched":false y el nombre tal como aparece.\n`
         : '';
-      const chatBody={
-        model:'mistral-medium-latest',
-        messages:[{
-          role:'user',
-          content:`Eres un asistente que extrae líneas de productos de albaranes de proveedor.
-${catalogBlock}Del siguiente texto OCR de un albarán, extrae TODOS los productos con su nombre, cantidad, unidad y precio unitario.
-Responde ÚNICAMENTE con un JSON array, sin texto adicional:
-[{"code":"12345","name":"Entrecot","qty":5,"unit":"KG","price":18.50,"matched":true}]
+      const promptText=`Eres un asistente que extrae líneas de productos de albaranes de proveedor.
+${catalogBlock}Extrae TODOS los productos del albarán con su nombre, cantidad, unidad y precio unitario.
+Las cantidades pueden estar en columnas tipo "UNID." (unidades/cajas) o "KG" (peso); usa la cantidad realmente entregada. El importe suele estar en la columna "BRUTO" o "IMPORTE".
+Responde ÚNICAMENTE con un JSON, sin texto adicional, con esta forma:
+{"items":[{"code":"12345","name":"Entrecot","qty":5,"unit":"KG","price":18.50,"matched":true}]}
 - code: código del artículo si aparece, si no ""
 - name: nombre del producto (sin códigos ni referencias)
-- qty: cantidad numérica
+- qty: cantidad numérica realmente entregada
 - unit: "KG", "UN", "L", "Caja" o "Bote" según corresponda
-- price: precio unitario en €
+- price: precio/importe unitario en €
 - matched: true si coincide con el catálogo, false si no
 
-Ignora líneas de totales, IVA, cabeceras, direcciones o textos que no sean productos.
+Ignora líneas de totales, IVA, cabeceras, direcciones o textos que no sean productos.`;
 
-TEXTO DEL ALBARÁN:
-${markdown}`
-        }],
-        response_format:{type:'json_object'}
-      };
+      let chatBody, diagText='';
+      if(isPdf){
+        // PDF: leer texto con Mistral OCR y luego extraer
+        if(prog) prog.textContent='Paso 1/2 — leyendo el PDF...';
+        const ocrResp=await fetch('https://api.mistral.ai/v1/ocr',{
+          method:'POST',
+          headers:{'Authorization':'Bearer '+mistralKey,'Content-Type':'application/json'},
+          body:JSON.stringify({model:'mistral-ocr-latest',document:{type:'document_url',document_url:dataUri}})
+        });
+        if(!ocrResp.ok){ const err=await ocrResp.json().catch(()=>({})); throw new Error(err?.message||'Error Mistral OCR ('+ocrResp.status+')'); }
+        const ocrData=await ocrResp.json();
+        const markdown=(ocrData.pages||[]).map(p=>p.markdown||'').join('\n');
+        diagText=markdown;
+        console.log('[OCR] Texto leído del PDF:\n',markdown);
+        if(!markdown.trim()){toast('Mistral no leyó texto del PDF. Prueba con otra calidad.','#d97706',6000);return;}
+        if(prog) prog.textContent='Paso 2/2 — extrayendo productos...';
+        chatBody={model:'mistral-medium-latest',messages:[{role:'user',content:`${promptText}\n\nTEXTO DEL ALBARÁN:\n${markdown}`}],response_format:{type:'json_object'}};
+      } else {
+        // Imagen: visión directa — lee también las tablas que el OCR de texto deja como imagen
+        if(prog) prog.textContent='Leyendo el albarán con IA de visión...';
+        diagText='(imagen analizada directamente con visión)';
+        chatBody={model:'pixtral-12b-2409',messages:[{role:'user',content:[{type:'text',text:promptText},{type:'image_url',image_url:dataUri}]}],response_format:{type:'json_object'}};
+      }
       const chatResp=await fetch('https://api.mistral.ai/v1/chat/completions',{
         method:'POST',
         headers:{'Authorization':'Bearer '+mistralKey,'Content-Type':'application/json'},
@@ -2439,8 +2430,8 @@ ${markdown}`
       } else {
         // Mistral SÍ leyó texto pero la extracción no devolvió productos → mostrar diagnóstico
         toast('Mistral leyó el albarán pero no extrajo líneas. Pulsa para ver el texto leído.','#d97706',6000);
-        if(confirm('Mistral leyó este texto del albarán pero no consiguió sacar las líneas de producto.\n\n¿Quieres ver el texto que leyó? (para diagnosticar)')){
-          alert((markdown||'').slice(0,1500)||'(vacío)');
+        if(confirm('Mistral analizó el albarán pero no consiguió sacar las líneas de producto.\n\n¿Quieres ver el detalle? (para diagnosticar)')){
+          alert(((diagText||'')+'\n\n--- RESPUESTA IA ---\n'+(rawContent||'')).slice(0,1500)||'(vacío)');
         }
       }
     }catch(e){
