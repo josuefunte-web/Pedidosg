@@ -2362,7 +2362,9 @@ async function runOCR(){
       }
       const ocrData=await ocrResp.json();
       const markdown=(ocrData.pages||[]).map(p=>p.markdown||'').join('\n');
-      if(!markdown.trim()){toast('No se reconoció texto. Prueba con foto más clara.','#d97706');return;}
+      console.log('[OCR] Texto leído por Mistral OCR:\n',markdown);
+      window._lastOcrText=markdown;
+      if(!markdown.trim()){toast('Mistral no leyó texto de la foto. Prueba con foto más nítida o recorta.','#d97706',6000);return;}
 
       // Paso 2: extraer productos estructurados con IA + catálogo del proveedor
       if(prog) prog.textContent='Paso 2/2 — extrayendo productos...';
@@ -2412,8 +2414,10 @@ ${markdown}`
       }
       const chatData=await chatResp.json();
       let parsed=[];
+      const rawContent=chatData.choices?.[0]?.message?.content||'[]';
+      console.log('[OCR] Respuesta de extracción (mistral-medium):\n',rawContent);
       try{
-        const raw=chatData.choices?.[0]?.message?.content||'[]';
+        const raw=rawContent;
         const obj=JSON.parse(raw);
         // El modelo puede devolver {items:[...]} o directamente [...]
         const arr=Array.isArray(obj)?obj:(obj.items||obj.products||obj.lineas||Object.values(obj).find(v=>Array.isArray(v))||[]);
@@ -2433,7 +2437,11 @@ ${markdown}`
         const detail=_cat.length?` (${nMatch} del catálogo)`:'';
         toast(`${parsed.length} producto${parsed.length!==1?'s':''} reconocido${parsed.length!==1?'s':''}${detail}. Revisa y corrige.`,'#16a34a');
       } else {
-        toast('No se identificaron productos. Revisa la foto o añade manualmente.','#d97706');
+        // Mistral SÍ leyó texto pero la extracción no devolvió productos → mostrar diagnóstico
+        toast('Mistral leyó el albarán pero no extrajo líneas. Pulsa para ver el texto leído.','#d97706',6000);
+        if(confirm('Mistral leyó este texto del albarán pero no consiguió sacar las líneas de producto.\n\n¿Quieres ver el texto que leyó? (para diagnosticar)')){
+          alert((markdown||'').slice(0,1500)||'(vacío)');
+        }
       }
     }catch(e){
       console.error(e);
