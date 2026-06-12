@@ -2138,7 +2138,9 @@ function linkAlbToOrder(albId,orderId){
 function vAlbaranNew(){
   const isAdmin=S.session&&S.session.isAdmin;
   const sups=supList();
-  const autoTotal=S.albItems.reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
+  const baseTotal=S.albItems.reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
+  const ivaTotal=S.albItems.reduce((s,it)=>{const b=(parseFloat(it.qty)||0)*(parseFloat(it.price)||0);return s+b*(albLineIva(it)/100);},0);
+  const autoTotal=baseTotal+ivaTotal;
   const restSel=isAdmin?`<div class="fg"><label>Restaurante</label><select id="alb-rest" onchange="S.albRestaurant=this.value"><option value="">— Selecciona —</option>${cfg.users.map(u=>`<option value="${u.restaurant}" ${S.albRestaurant===u.restaurant?'selected':''}>${u.restaurant}</option>`).join('')}</select></div>`:'';
   const supSel=`<div class="fg"><label>Proveedor</label><select id="alb-sup" onchange="S.albSupId=this.value">${sups.map(s=>`<option value="${s.id}" ${S.albSupId===s.id?'selected':''}>${s.emoji} ${s.name}</option>`).join('')}</select></div>`;
   const itemsHtml=S.albItems.map((it,i)=>`
@@ -2150,6 +2152,7 @@ function vAlbaranNew(){
         <div class="fg" style="margin-bottom:6px"><label>Unidad</label><select onchange="S.albItems[${i}].unit=this.value"><option ${it.unit==='KG'?'selected':''}>KG</option><option ${it.unit==='UN'?'selected':''}>UN</option><option ${it.unit==='L'?'selected':''}>L</option><option ${it.unit==='Caja'?'selected':''}>Caja</option></select></div>
         <div class="fg" style="margin-bottom:0"><label>Cantidad</label><input type="number" value="${it.qty}" step="0.1" min="0" onchange="S.albItems[${i}].qty=parseFloat(this.value)||0"/></div>
         <div class="fg" style="margin-bottom:0"><label>Precio €</label><input type="number" value="${it.price}" step="0.01" min="0" onchange="S.albItems[${i}].price=parseFloat(this.value)||0"/></div>
+        <div class="fg" style="margin-bottom:0"><label>IVA %</label><input type="number" value="${albLineIva(it)}" step="1" min="0" onchange="albSetIva(${i},this.value)" title="Por defecto 10%. Si lo cambias se guarda para este producto."/></div>
         <div class="fg" style="margin-bottom:0;grid-column:1/-1"><label style="color:${it.incident?'#dc2626':'var(--mut)'}">Incidencia (opcional)</label><input type="text" value="${it.incident||''}" placeholder="Ej: Faltaban 2kg, producto en mal estado..." onchange="S.albItems[${i}].incident=this.value" style="${it.incident?'border-color:#dc2626;background:#fff5f5':''}"/></div>
         <div class="fg" style="margin-bottom:0"><label>Total €</label><input type="number" step="0.01" min="0" value="${((parseFloat(it.qty)||0)*(parseFloat(it.price)||0)).toFixed(2)}" onchange="const t=parseFloat(this.value)||0;S.albItems[${i}].price=S.albItems[${i}].qty?(t/S.albItems[${i}].qty):0;render()" style="font-weight:600"/></div>
       </div>
@@ -2184,9 +2187,11 @@ function vAlbaranNew(){
     <div id="alb-items-list">${itemsHtml||`<div style="color:var(--mut);font-size:13px;text-align:center;padding:20px">Añade productos manualmente o usa OCR</div>`}</div>
     <button class="btn btn-ghost" style="width:100%;margin-top:8px;justify-content:center" onclick="albAddItem()">+ Añadir línea</button>
     <div class="card" style="margin-top:14px;padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--mut);margin-bottom:4px"><span>Base imponible</span><span>${fmt(baseTotal)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--mut);margin-bottom:8px"><span>IVA</span><span>${fmt(ivaTotal)}</span></div>
       <div style="display:flex;align-items:flex-end;gap:10px">
         <div class="fg" style="flex:1;margin-bottom:0">
-          <label style="font-weight:600;font-size:13px">Total albarán (€)</label>
+          <label style="font-weight:600;font-size:13px">Total albarán con IVA (€)</label>
           <input type="number" step="0.01" min="0" id="alb-total-input"
             value="${S.albTotalManual!==null?S.albTotalManual.toFixed(2):autoTotal.toFixed(2)}"
             oninput="S.albTotalManual=parseFloat(this.value)||0"
@@ -2201,6 +2206,27 @@ function vAlbaranNew(){
       <button class="btn btn-ghost" onclick="${S.session&&S.session.isAdmin?'goAdmin()':'goOrder()'}">Cancelar</button>
     </div>
   </div>`;
+}
+
+/* ═══════════════ IVA POR LÍNEA ═══════════════ */
+function albFindCatProd(it){
+  const sup=suppliers[S.albSupId]; if(!sup) return null;
+  const prods=Array.isArray(sup.products)?sup.products:Object.values(sup.products||{});
+  const code=String(it.code||'').trim();
+  const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+  return prods.find(p=>(code&&String(p.code||'').trim()===code)||norm(p.name)===norm(it.name))||null;
+}
+function albLineIva(it){
+  if(it.iva!==undefined&&it.iva!==null&&it.iva!=='') return parseFloat(it.iva);
+  const p=albFindCatProd(it); if(p&&p.iva!=null&&p.iva!=='') return parseFloat(p.iva);
+  return 10; // por defecto 10%
+}
+function albSetIva(i,val){
+  const iva=parseFloat(val); if(isNaN(iva)) return;
+  S.albItems[i].iva=iva;
+  // grabar el IVA en el catálogo del producto para la próxima vez
+  const p=albFindCatProd(S.albItems[i]); if(p){ p.iva=iva; saveSups(S.albSupId); }
+  render();
 }
 
 /* ═══════════════ RECORTADOR ═══════════════ */
@@ -2568,7 +2594,7 @@ function saveAlbaran(){
   const supId=document.getElementById('alb-sup')?.value||S.albSupId;
   const date=document.getElementById('alb-date')?.value||S.albDate;
   if(!rest){toast('Selecciona el restaurante','#dc2626');return;}
-  const valid=S.albItems.filter(it=>it.name&&it.qty>0);
+  const valid=S.albItems.filter(it=>it.name&&it.qty>0).map(it=>({...it,iva:albLineIva(it)}));
   if(!valid.length){toast('Añade al menos un producto con nombre y cantidad','#dc2626');return;}
   // Añadir al catálogo del proveedor los productos nuevos que no existían
   let nuevos=0;
@@ -2588,6 +2614,7 @@ function saveAlbaran(){
           name:String(it.name).slice(0,60),
           unit:it.unit||'UN',
           price:parseFloat(it.price||0)||0,
+          iva:albLineIva(it),
           ...(code?{code}:{})
         });
         nuevos++;
