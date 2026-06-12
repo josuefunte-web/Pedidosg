@@ -2364,21 +2364,35 @@ async function runOCR(){
       const markdown=(ocrData.pages||[]).map(p=>p.markdown||'').join('\n');
       if(!markdown.trim()){toast('No se reconoció texto. Prueba con foto más clara.','#d97706');return;}
 
-      // Paso 2: extraer productos estructurados con mistral-small
+      // Paso 2: extraer productos estructurados con IA + catálogo del proveedor
       if(prog) prog.textContent='Paso 2/2 — extrayendo productos...';
+      // Catálogo del proveedor seleccionado, para que la IA empareje en vez de adivinar
+      const _sup=suppliers[S.albSupId]||{};
+      const _cat=(Array.isArray(_sup.products)?_sup.products:Object.values(_sup.products||{}))
+        .map(p=>({code:String(p.code||''),name:p.name,unit:p.unit||'UN',price:parseFloat(p.price||0)}));
+      const catalogBlock=_cat.length
+        ? `CATÁLOGO DEL PROVEEDOR "${_sup.name||''}" (empareja cada línea del albarán con UNO de estos productos por código o por nombre parecido; usa el NOMBRE y la UNIDAD EXACTOS del catálogo):
+${_cat.map(p=>`- code:${p.code||'-'} | ${p.name} | ${p.unit} | ${p.price}€`).join('\n')}
+
+Reglas de emparejamiento:
+- Si una línea del albarán coincide con un producto del catálogo (mismo código, o nombre claramente equivalente aunque esté abreviado o con errores de OCR), usa el "name" y "unit" EXACTOS del catálogo y marca "matched":true.
+- Solo la cantidad (qty) y el precio (price) se toman del albarán. Si el albarán no trae precio, usa el del catálogo.
+- Si una línea NO está en el catálogo, inclúyela igual con "matched":false y el nombre tal como aparece.\n`
+        : '';
       const chatBody={
-        model:'mistral-small-latest',
+        model:'mistral-medium-latest',
         messages:[{
           role:'user',
           content:`Eres un asistente que extrae líneas de productos de albaranes de proveedor.
-Del siguiente texto OCR de un albarán, extrae TODOS los productos con su nombre, cantidad, unidad y precio unitario.
+${catalogBlock}Del siguiente texto OCR de un albarán, extrae TODOS los productos con su nombre, cantidad, unidad y precio unitario.
 Responde ÚNICAMENTE con un JSON array, sin texto adicional:
-[{"code":"12345","name":"Entrecot","qty":5,"unit":"KG","price":18.50}]
+[{"code":"12345","name":"Entrecot","qty":5,"unit":"KG","price":18.50,"matched":true}]
 - code: código del artículo si aparece, si no ""
 - name: nombre del producto (sin códigos ni referencias)
 - qty: cantidad numérica
 - unit: "KG", "UN", "L", "Caja" o "Bote" según corresponda
 - price: precio unitario en €
+- matched: true si coincide con el catálogo, false si no
 
 Ignora líneas de totales, IVA, cabeceras, direcciones o textos que no sean productos.
 
@@ -2408,13 +2422,16 @@ ${markdown}`
           name:String(it.name).slice(0,60),
           qty:Math.round(parseFloat(it.qty)*100)/100,
           unit:it.unit||'UN',
-          price:Math.round(parseFloat(it.price||0)*100)/100
+          price:Math.round(parseFloat(it.price||0)*100)/100,
+          matched:it.matched===true
         }));
       }catch(e){ console.warn('Parse error:',e); }
 
       if(parsed.length>0){
         S.albItems=[...S.albItems,...parsed];
-        toast(`${parsed.length} producto${parsed.length!==1?'s':''} reconocido${parsed.length!==1?'s':''}. Revisa y corrige.`,'#16a34a');
+        const nMatch=parsed.filter(it=>it.matched).length;
+        const detail=_cat.length?` (${nMatch} del catálogo)`:'';
+        toast(`${parsed.length} producto${parsed.length!==1?'s':''} reconocido${parsed.length!==1?'s':''}${detail}. Revisa y corrige.`,'#16a34a');
       } else {
         toast('No se identificaron productos. Revisa la foto o añade manualmente.','#d97706');
       }
@@ -2554,9 +2571,34 @@ function saveAlbaran(){
   if(!rest){toast('Selecciona el restaurante','#dc2626');return;}
   const valid=S.albItems.filter(it=>it.name&&it.qty>0);
   if(!valid.length){toast('Añade al menos un producto con nombre y cantidad','#dc2626');return;}
+  // Añadir al catálogo del proveedor los productos nuevos que no existían
+  let nuevos=0;
+  const sup=suppliers[supId];
+  if(sup){
+    if(!Array.isArray(sup.products)) sup.products=Object.values(sup.products||{});
+    const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+    valid.forEach(it=>{
+      const code=String(it.code||'').trim();
+      const exists=sup.products.some(p=>
+        (code && String(p.code||'').trim()===code) ||
+        norm(p.name)===norm(it.name)
+      );
+      if(!exists){
+        sup.products.push({
+          id:uid(),
+          name:String(it.name).slice(0,60),
+          unit:it.unit||'UN',
+          price:parseFloat(it.price||0)||0,
+          ...(code?{code}:{})
+        });
+        nuevos++;
+      }
+    });
+    if(nuevos>0) saveSups(supId);
+  }
   const a={id:uid(),restaurant:rest,supId,date,photo:S.albPhoto,items:valid,createdAt:new Date().toISOString(),...(S.albTotalManual!==null?{totalManual:S.albTotalManual}:{})};
   saveAlb(a);
-  toast('Albarán guardado','#16a34a');
+  toast(nuevos>0?`Albarán guardado · ${nuevos} producto${nuevos!==1?'s':''} nuevo${nuevos!==1?'s':''} añadido${nuevos!==1?'s':''} al catálogo`:'Albarán guardado','#16a34a');
   if(S.session&&S.session.isAdmin){ S.adminTab='albaranes';goAdmin(); } else goOrder();
 }
 
@@ -4317,6 +4359,19 @@ function escCosteFactor(ing){
   const merma=parseFloat(ing.merma)||0;
   const factor=merma>0&&merma<100?1/(1-merma/100):1;
   return escLivePrice(ing)*(parseFloat(ing.cantidad)||0)*factor;
+}
+
+function escFraccionTexto(val){
+  const n=parseFloat(val);
+  if(!n||!isFinite(n)) return '0';
+  // Fracciones comunes
+  const comunes={0.25:'1/4',0.5:'1/2',0.75:'3/4',0.33:'1/3',0.333:'1/3',0.67:'2/3',0.667:'2/3',0.2:'1/5',0.125:'1/8',0.1:'1/10'};
+  const key=Math.round(n*1000)/1000;
+  if(comunes[key]) return comunes[key];
+  if(comunes[Math.round(n*100)/100]) return comunes[Math.round(n*100)/100];
+  // Si es un porcentaje "redondo", mostrar como x/100 simplificado o %
+  if(n<1) return (Math.round(n*1000)/10)+'%';
+  return String(Math.round(n*1000)/1000);
 }
 
 function escRenderIngs(){
