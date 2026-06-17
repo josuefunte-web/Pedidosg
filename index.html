@@ -1354,6 +1354,7 @@ function renderAdminContent(){
   else if(S.adminTab==='received') content=vReceived();
   else if(S.adminTab==='budgets')  content=vBudgets();
   else if(S.adminTab==='compare')  content=vCompare();
+  else if(S.adminTab==='compras')   content=vComprasProducto();
   else if(S.adminTab==='productos')  content=vProductos();
   else if(S.adminTab==='albaranes') content=vAlbaranes();
   else if(S.adminTab==='solicitudes') content=vSolicitudes();
@@ -1831,6 +1832,7 @@ function vAdmin(){
     <div class="sb-section">Análisis</div>
     ${sbItem('budgets','Presupuestos')}
     ${sbItem('compare','Comparar precios')}
+    ${sbItem('compras','Compras por producto')}
     ${sbItem('sup-history','Por proveedor')}
     <div class="sb-section">Operaciones</div>
     ${sbItem('productos','Productos')}
@@ -1853,6 +1855,7 @@ function vAdmin(){
   else if(S.adminTab==='received')  content=vReceived();
   else if(S.adminTab==='budgets')   content=vBudgets();
   else if(S.adminTab==='compare')   content=vCompare();
+  else if(S.adminTab==='compras')   content=vComprasProducto();
   else if(S.adminTab==='productos')  content=vProductos();
   else if(S.adminTab==='albaranes') content=vAlbaranes();
   else if(S.adminTab==='solicitudes') content=vSolicitudes();
@@ -2070,6 +2073,44 @@ function vConsolidated(){
 }
 
 /* ═══════════════ ALBARANES ═══════════════ */
+function vComprasProducto(){
+  const sups=supList();
+  const supSel=`<div class="fg" style="margin-bottom:0"><label>Proveedor</label><select onchange="S.comprasSup=this.value;renderAdminContent()"><option value="">Todos</option>${sups.map(s=>`<option value="${s.id}" ${S.comprasSup===s.id?'selected':''}>${s.emoji} ${s.name}</option>`).join('')}</select></div>`;
+  const desde=`<div class="fg" style="margin-bottom:0"><label>Desde</label><input type="date" value="${S.comprasDesde||''}" onchange="S.comprasDesde=this.value;renderAdminContent()"/></div>`;
+  const hasta=`<div class="fg" style="margin-bottom:0"><label>Hasta</label><input type="date" value="${S.comprasHasta||''}" onchange="S.comprasHasta=this.value;renderAdminContent()"/></div>`;
+  const limpiar=(S.comprasSup||S.comprasDesde||S.comprasHasta)?`<button class="btn btn-ghost btn-sm" style="align-self:flex-end" onclick="S.comprasSup='';S.comprasDesde='';S.comprasHasta='';renderAdminContent()">Limpiar filtros</button>`:'';
+  const filtros=`<div class="card" style="margin-bottom:14px"><div class="three-col" style="align-items:end">${supSel}${desde}${hasta}${limpiar}</div></div>`;
+  // Agregar por producto a partir de los albaranes
+  const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+  const agg={};
+  (albNotes||[]).forEach(a=>{
+    if(S.comprasSup && a.supId!==S.comprasSup) return;
+    if(S.comprasDesde && (a.date||'')<S.comprasDesde) return;
+    if(S.comprasHasta && (a.date||'')>S.comprasHasta) return;
+    (a.items||[]).forEach(it=>{
+      if(!it.name) return;
+      const qty=parseFloat(it.qty)||0;
+      const importe=qty*(parseFloat(it.price)||0);
+      const key=(String(it.code||'').trim())||norm(it.name);
+      if(!agg[key]) agg[key]={name:it.name,code:it.code||'',unit:it.unit||'',supId:a.supId,qty:0,importe:0,veces:0,lastDate:a.date,lastPrice:parseFloat(it.price)||0};
+      const g=agg[key];
+      g.qty+=qty; g.importe+=importe; g.veces++;
+      if((a.date||'')>=(g.lastDate||'')){ g.lastDate=a.date; g.lastPrice=parseFloat(it.price)||0; g.name=it.name; g.unit=it.unit||g.unit; }
+    });
+  });
+  const rows=Object.values(agg).sort((x,y)=>y.importe-x.importe);
+  const totImporte=rows.reduce((s,r)=>s+r.importe,0);
+  if(!rows.length) return filtros+`<div class="empty"><div class="ei"></div><div class="et">Sin compras en el periodo seleccionado</div></div>`;
+  const trs=rows.map(r=>{
+    const sup=suppliers[r.supId]||{name:'',emoji:''};
+    return `<tr><td>${r.code?`<small style="color:var(--mut)">[${r.code}]</small> `:''}${r.name}</td><td style="font-size:12px;color:var(--mut)">${sup.emoji||''} ${sup.name||''}</td><td style="text-align:right">${r.qty.toFixed(2)} ${r.unit}</td><td style="text-align:right">${fmt(r.importe)}</td><td style="text-align:right">${r.veces}</td></tr>`;
+  }).join('');
+  const table=`<div class="card"><div class="card-t">Compras por producto</div>
+    <div style="font-size:13px;color:var(--mut);margin-bottom:10px">${rows.length} producto${rows.length!==1?'s':''} · Total gastado: <strong style="color:var(--txt)">${fmt(totImporte)}</strong></div>
+    <div style="overflow-x:auto"><table class="spend-table"><tr><th>Producto</th><th>Proveedor</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Importe</th><th style="text-align:right">Veces</th></tr>${trs}</table></div></div>`;
+  return filtros+table;
+}
+
 function vAlbaranes(){
   const btn=`<button class="btn btn-pri btn-sm" onclick="goAlbaranAdmin()" style="margin-bottom:14px">+ Nuevo albarán</button>`;
   const byRest={};
@@ -2154,7 +2195,7 @@ function vAlbaranNew(){
         <div class="fg" style="margin-bottom:0"><label>Precio €</label><input type="number" value="${it.price}" step="0.01" min="0" onchange="S.albItems[${i}].price=parseFloat(this.value)||0"/></div>
         <div class="fg" style="margin-bottom:0"><label>IVA %</label><input type="number" value="${albLineIva(it)}" step="1" min="0" onchange="albSetIva(${i},this.value)" title="Por defecto 10%. Si lo cambias se guarda para este producto."/></div>
         <div class="fg" style="margin-bottom:0;grid-column:1/-1"><label style="color:${it.incident?'#dc2626':'var(--mut)'}">Incidencia (opcional)</label><input type="text" value="${it.incident||''}" placeholder="Ej: Faltaban 2kg, producto en mal estado..." onchange="S.albItems[${i}].incident=this.value" style="${it.incident?'border-color:#dc2626;background:#fff5f5':''}"/></div>
-        <div class="fg" style="margin-bottom:0"><label>Total €</label><input type="number" step="0.01" min="0" value="${((parseFloat(it.qty)||0)*(parseFloat(it.price)||0)).toFixed(2)}" onchange="const t=parseFloat(this.value)||0;S.albItems[${i}].price=S.albItems[${i}].qty?(t/S.albItems[${i}].qty):0;render()" style="font-weight:600"/></div>
+        <div class="fg" style="margin-bottom:0"><label>Total € (IVA incl.)</label><input type="number" step="0.01" min="0" value="${((parseFloat(it.qty)||0)*(parseFloat(it.price)||0)*(1+albLineIva(it)/100)).toFixed(2)}" onchange="const t=parseFloat(this.value)||0;const f=1+albLineIva(S.albItems[${i}])/100;S.albItems[${i}].price=S.albItems[${i}].qty?(t/f/S.albItems[${i}].qty):0;render()" style="font-weight:600"/></div>
       </div>
     </div>`).join('');
   return `<div class="main">
@@ -2165,7 +2206,7 @@ function vAlbaranNew(){
       <div class="fg"><label>Foto del albarán</label>
         <div class="file-input-wrap"><div class="file-input-btn">Subir imagen, PDF o Excel</div><input type="file" accept="image/*,application/pdf,.pdf,.xlsx,.xls,.csv" onchange="handleAlbPhoto(this)"/></div>
         ${S.albCropping
-          ? `<div style="font-size:13px;color:var(--mut);margin:8px 0 6px"> Arrastra para seleccionar el área a escanear</div>
+          ? `<div style="font-size:13px;color:var(--mut);margin:8px 0 6px">Ajusta el recuadro: arrastra dentro para moverlo y usa los tiradores de las esquinas/lados para redimensionar. O dibuja uno nuevo arrastrando fuera.</div>
              <canvas id="crop-canvas" style="width:100%;border-radius:8px;cursor:crosshair;touch-action:none;border:2px dashed var(--pri)"></canvas>
              <div style="display:flex;gap:8px;margin-top:10px">
                <button class="btn btn-pri btn-sm" onclick="applyCrop()"> Aplicar recorte</button>
@@ -2236,6 +2277,7 @@ function showCropUI(){
   setTimeout(initCropCanvas,80);
 }
 function cancelCrop(){ S.albCropping=false; render(); }
+const CROP_HR=16; // radio de detección de tiradores (px)
 function initCropCanvas(){
   const canvas=document.getElementById('crop-canvas');
   if(!canvas)return;
@@ -2248,45 +2290,93 @@ function initCropCanvas(){
     canvas.height=img.naturalHeight*scale;
     canvas._scale=scale; canvas._img=img;
     const ctx=canvas.getContext('2d');
-    ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
+    // Selección inicial: recuadro centrado al 84% (ya puesto para solo ajustar)
+    const mx=canvas.width*0.08, my=canvas.height*0.08;
+    cropState={x1:mx,y1:my,x2:canvas.width-mx,y2:canvas.height-my,mode:'idle',handle:null,_mx:0,_my:0};
+    drawOverlay(ctx,img,canvas.width,canvas.height);
+
     const pos=(e)=>{
       const r=canvas.getBoundingClientRect();
       const t=e.touches?e.touches[0]:e;
       return{x:Math.max(0,Math.min(canvas.width,t.clientX-r.left)),y:Math.max(0,Math.min(canvas.height,t.clientY-r.top))};
     };
-    canvas.onmousedown=canvas.ontouchstart=(e)=>{e.preventDefault();const p=pos(e);cropState={dragging:true,startX:p.x,startY:p.y,endX:p.x,endY:p.y};};
-    canvas.onmousemove=canvas.ontouchmove=(e)=>{if(!cropState.dragging)return;e.preventDefault();const p=pos(e);cropState.endX=p.x;cropState.endY=p.y;drawOverlay(ctx,img,canvas.width,canvas.height);};
-    canvas.onmouseup=canvas.ontouchend=()=>{cropState.dragging=false;};
+    const handlePts=()=>{const{x1,y1,x2,y2}=cropState;const cx=(x1+x2)/2,cy=(y1+y2)/2;
+      return{nw:[x1,y1],n:[cx,y1],ne:[x2,y1],e:[x2,cy],se:[x2,y2],s:[cx,y2],sw:[x1,y2],w:[x1,cy]};};
+    const hitHandle=(p)=>{const hs=handlePts();for(const k in hs){if(Math.abs(p.x-hs[k][0])<CROP_HR&&Math.abs(p.y-hs[k][1])<CROP_HR)return k;}return null;};
+    const inside=(p)=>p.x>cropState.x1&&p.x<cropState.x2&&p.y>cropState.y1&&p.y<cropState.y2;
+
+    canvas.onmousedown=canvas.ontouchstart=(e)=>{
+      e.preventDefault();const p=pos(e);const h=hitHandle(p);
+      if(h){cropState.mode='resize';cropState.handle=h;}
+      else if(inside(p)){cropState.mode='move';cropState._mx=p.x;cropState._my=p.y;}
+      else{cropState.mode='new';cropState.x1=p.x;cropState.y1=p.y;cropState.x2=p.x;cropState.y2=p.y;}
+    };
+    canvas.onmousemove=canvas.ontouchmove=(e)=>{
+      const p=pos(e);
+      if(cropState.mode==='idle'){canvas.style.cursor=hitHandle(p)?'pointer':(inside(p)?'move':'crosshair');return;}
+      e.preventDefault();
+      if(cropState.mode==='new'){cropState.x2=p.x;cropState.y2=p.y;}
+      else if(cropState.mode==='move'){
+        const dx=p.x-cropState._mx,dy=p.y-cropState._my;
+        let nx1=cropState.x1+dx,ny1=cropState.y1+dy,nx2=cropState.x2+dx,ny2=cropState.y2+dy;
+        if(nx1<0){nx2-=nx1;nx1=0;} if(ny1<0){ny2-=ny1;ny1=0;}
+        if(nx2>canvas.width){nx1-=(nx2-canvas.width);nx2=canvas.width;}
+        if(ny2>canvas.height){ny1-=(ny2-canvas.height);ny2=canvas.height;}
+        cropState.x1=nx1;cropState.y1=ny1;cropState.x2=nx2;cropState.y2=ny2;
+        cropState._mx=p.x;cropState._my=p.y;
+      }
+      else if(cropState.mode==='resize'){
+        const h=cropState.handle;
+        if(h.includes('n'))cropState.y1=p.y; if(h.includes('s'))cropState.y2=p.y;
+        if(h.includes('w'))cropState.x1=p.x; if(h.includes('e'))cropState.x2=p.x;
+      }
+      drawOverlay(ctx,img,canvas.width,canvas.height);
+    };
+    canvas.onmouseup=canvas.ontouchend=()=>{
+      // normalizar para que x1<x2 e y1<y2 siempre
+      const x1=Math.min(cropState.x1,cropState.x2),x2=Math.max(cropState.x1,cropState.x2);
+      const y1=Math.min(cropState.y1,cropState.y2),y2=Math.max(cropState.y1,cropState.y2);
+      cropState.x1=x1;cropState.y1=y1;cropState.x2=x2;cropState.y2=y2;
+      cropState.mode='idle';
+      drawOverlay(ctx,img,canvas.width,canvas.height);
+    };
   };
 }
 function drawOverlay(ctx,img,w,h){
   ctx.drawImage(img,0,0,w,h);
-  const x1=Math.min(cropState.startX,cropState.endX),y1=Math.min(cropState.startY,cropState.endY);
-  const x2=Math.max(cropState.startX,cropState.endX),y2=Math.max(cropState.startY,cropState.endY);
+  const x1=Math.min(cropState.x1,cropState.x2),y1=Math.min(cropState.y1,cropState.y2);
+  const x2=Math.max(cropState.x1,cropState.x2),y2=Math.max(cropState.y1,cropState.y2);
   ctx.fillStyle='rgba(0,0,0,0.55)';
   ctx.fillRect(0,0,w,h);
   if(x2>x1&&y2>y1){
-    ctx.clearRect(x1,y1,x2-x1,y2-y1);
+    // mostrar nítida el área seleccionada
     ctx.drawImage(img,x1,y1,x2-x1,y2-y1,x1,y1,x2-x1,y2-y1);
     ctx.strokeStyle='#e94560';ctx.lineWidth=2;
     ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+    // tiradores (4 esquinas + 4 lados)
+    const cx=(x1+x2)/2,cy=(y1+y2)/2;
+    const pts=[[x1,y1],[cx,y1],[x2,y1],[x2,cy],[x2,y2],[cx,y2],[x1,y2],[x1,cy]];
+    const s=6;
+    pts.forEach(([px,py])=>{
+      ctx.fillStyle='#fff';ctx.strokeStyle='#e94560';ctx.lineWidth=2;
+      ctx.beginPath();ctx.rect(px-s,py-s,s*2,s*2);ctx.fill();ctx.stroke();
+    });
   }
 }
 function applyCrop(){
   const canvas=document.getElementById('crop-canvas');
   if(!canvas){toast('Error al recortar','#dc2626');return;}
   const sc=canvas._scale||1;
-  const x1=Math.min(cropState.startX,cropState.endX),y1=Math.min(cropState.startY,cropState.endY);
-  const w=Math.abs(cropState.endX-cropState.startX),h=Math.abs(cropState.endY-cropState.startY);
-  if(w<20||h<20){toast('Selecciona un área más grande arrastrando','#dc2626');return;}
+  const x1=Math.min(cropState.x1,cropState.x2),y1=Math.min(cropState.y1,cropState.y2);
+  const w=Math.abs(cropState.x2-cropState.x1),h=Math.abs(cropState.y2-cropState.y1);
+  if(w<20||h<20){toast('Selecciona un área más grande','#dc2626');return;}
   const out=document.createElement('canvas');
   out.width=Math.round(w/sc); out.height=Math.round(h/sc);
   out.getContext('2d').drawImage(canvas._img,x1/sc,y1/sc,w/sc,h/sc,0,0,out.width,out.height);
   S.albPhoto=out.toDataURL('image/jpeg',0.95);
   S.albCropping=false;
   render();
-  toast(' Recorte aplicado — ahora pulsa Reconocer','#16a34a');
+  toast('Recorte aplicado — ahora pulsa Reconocer','#16a34a');
 }
 
 function handleAlbPhoto(input){
@@ -2596,35 +2686,47 @@ function saveAlbaran(){
   if(!rest){toast('Selecciona el restaurante','#dc2626');return;}
   const valid=S.albItems.filter(it=>it.name&&it.qty>0).map(it=>({...it,iva:albLineIva(it)}));
   if(!valid.length){toast('Añade al menos un producto con nombre y cantidad','#dc2626');return;}
-  // Añadir al catálogo del proveedor los productos nuevos que no existían
-  let nuevos=0;
+  // Vincular/añadir productos del albarán al catálogo del proveedor por código
+  let nuevos=0, vinculados=0, actualizados=0;
   const sup=suppliers[supId];
   if(sup){
     if(!Array.isArray(sup.products)) sup.products=Object.values(sup.products||{});
     const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
     valid.forEach(it=>{
       const code=String(it.code||'').trim();
-      const exists=sup.products.some(p=>
-        (code && String(p.code||'').trim()===code) ||
-        norm(p.name)===norm(it.name)
-      );
-      if(!exists){
+      const nuevoPrecio=parseFloat(it.price||0)||0;
+      const nuevoIva=albLineIva(it);
+      // 1º intentar casar por código; si no, por nombre
+      let prod=code?sup.products.find(p=>String(p.code||'').trim()===code):null;
+      if(!prod) prod=sup.products.find(p=>norm(p.name)===norm(it.name));
+      if(prod){
+        // Si casó por nombre y aún no tenía código, grabarle el del albarán → quedan vinculados
+        if(code && String(prod.code||'').trim()!==code){ prod.code=code; vinculados++; }
+        // Actualizar precio e IVA del producto existente con los del albarán
+        if(nuevoPrecio>0 && parseFloat(prod.price||0)!==nuevoPrecio){ prod.price=nuevoPrecio; actualizados++; }
+        if(it.unit) prod.unit=it.unit;
+        prod.iva=nuevoIva;
+      } else {
         sup.products.push({
           id:uid(),
           name:String(it.name).slice(0,60),
           unit:it.unit||'UN',
-          price:parseFloat(it.price||0)||0,
-          iva:albLineIva(it),
+          price:nuevoPrecio,
+          iva:nuevoIva,
           ...(code?{code}:{})
         });
         nuevos++;
       }
     });
-    if(nuevos>0) saveSups(supId);
+    if(nuevos>0||vinculados>0||actualizados>0) saveSups(supId);
   }
   const a={id:uid(),restaurant:rest,supId,date,photo:S.albPhoto,items:valid,createdAt:new Date().toISOString(),...(S.albTotalManual!==null?{totalManual:S.albTotalManual}:{})};
   saveAlb(a);
-  toast(nuevos>0?`Albarán guardado · ${nuevos} producto${nuevos!==1?'s':''} nuevo${nuevos!==1?'s':''} añadido${nuevos!==1?'s':''} al catálogo`:'Albarán guardado','#16a34a');
+  const msgParts=[];
+  if(nuevos>0) msgParts.push(`${nuevos} nuevo${nuevos!==1?'s':''}`);
+  if(vinculados>0) msgParts.push(`${vinculados} vinculado${vinculados!==1?'s':''} por código`);
+  if(actualizados>0) msgParts.push(`${actualizados} precio${actualizados!==1?'s':''} actualizado${actualizados!==1?'s':''}`);
+  toast(msgParts.length?`Albarán guardado · ${msgParts.join(' · ')} en catálogo`:'Albarán guardado','#16a34a');
   if(S.session&&S.session.isAdmin){ S.adminTab='albaranes';goAdmin(); } else goOrder();
 }
 
