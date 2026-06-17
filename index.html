@@ -2080,22 +2080,23 @@ function vComprasProducto(){
   const hasta=`<div class="fg" style="margin-bottom:0"><label>Hasta</label><input type="date" value="${S.comprasHasta||''}" onchange="S.comprasHasta=this.value;renderAdminContent()"/></div>`;
   const limpiar=(S.comprasSup||S.comprasDesde||S.comprasHasta)?`<button class="btn btn-ghost btn-sm" style="align-self:flex-end" onclick="S.comprasSup='';S.comprasDesde='';S.comprasHasta='';renderAdminContent()">Limpiar filtros</button>`:'';
   const filtros=`<div class="card" style="margin-bottom:14px"><div class="three-col" style="align-items:end">${supSel}${desde}${hasta}${limpiar}</div></div>`;
-  // Agregar por producto a partir de los albaranes
+  // Agregar por producto a partir de los PEDIDOS realizados (aprobados/recibidos)
   const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
   const agg={};
-  (albNotes||[]).forEach(a=>{
-    if(S.comprasSup && a.supId!==S.comprasSup) return;
-    if(S.comprasDesde && (a.date||'')<S.comprasDesde) return;
-    if(S.comprasHasta && (a.date||'')>S.comprasHasta) return;
-    (a.items||[]).forEach(it=>{
+  (orders||[]).filter(o=>o.status==='approved'||o.status==='received').forEach(o=>{
+    if(S.comprasSup && o.supId!==S.comprasSup) return;
+    const fecha=(o.createdAt||'').slice(0,10);
+    if(S.comprasDesde && fecha<S.comprasDesde) return;
+    if(S.comprasHasta && fecha>S.comprasHasta) return;
+    (o.items||[]).forEach(it=>{
       if(!it.name) return;
       const qty=parseFloat(it.qty)||0;
       const importe=qty*(parseFloat(it.price)||0);
       const key=(String(it.code||'').trim())||norm(it.name);
-      if(!agg[key]) agg[key]={name:it.name,code:it.code||'',unit:it.unit||'',supId:a.supId,qty:0,importe:0,veces:0,lastDate:a.date,lastPrice:parseFloat(it.price)||0};
+      if(!agg[key]) agg[key]={name:it.name,code:it.code||'',unit:it.unit||'',supId:o.supId,qty:0,importe:0,veces:0,lastDate:fecha,lastPrice:parseFloat(it.price)||0};
       const g=agg[key];
       g.qty+=qty; g.importe+=importe; g.veces++;
-      if((a.date||'')>=(g.lastDate||'')){ g.lastDate=a.date; g.lastPrice=parseFloat(it.price)||0; g.name=it.name; g.unit=it.unit||g.unit; }
+      if(fecha>=(g.lastDate||'')){ g.lastDate=fecha; g.lastPrice=parseFloat(it.price)||0; g.name=it.name; g.unit=it.unit||g.unit; }
     });
   });
   const rows=Object.values(agg).sort((x,y)=>y.importe-x.importe);
@@ -2107,7 +2108,7 @@ function vComprasProducto(){
   }).join('');
   const table=`<div class="card"><div class="card-t">Compras por producto</div>
     <div style="font-size:13px;color:var(--mut);margin-bottom:10px">${rows.length} producto${rows.length!==1?'s':''} · Total gastado: <strong style="color:var(--txt)">${fmt(totImporte)}</strong></div>
-    <div style="overflow-x:auto"><table class="spend-table"><tr><th>Producto</th><th>Proveedor</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Importe</th><th style="text-align:right">Veces</th></tr>${trs}</table></div></div>`;
+    <div style="overflow-x:auto"><table class="spend-table"><tr><th>Producto</th><th>Proveedor</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Importe</th><th style="text-align:right">Pedidos</th></tr>${trs}</table></div></div>`;
   return filtros+table;
 }
 
