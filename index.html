@@ -5638,6 +5638,14 @@ function renderBudgetTrendChart(){
 }
 
 /* ═══════════════ CATÁLOGO DE PRODUCTOS ═══════════════ */
+function prodSearchInput(el){
+  S.prodSearch2=el.value;
+  const pos=el.selectionStart;
+  renderAdminContent();
+  const ni=document.getElementById('prod-search-input');
+  if(ni){ ni.focus(); try{ ni.setSelectionRange(pos,pos); }catch(e){} }
+}
+
 function vProductos(){
   const allSups=supList();
   if(!allSups.length) return `<div class="empty"><div class="ei"></div><div class="et">Sin proveedores configurados</div></div>`;
@@ -5651,8 +5659,8 @@ function vProductos(){
   const catOpts=PROD_CATS.map(c=>`<option value="${c}"${S.prodCatFilter===c?' selected':''}>${c}</option>`).join('');
 
   const filtersBar=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;align-items:center">
-    <input type="text" placeholder="Buscar producto..." value="${S.prodSearch2||''}"
-      oninput="S.prodSearch2=this.value;renderAdminContent()"
+    <input type="text" id="prod-search-input" placeholder="Buscar producto o código..." value="${S.prodSearch2||''}"
+      oninput="prodSearchInput(this)"
       style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;background:var(--card);color:var(--txt)"/>
     <select onchange="S.prodSupFilter=this.value;renderAdminContent()"
       style="padding:8px 10px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;background:var(--card);color:var(--txt)">
@@ -5674,7 +5682,7 @@ function vProductos(){
     (sup.products||[]).forEach(p=>{
       const cat=p.category||'Otros';
       if(S.prodCatFilter && cat!==S.prodCatFilter) return;
-      if(term && !p.name.toLowerCase().includes(term)) return;
+      if(term && !((p.name||'').toLowerCase().includes(term)||String(p.code||'').toLowerCase().includes(term))) return;
       allProds.push({...p, cat, supId:sup.id, supName:sup.name, supEmoji:sup.emoji});
     });
   });
