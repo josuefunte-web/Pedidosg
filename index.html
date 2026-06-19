@@ -304,6 +304,35 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
 .esc-modal-hd h3{margin:0;font-size:18px;color:var(--pri);font-weight:800}
 .esc-modal-ft{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;border-top:1px solid var(--brd)}
 .esc-modal-ft-r{display:flex;gap:10px}
+/* Editor en panel (no flotante) */
+#esc-modal-ov.esc-edit-screen{position:static;inset:auto;background:none;backdrop-filter:none;display:none;padding:0;z-index:auto}
+#esc-modal-ov.esc-edit-screen .esc-modal-box{width:100%;max-width:none;max-height:none;border:1px solid var(--brd);box-shadow:var(--sh);background:var(--card)}
+/* Subpestañas tipo */
+.esc-subtabs{display:flex;gap:6px;margin-bottom:14px}
+.esc-subtab{padding:8px 16px;border-radius:9px;border:1.5px solid var(--brd);background:var(--card);color:var(--mut);font-size:13px;font-weight:700;cursor:pointer}
+.esc-subtab.act{background:var(--pri);border-color:var(--pri);color:#fff}
+/* Vista detalle estilo ficha */
+.escd-wrap{display:flex;flex-direction:column;gap:14px}
+.escd-grid{display:grid;grid-template-columns:1.7fr 1fr;gap:14px;align-items:start}
+@media(max-width:880px){.escd-grid{grid-template-columns:1fr}}
+.escd-head{background:var(--card);border:1px solid var(--brd);border-radius:14px;padding:18px 20px;box-shadow:var(--sh)}
+.escd-title{font-size:22px;font-weight:900;color:var(--pri);margin:0 0 4px}
+.escd-kpis{display:flex;flex-wrap:wrap;gap:18px;margin-top:12px}
+.escd-kpi .k{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.escd-kpi .v{font-size:18px;font-weight:800;color:var(--txt)}
+.escd-card{background:var(--card);border:1px solid var(--brd);border-radius:14px;padding:16px 18px;box-shadow:var(--sh)}
+.escd-card h4{margin:0 0 12px;font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--mut)}
+.escd-comp{width:100%;border-collapse:collapse}
+.escd-comp th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);padding:0 8px 8px;text-align:left}
+.escd-comp td{padding:9px 8px;border-bottom:1px solid var(--brd);font-size:13px;vertical-align:top}
+.escd-comp .qty{white-space:nowrap;color:var(--mut);font-weight:700}
+.escd-comp .cost{text-align:right;white-space:nowrap;font-weight:700}
+.escd-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;flex-shrink:0}
+.escd-aler{display:inline-block;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:600;margin:2px 3px 0 0}
+.escd-legend{display:flex;flex-direction:column;gap:6px;margin-top:10px;font-size:12px}
+.escd-legend .lr{display:flex;align-items:center;gap:7px}
+.escd-legend .lr .nm{flex:1;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.escd-legend .lr .pc{color:var(--mut);font-weight:700;white-space:nowrap}
 /* Módulo Recetas */
 @media print {
   .sidebar, .hdr, .sb-overlay, .btn, #toast, .cbar, #wa-ov, #recv-ov { display:none!important; }
@@ -1344,7 +1373,8 @@ function renderAdminContent(){
   const tc=document.getElementById('tc');
   if(!tc) return;
   // No interrumpir modales abiertos
-  if(S.adminTab==='escandallos' && document.getElementById('esc-modal-ov')?.style.display==='flex') return;
+  if(S.adminTab==='escandallos' && document.getElementById('esc-modal-ov')?.style.display==='block') return;
+  if(S.adminTab==='escandallos' && S._escDetailId && document.getElementById('esc-detail-wrap')?.style.display==='block') return;
   if(S.adminTab==='inventario'  && S.invEditId) return; // formulario inline abierto
   const _sv=window.scrollY;
   let content='';
@@ -2079,7 +2109,8 @@ function vComprasProducto(){
   const desde=`<div class="fg" style="margin-bottom:0"><label>Desde</label><input type="date" value="${S.comprasDesde||''}" onchange="S.comprasDesde=this.value;renderAdminContent()"/></div>`;
   const hasta=`<div class="fg" style="margin-bottom:0"><label>Hasta</label><input type="date" value="${S.comprasHasta||''}" onchange="S.comprasHasta=this.value;renderAdminContent()"/></div>`;
   const limpiar=(S.comprasSup||S.comprasDesde||S.comprasHasta)?`<button class="btn btn-ghost btn-sm" style="align-self:flex-end" onclick="S.comprasSup='';S.comprasDesde='';S.comprasHasta='';renderAdminContent()">Limpiar filtros</button>`:'';
-  const filtros=`<div class="card" style="margin-bottom:14px"><div class="three-col" style="align-items:end">${supSel}${desde}${hasta}${limpiar}</div></div>`;
+  const exportar=`<button class="btn btn-ok btn-sm" style="align-self:flex-end;white-space:nowrap" onclick="exportComprasExcel()"> Exportar Excel</button>`;
+  const filtros=`<div class="card" style="margin-bottom:14px"><div class="three-col" style="align-items:end">${supSel}${desde}${hasta}${exportar}${limpiar}</div></div>`;
   // Agregar por producto a partir de los PEDIDOS realizados (aprobados/recibidos)
   const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
   const agg={};
@@ -2110,6 +2141,46 @@ function vComprasProducto(){
     <div style="font-size:13px;color:var(--mut);margin-bottom:10px">${rows.length} producto${rows.length!==1?'s':''} · Total gastado: <strong style="color:var(--txt)">${fmt(totImporte)}</strong></div>
     <div style="overflow-x:auto"><table class="spend-table"><tr><th>Producto</th><th>Proveedor</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Importe</th><th style="text-align:right">Pedidos</th></tr>${trs}</table></div></div>`;
   return filtros+table;
+}
+
+function exportComprasExcel(){
+  const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+  const agg={};
+  (orders||[]).filter(o=>o.status==='approved'||o.status==='received').forEach(o=>{
+    if(S.comprasSup && o.supId!==S.comprasSup) return;
+    const fecha=(o.createdAt||'').slice(0,10);
+    if(S.comprasDesde && fecha<S.comprasDesde) return;
+    if(S.comprasHasta && fecha>S.comprasHasta) return;
+    (o.items||[]).forEach(it=>{
+      if(!it.name) return;
+      const qty=parseFloat(it.qty)||0;
+      const importe=qty*(parseFloat(it.price)||0);
+      const key=(String(it.code||'').trim())||norm(it.name);
+      if(!agg[key]) agg[key]={name:it.name,code:it.code||'',unit:it.unit||'',supId:o.supId,qty:0,importe:0,veces:0,lastDate:fecha,lastPrice:parseFloat(it.price)||0};
+      const g=agg[key];
+      g.qty+=qty; g.importe+=importe; g.veces++;
+      if(fecha>=(g.lastDate||'')){ g.lastDate=fecha; g.lastPrice=parseFloat(it.price)||0; g.name=it.name; g.unit=it.unit||g.unit; }
+    });
+  });
+  const list=Object.values(agg).sort((x,y)=>y.importe-x.importe);
+  if(!list.length){ alert('No hay compras para exportar con los filtros actuales.'); return; }
+  const rows=list.map(r=>({
+    'Código': r.code||'',
+    'Producto': r.name||'',
+    'Proveedor': (suppliers[r.supId]||{}).name||'',
+    'Cantidad': Number(r.qty.toFixed(2)),
+    'Unidad': r.unit||'',
+    'Importe (€)': Number(r.importe.toFixed(2)),
+    'Pedidos': r.veces,
+    'Último precio (€)': Number((r.lastPrice||0).toFixed(2)),
+    'Última compra': r.lastDate||''
+  }));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=[{wch:10},{wch:32},{wch:22},{wch:10},{wch:8},{wch:12},{wch:8},{wch:14},{wch:14}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Compras');
+  const fecha=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,`Compras_por_producto_OCarro_${fecha}.xlsx`);
 }
 
 function vAlbaranes(){
@@ -3888,7 +3959,13 @@ function vEscandallos(){
   </div>
   <div id="men-grid" class="men-grid"><p style="color:var(--mut)">Cargando...</p></div>
   `:
-  `<div class="esc-filtros">
+  `<div id="esc-detail-wrap" style="display:none"></div>
+  <div id="esc-list-wrap">
+  <div class="esc-subtabs">
+    <button class="esc-subtab ${(S._escTipoTab||'final')==='final'?'act':''}" onclick="S._escTipoTab='final';escRender()">Elaboraciones finales</button>
+    <button class="esc-subtab ${S._escTipoTab==='intermedia'?'act':''}" onclick="S._escTipoTab='intermedia';escRender()">Elaboraciones intermedias</button>
+  </div>
+  <div class="esc-filtros">
     <input type="text" id="esc-search" placeholder="Buscar plato..." oninput="escRender()" />
     <select id="esc-cat-filter" onchange="escRender()">
       <option value="">Todas las categorías</option>
@@ -3902,7 +3979,8 @@ function vEscandallos(){
       ${cfg.users.map(u=>`<option value="${u.restaurant}">${u.restaurant}</option>`).join('')}
     </select>
   </div>
-  <div id="esc-grid" class="esc-grid"><p style="color:var(--mut)">Cargando...</p></div>`}
+  <div id="esc-grid" class="esc-grid"><p style="color:var(--mut)">Cargando...</p></div>
+  </div>`}
 
   <!-- MODAL MENÚ -->
   <div class="overlay" id="men-modal-ov" style="display:none" onclick="if(event.target===this)menCloseModal()">
@@ -3936,8 +4014,8 @@ function vEscandallos(){
     </div>
   </div>
 
-  <!-- MODAL ESCANDALLO -->
-  <div class="overlay" id="esc-modal-ov" style="display:none" onclick="if(event.target===this)escCloseModal()">
+  <!-- EDITOR ESCANDALLO (panel inline) -->
+  <div class="esc-edit-screen" id="esc-modal-ov" style="display:none">
     <div class="esc-modal-box">
       <div class="esc-modal-hd">
         <h3 id="esc-modal-title">Nuevo escandallo</h3>
@@ -3947,6 +4025,11 @@ function vEscandallos(){
         <div class="esc-left">
           <label>Nombre del plato</label>
           <input type="text" id="esc-nombre" placeholder="Ej: Entrecot con patatas"/>
+          <label>Tipo de elaboración</label>
+          <select id="esc-tipo">
+            <option value="final">Elaboración final (plato)</option>
+            <option value="intermedia">Elaboración intermedia (base/salsa)</option>
+          </select>
           <label>Categoría</label>
           <select id="esc-categoria">${ESC_CATS.map(c=>`<option>${c}</option>`).join('')}</select>
           <label>Local</label>
@@ -4090,9 +4173,11 @@ function escRender(){
   const txt = (document.getElementById('esc-search')?.value||'').toLowerCase();
   const cat = document.getElementById('esc-cat-filter')?.value||'';
   const local = document.getElementById('esc-local-filter')?.value||'';
+  const tipoTab=S._escTipoTab||'final';
   const entries = Object.entries(_escAllData).filter(([,e])=>{
     const rest=e.restaurante||'global';
-    return (!txt||e.nombre?.toLowerCase().includes(txt))
+    return ((e.tipo||'final')===tipoTab)
+      &&(!txt||e.nombre?.toLowerCase().includes(txt))
       &&(!cat||e.categoria===cat)
       &&(!local||(local==='global'?rest==='global':rest===local));
   });
@@ -4124,7 +4209,7 @@ function escRender(){
       e.tiempoElaboracion?`${e.tiempoElaboracion} min`:'',
       e.temperatura||'',
     ].filter(Boolean).join(' · ');
-    return `<div class="esc-card" onclick="escOpenModal('${id}')">
+    return `<div class="esc-card" onclick="escShowDetail('${id}')">
       <div class="esc-fc-ind ${cls}">${fcReal!==null?fcReal.toFixed(0)+'%':'—'}</div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">${restBadge}${baseTag}</div>
       <h4>${e.nombre||'Sin nombre'}</h4>
@@ -4172,6 +4257,11 @@ function escCosteTotal(e, depth=0){
 function escOpenModal(id=null){
   _escEditId=id; _escIngs=[];
   _escSupsCache=suppliers;
+  // Ocultar lista y detalle, mostrar editor en panel (no flotante)
+  const lw=document.getElementById('esc-list-wrap'); if(lw) lw.style.display='none';
+  const dw=document.getElementById('esc-detail-wrap'); if(dw) dw.style.display='none';
+  const tipoEl=document.getElementById('esc-tipo');
+  if(tipoEl) tipoEl.value=(id&&_escAllData[id]?.tipo)||S._escTipoTab||'final';
   document.getElementById('esc-modal-title').textContent=id?'Editar escandallo':'Nuevo escandallo';
   document.getElementById('esc-btn-del').style.display=id?'':'none';
   // Poblar select de local si existe
@@ -4237,7 +4327,8 @@ function escOpenModal(id=null){
     sel.appendChild(o);
   });
   escRenderIngs(); escRecalc();
-  document.getElementById('esc-modal-ov').style.display='flex';
+  document.getElementById('esc-modal-ov').style.display='block';
+  window.scrollTo(0,0);
   // Cargar elaboración y receta tras mostrar modal
   requestAnimationFrame(()=>{
     const elabEl=document.getElementById('esc-elab-texto');
@@ -4246,7 +4337,211 @@ function escOpenModal(id=null){
     escRenderSecciones();
   });
 }
-function escCloseModal(){ document.getElementById('esc-modal-ov').style.display='none'; _escEditId=null; _escIngs=[]; _escElab={texto:'',pasos:[]}; _escTemporada=[]; _escSecciones=[]; }
+function escCloseModal(){
+  document.getElementById('esc-modal-ov').style.display='none';
+  _escEditId=null; _escIngs=[]; _escElab={texto:'',pasos:[]}; _escTemporada=[]; _escSecciones=[];
+  const dw=document.getElementById('esc-detail-wrap'); if(dw) dw.style.display='none';
+  const lw=document.getElementById('esc-list-wrap'); if(lw) lw.style.display='';
+  escRender();
+}
+
+/* ═══════════════ VISTA DETALLE (ficha visual) ═══════════════ */
+const ESC_PIE_COLORS=['#7c3aed','#3b82f6','#16a34a','#f59e0b','#ef4444','#06b6d4','#a855f7','#84cc16','#ec4899','#64748b','#0ea5e9','#d97706','#14b8a6','#f43f5e'];
+function escPesoInfo(e){
+  let g=0; const sin=[];
+  (e.ingredientes||[]).forEach(ing=>{
+    const u=String(ing.unidad||'').toLowerCase().trim();
+    const q=parseFloat(ing.cantidad)||0;
+    if(ing.type==='subesc'||ing.type==='fracsubesc'){ sin.push(ing.nombre); return; }
+    if(u==='g'||u==='gr'||u==='gramo'||u==='gramos') g+=q;
+    else if(u==='kg') g+=q*1000;
+    else if(u==='ml') g+=q;
+    else if(u==='l'||u==='litro'||u==='litros') g+=q*1000;
+    else {
+      const sup=ing.proveedorId&&suppliers[ing.proveedorId];
+      const prod=sup&&(Array.isArray(sup.products)?sup.products:Object.values(sup.products||{})).find(p=>p.id===ing.productoId);
+      if(prod&&parseFloat(prod.pesoGr)>0) g+=q*parseFloat(prod.pesoGr);
+      else sin.push(ing.nombre);
+    }
+  });
+  return {kg:g/1000, sin};
+}
+function escIngAler(ing){
+  if(!ing.proveedorId) return [];
+  const sup=suppliers[ing.proveedorId]; if(!sup) return [];
+  const prod=(Array.isArray(sup.products)?sup.products:Object.values(sup.products||{})).find(p=>p.id===ing.productoId);
+  if(!prod||!prod.alergenos) return [];
+  return prod.alergenos.map(a=>{const x=ALERGENOS.find(z=>z.id===a);return x?x.label:a;});
+}
+function escPieSVG(segs){
+  const r=72,cx=80,cy=80; let a=-Math.PI/2; let paths='';
+  const tot=segs.reduce((s,x)=>s+x.pct,0)||1;
+  const real=segs.filter(s=>s.pct>0);
+  if(real.length===1){ return `<svg viewBox="0 0 160 160" width="160" height="160"><circle cx="${cx}" cy="${cy}" r="${r}" fill="${real[0].color}"/></svg>`; }
+  segs.forEach(sg=>{
+    if(sg.pct<=0) return;
+    const ang=(sg.pct/tot)*Math.PI*2;
+    const x1=cx+r*Math.cos(a), y1=cy+r*Math.sin(a);
+    a+=ang;
+    const x2=cx+r*Math.cos(a), y2=cy+r*Math.sin(a);
+    const large=ang>Math.PI?1:0;
+    paths+=`<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${large} 1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${sg.color}"/>`;
+  });
+  return `<svg viewBox="0 0 160 160" width="160" height="160">${paths}</svg>`;
+}
+function escDetailHtml(id){
+  const e=_escAllData[id]; if(!e) return '';
+  const ings=e.ingredientes||[];
+  const ingCostes=ings.map(escCosteFactor);
+  const coste=ingCostes.reduce((s,c)=>s+c,0);
+  const rend=parseFloat(e.rendimiento)||1;
+  const rendU=e.rendimientoUnidad||'rac.';
+  const costeRac=rend>0?coste/rend:coste;
+  const iva=e.iva!==undefined?e.iva:10;
+  const pvp=parseFloat(e.precioVenta)||0;
+  const ivaFactor=1+(iva/100);
+  const pvpSinIva=pvp>0?pvp/ivaFactor:0;
+  const fcReal=pvpSinIva>0?(coste/pvpSinIva*100):null;
+  const fcObj=parseFloat(e.foodCostObjetivo)||30;
+  const fcColor=fcReal===null?'var(--mut)':fcReal<=fcObj?'#16a34a':fcReal<=fcObj+5?'#d97706':'#dc2626';
+  const peso=escPesoInfo(e);
+  const tipoBadge=(e.tipo||'final')==='intermedia'
+    ?'<span style="font-size:10px;background:#f3e8ff;color:#7c3aed;border-radius:10px;padding:2px 9px;font-weight:700">Intermedia</span>'
+    :'<span style="font-size:10px;background:#dbeafe;color:#1d4ed8;border-radius:10px;padding:2px 9px;font-weight:700">Final</span>';
+  // Filas de composición
+  const rows=ings.map((ing,i)=>{
+    const col=ESC_PIE_COLORS[i%ESC_PIE_COLORS.length];
+    const isSub=ing.type==='subesc'||ing.type==='fracsubesc';
+    const qtyStr=ing.type==='fracsubesc'?escFraccionTexto(ing.fraccion||ing.cantidad):`${ing.cantidad} ${ing.unidad||''}`;
+    const aler=escIngAler(ing);
+    const icon=isSub
+      ?`<span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:${col};margin-right:7px;flex-shrink:0"></span>`
+      :`<span class="escd-dot" style="background:${col}"></span>`;
+    return `<tr>
+      <td class="qty">${qtyStr}</td>
+      <td><div style="display:flex;align-items:flex-start">${icon}<div><div style="font-weight:600;color:var(--txt)">${ing.nombre||''}${isSub?' <span style="color:#7c3aed;font-size:10px;font-weight:700">[intermedia]</span>':''}</div>${aler.length?`<div style="margin-top:2px">${aler.map(a=>`<span class="escd-aler">${a}</span>`).join('')}</div>`:''}</div></div></td>
+      <td class="cost">${escFmt(ingCostes[i])}</td>
+    </tr>`;
+  }).join('');
+  // Pie + leyenda
+  const segs=ings.map((ing,i)=>({pct:coste>0?ingCostes[i]/coste*100:0,color:ESC_PIE_COLORS[i%ESC_PIE_COLORS.length],label:ing.nombre||''}));
+  const legend=segs.map(s=>s).sort((a,b)=>b.pct-a.pct).map(s=>`<div class="lr"><span class="escd-dot" style="background:${s.color}"></span><span class="nm">${s.label}</span><span class="pc">${s.pct.toFixed(1)}%</span></div>`).join('');
+  const pie=coste>0?escPieSVG(segs):'<div style="color:var(--mut);font-size:13px;text-align:center;padding:20px">Sin coste</div>';
+  // Alérgenos globales
+  const alerGlobal=alergenosFromIngs(ings).map(aid=>{const x=ALERGENOS.find(z=>z.id===aid);return x?x.label:aid;});
+  const noPeso=peso.sin.length?`<div style="font-size:12px;color:var(--mut);margin-top:4px"><strong>No tienen peso:</strong> ${peso.sin.join(', ')}</div>`:'';
+  return `<div class="escd-wrap">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:2px">
+      <button class="btn btn-ghost btn-sm" onclick="escBackToList()">← Volver</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-ghost btn-sm" onclick="escDetailPDF('${id}')">PDF</button>
+      <button class="btn btn-pri btn-sm" onclick="escOpenModal('${id}')">Editar</button>
+    </div>
+    <div class="escd-head">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:4px">${tipoBadge}<span style="font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.5px">${e.categoria||''}</span><span style="font-size:11px;color:var(--mut)">${e.restaurante==='global'||!e.restaurante?'Global':e.restaurante}</span></div>
+      <h2 class="escd-title">${e.nombre||'Sin nombre'}</h2>
+      <div style="font-size:13px;color:var(--mut)">${rend} ${rendU}</div>
+      <div class="escd-kpis">
+        <div class="escd-kpi"><div class="k">Coste total</div><div class="v">${escFmt(coste)}</div></div>
+        <div class="escd-kpi"><div class="k">Coste / ${rendU}</div><div class="v">${escFmt(costeRac)}</div></div>
+        <div class="escd-kpi"><div class="k">Peso</div><div class="v">${peso.kg>0?peso.kg.toFixed(3)+' Kg':'—'}</div></div>
+        <div class="escd-kpi"><div class="k">IVA</div><div class="v">${iva}%</div></div>
+        ${pvp>0?`<div class="escd-kpi"><div class="k">PVP</div><div class="v">${escFmt(pvp)}</div></div>
+        <div class="escd-kpi"><div class="k">Food cost</div><div class="v" style="color:${fcColor}">${fcReal!==null?fcReal.toFixed(1)+'%':'—'}</div></div>`:''}
+      </div>
+      ${noPeso}
+      ${alerGlobal.length?`<div style="margin-top:8px">${alerGlobal.map(a=>`<span class="escd-aler">${a}</span>`).join('')}</div>`:''}
+    </div>
+    <div class="escd-grid">
+      <div class="escd-card">
+        <h4>Composición</h4>
+        <table class="escd-comp">
+          <thead><tr><th style="width:90px">Cantidad</th><th>Composición</th><th style="text-align:right">Coste</th></tr></thead>
+          <tbody>${rows||'<tr><td colspan="3" style="color:var(--mut)">Sin ingredientes</td></tr>'}</tbody>
+          <tfoot><tr><td></td><td style="font-weight:800;text-align:right;padding-top:10px">TOTAL</td><td class="cost" style="padding-top:10px;font-size:15px">${escFmt(coste)}</td></tr></tfoot>
+        </table>
+      </div>
+      <div class="escd-card">
+        <h4>Distribución del coste</h4>
+        <div style="display:flex;justify-content:center">${pie}</div>
+        <div class="escd-legend">${legend}</div>
+      </div>
+    </div>
+  </div>`;
+}
+function escShowDetail(id){
+  const e=_escAllData[id]; if(!e) return;
+  S._escDetailId=id;
+  const dw=document.getElementById('esc-detail-wrap'); if(!dw) return;
+  const lw=document.getElementById('esc-list-wrap'); if(lw) lw.style.display='none';
+  const ov=document.getElementById('esc-modal-ov'); if(ov) ov.style.display='none';
+  dw.style.display='block';
+  dw.innerHTML=escDetailHtml(id);
+  window.scrollTo(0,0);
+}
+function escBackToList(){
+  S._escDetailId=null;
+  const dw=document.getElementById('esc-detail-wrap'); if(dw){ dw.style.display='none'; dw.innerHTML=''; }
+  const ov=document.getElementById('esc-modal-ov'); if(ov) ov.style.display='none';
+  const lw=document.getElementById('esc-list-wrap'); if(lw) lw.style.display='';
+  escRender();
+}
+function escDetailPDF(id){
+  const e=_escAllData[id]; if(!e){ toast('No encontrado','#dc2626'); return; }
+  const ings=e.ingredientes||[];
+  const ingCostes=ings.map(escCosteFactor);
+  const coste=ingCostes.reduce((s,c)=>s+c,0);
+  const rend=parseFloat(e.rendimiento)||1;
+  const rendU=e.rendimientoUnidad||'rac.';
+  const costeRac=rend>0?coste/rend:coste;
+  const iva=e.iva!==undefined?e.iva:10;
+  const pvp=parseFloat(e.precioVenta)||0;
+  const peso=escPesoInfo(e);
+  const ACCENT='#1a1a2e';
+  const segs=ings.map((ing,i)=>({pct:coste>0?ingCostes[i]/coste*100:0,color:ESC_PIE_COLORS[i%ESC_PIE_COLORS.length],label:ing.nombre||''}));
+  const pie=coste>0?escPieSVG(segs):'';
+  const legend=segs.slice().sort((a,b)=>b.pct-a.pct).map(s=>`<div style="display:flex;align-items:center;gap:7px;font-size:12px;margin-bottom:4px"><span style="width:10px;height:10px;border-radius:50%;background:${s.color};display:inline-block"></span><span style="flex:1">${s.label}</span><span style="color:#64748b;font-weight:700">${s.pct.toFixed(1)}%</span></div>`).join('');
+  const rows=ings.map((ing,i)=>{
+    const isSub=ing.type==='subesc'||ing.type==='fracsubesc';
+    const qtyStr=ing.type==='fracsubesc'?escFraccionTexto(ing.fraccion||ing.cantidad):`${ing.cantidad} ${ing.unidad||''}`;
+    const aler=escIngAler(ing);
+    return `<tr style="background:${i%2?'#f8fafc':'#fff'}">
+      <td style="padding:7px 10px;font-size:12px;color:#475569;white-space:nowrap;border-bottom:1px solid #f1f5f9;font-weight:700">${qtyStr}</td>
+      <td style="padding:7px 10px;font-size:12px;color:#0f172a;border-bottom:1px solid #f1f5f9">${ing.nombre||''}${isSub?' <span style="color:#7c3aed;font-size:10px">[intermedia]</span>':''}${aler.length?`<br><span style="font-size:9px;color:#856404">${aler.join(', ')}</span>`:''}</td>
+      <td style="padding:7px 10px;font-size:12px;font-weight:700;color:#0f172a;text-align:right;border-bottom:1px solid #f1f5f9">${escFmt(ingCostes[i])}</td>
+    </tr>`;
+  }).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${e.nombre||'Escandallo'}</title>
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Segoe UI',Arial,sans-serif;color:#0f172a;background:#fff}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>
+  <div style="padding:24px 28px;background:${ACCENT}">
+    <div style="font-size:10px;letter-spacing:2px;color:#e94560;text-transform:uppercase;font-weight:700;margin-bottom:4px">Escandallo · ${(e.tipo||'final')==='intermedia'?'Elaboración intermedia':'Elaboración final'}</div>
+    <div style="font-size:26px;font-weight:900;color:#fff">${e.nombre||''}</div>
+    <div style="font-size:12px;color:#cbd5e1;margin-top:4px">${e.categoria||''} · ${rend} ${rendU}</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(${pvp>0?5:4},1fr);border-bottom:1px solid #e2e8f0">
+    ${[['Coste total',escFmt(coste)],['Coste / '+rendU,escFmt(costeRac)],['Peso',peso.kg>0?peso.kg.toFixed(3)+' Kg':'—'],['IVA',iva+'%'],...(pvp>0?[['PVP',escFmt(pvp)]]:[])].map(k=>`<div style="padding:13px 14px;border-right:1px solid #e2e8f0;text-align:center"><div style="font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:#94a3b8;font-weight:700;margin-bottom:4px">${k[0]}</div><div style="font-size:17px;font-weight:800">${k[1]}</div></div>`).join('')}
+  </div>
+  <div style="display:grid;grid-template-columns:1.7fr 1fr;gap:24px;padding:22px 28px">
+    <div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;margin-bottom:10px">Composición</div>
+      <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+        <thead><tr style="background:${ACCENT}"><th style="padding:8px 10px;text-align:left;font-size:10px;color:#fff">Cantidad</th><th style="padding:8px 10px;text-align:left;font-size:10px;color:#fff">Composición</th><th style="padding:8px 10px;text-align:right;font-size:10px;color:#fff">Coste</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr style="background:#f8fafc"><td colspan="2" style="padding:8px 10px;font-weight:800;text-align:right;font-size:12px;border-top:2px solid #e2e8f0">TOTAL</td><td style="padding:8px 10px;font-weight:800;text-align:right;font-size:14px;border-top:2px solid #e2e8f0">${escFmt(coste)}</td></tr></tfoot>
+      </table>
+    </div>
+    <div>
+      <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:#94a3b8;margin-bottom:10px">Distribución del coste</div>
+      <div style="text-align:center;margin-bottom:12px">${pie}</div>
+      ${legend}
+    </div>
+  </div>
+  </body></html>`;
+  const w=window.open('','_blank');
+  if(!w){ toast('Permite las ventanas emergentes para el PDF','#dc2626'); return; }
+  w.document.write(html); w.document.close();
+  setTimeout(()=>{ w.focus(); w.print(); }, 400);
+}
 
 function escRenderTemporada(){
   const cont=document.getElementById('esc-temporada-btns');
@@ -4587,6 +4882,7 @@ function escSave(){
     const ingsWithLivePrice=_escIngs.map(ing=>({...ing,precioUnitario:escLivePrice(ing)}));
     const data={
       nombre,
+      tipo:document.getElementById('esc-tipo')?.value||'final',
       categoria:document.getElementById('esc-categoria')?.value||'Otros',
       restaurante:document.getElementById('esc-local')?.value||'global',
       rendimiento:parseFloat(document.getElementById('esc-rend')?.value)||1,
