@@ -15,10 +15,6 @@ let fbConnected = false;
 function supList(){ return Object.values(suppliers).sort((a,b)=>{const oa=a.orden??999,ob=b.orden??999;return oa!==ob?oa-ob:a.name.localeCompare(b.name,'es');}); }
 function visibleSups(){
   const all=supList();
-
-  console.log('SESSION', S.session);
-
   if(!S.session||S.session.isAdmin) return all;
-
   return all.filter(s=>!(s.disabledFor||[]).includes(S.session.userId));
 }
