@@ -4,7 +4,7 @@ function initAdminAccount(){
   // Si ya se creó en esta sesión, no repetir
   if(localStorage.getItem('oc_admin_init')==='1') return;
   const adminEmail=cfg.adminEmail||'josue.funte@gmail.com';
-  fbAuth.createUserWithEmailAndPassword(adminEmail,'Josue1998')
+  fbAuth.createUserWithEmailAndPassword(adminEmail,'ELIMINADA')
     .then(cred=>{
       const uid=cred.user.uid;
       fbDb.ref('authUsers/'+uid).set({
