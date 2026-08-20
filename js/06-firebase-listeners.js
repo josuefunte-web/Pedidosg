@@ -171,6 +171,21 @@ function _handleAppVersionChange(newVersion){
   // obligado a pedir el index.html (y por tanto los .js con el ?v= nuevo) a GitHub.
   setTimeout(()=>{ window.location.replace(location.pathname + '?_r=' + Date.now()); }, 2500);
 }
+// El listener de arriba (`on('value')`) solo detecta un cambio de versión si la
+// pestaña/app ha seguido "viva" todo el rato. En el móvil (sobre todo la app
+// instalada en iOS) el sistema operativo suele congelar o matar la pestaña en
+// segundo plano, así que al volver a abrirla es como si arrancara de cero y ese
+// aviso nunca llega. Para cubrir ese caso, cada vez que la app vuelve a primer
+// plano (se reabre, cambias de pestaña y vuelves) volvemos a preguntar a Firebase
+// la versión actual con una lectura puntual, en vez de esperar pasivamente.
+function _recheckAppVersion(){
+  if(!fbDb) return;
+  fbDb.ref('globalCfg/appVersion').once('value')
+    .then(snap=>{ const v=snap.val(); if(v!==undefined) _handleAppVersionChange(v); })
+    .catch(()=>{});
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') _recheckAppVersion(); });
+window.addEventListener('pageshow', _recheckAppVersion);
 
 // ── Albaranes ───────────────────────────────────────────────────────────────
 function _listenAlbaranes(){
