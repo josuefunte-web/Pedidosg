@@ -32,6 +32,7 @@ function renderAdminContent(){
   else if(S.adminTab==='albaranes') content=vAlbaranes();
   else if(S.adminTab==='solicitudes') content=vSolicitudes();
   else if(S.adminTab==='suppliers') content=vSuppliers();
+  else if(S.adminTab==='sup-visibility') content=vSupVisibility();
   else if(S.adminTab==='settings') content=vSettings();
   else if(S.adminTab==='escandallos') content=vEscandallos();
   else if(S.adminTab==='sup-history') content=vSupHistory();

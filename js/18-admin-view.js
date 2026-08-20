@@ -42,6 +42,7 @@ function vAdmin(){
     <div class="sb-section">Gestión</div>
     ${sbItem('solicitudes','Solicitudes','sb-sol-badge')}
     ${sbItem('suppliers','Proveedores')}
+    ${sbItem('sup-visibility','Visibilidad por local')}
     ${sbItem('escandallos','Escandallos')}
     ${sbItem('settings','Configuración')}
     <div style="border-top:1px solid rgba(255,255,255,.1);margin:12px 10px 8px;padding-top:12px">
@@ -62,6 +63,7 @@ function vAdmin(){
   else if(S.adminTab==='albaranes') content=vAlbaranes();
   else if(S.adminTab==='solicitudes') content=vSolicitudes();
   else if(S.adminTab==='suppliers') content=vSuppliers();
+  else if(S.adminTab==='sup-visibility') content=vSupVisibility();
   else if(S.adminTab==='settings')  content=vSettings();
   else if(S.adminTab==='escandallos') content=vEscandallos();
   else if(S.adminTab==='sup-history') content=vSupHistory();
