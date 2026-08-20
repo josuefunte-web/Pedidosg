@@ -1,7 +1,7 @@
 /* ═══════════════ NEW ALBARAN ═══════════════ */
 function vAlbaranNew(){
   const isAdmin=S.session&&S.session.isAdmin;
-  const sups=supList();
+  const sups=visibleSups();
   const baseTotal=S.albItems.reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
   const ivaTotal=S.albItems.reduce((s,it)=>{const b=(parseFloat(it.qty)||0)*(parseFloat(it.price)||0);return s+b*(albLineIva(it)/100);},0);
   const autoTotal=baseTotal+ivaTotal;

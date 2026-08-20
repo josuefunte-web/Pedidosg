@@ -25,6 +25,7 @@ function renderAdminContent(){
   else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='received') content=vReceived();
   else if(S.adminTab==='budgets')  content=vBudgets();
+  else if(S.adminTab==='foodcost') content=vFoodCost();
   else if(S.adminTab==='compare')  content=vCompare();
   else if(S.adminTab==='compras')   content=vComprasProducto();
   else if(S.adminTab==='productos')  content=vProductos();

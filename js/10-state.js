@@ -9,6 +9,7 @@ let S={
   editOrderId:null, editItems:[], chatOpen:null,
   albView:'list', albItems:[], albRestaurant:'', albSupId:'', albDate:new Date().toISOString().split('T')[0], albPhoto:null,
   fcPeriod:'month', fcDate:new Date().toISOString().split('T')[0],
+  foodcostMonth:new Date().toISOString().slice(0,7), foodcostLocalId:'u1',
   showSaveTemplate:false,
   albCropping:false,
   sidebarOpen:false,

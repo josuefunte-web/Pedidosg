@@ -50,7 +50,7 @@ function vOrder(){
     :`<div class="banner blue">Tus pedidos se aprueban automáticamente y van directo al proveedor.</div>`;
   const _vacUser=cfg.users.find(u=>u.restaurant===S.session.restaurant);
   const vacBanner=_vacUser&&_vacUser.vacaciones?'<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e">Modo vacaciones activo — los pedidos están desactivados temporalmente</div>':'';
-  const stabs=sups.map(s=>{const sc2=S.cart[s.id]||{};const n=Object.values(sc2).reduce((a,v)=>a+v,0);return `<button class="stab ${S.supId===s.id?'act':''}" onclick="setSup('${s.id}')">${s.emoji} ${s.name}${n>0?` <span style="background:#3b82f6;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:700">${n}</span>`:''}</button>`;}).join('');
+  const stabs=`<select onchange="setSup(this.value)" style="max-width:320px;font-weight:600;cursor:pointer">${sups.map(s=>{const sc2=S.cart[s.id]||{};const n=Object.values(sc2).reduce((a,v)=>a+v,0);return `<option value="${s.id}" ${S.supId===s.id?'selected':''}>${s.emoji} ${s.name}${n>0?` — ${n} en el carrito`:''}</option>`;}).join('')}</select>`;
   const searchTerm=(S.prodSearch||'').toLowerCase().trim();
   const filteredProds=sup.products.filter(p=>!searchTerm||p.name.toLowerCase().includes(searchTerm));
   const _UNITS=['KG','L','UN','Caja'];

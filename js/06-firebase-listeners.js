@@ -20,6 +20,7 @@ function initFirebaseListeners(){
   _listenTemplates();
   _listenInventory();
   _listenAuthUsers();
+  _listenFoodCost();
 }
 
 // Estado local del cliente para detectar pedidos nuevos vs cambios de estado
@@ -165,7 +166,10 @@ function _handleAppVersionChange(newVersion){
   banner.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.95);z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:-apple-system,system-ui,sans-serif;text-align:center;padding:24px';
   banner.innerHTML = '<div style="font-size:18px;font-weight:700;margin-bottom:8px">Nueva versión disponible</div><div style="font-size:14px;opacity:.7;margin-bottom:24px">La aplicación se actualizará en unos segundos...</div><div style="width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#e11d48;border-radius:50%;animation:spin .8s linear infinite"></div>';
   document.body.appendChild(banner);
-  setTimeout(()=>{ window.location.reload(true); }, 2500);
+  // Navegamos a una URL "nueva" (con parámetro único) en vez de solo recargar:
+  // así el navegador no puede servir la página desde su caché local y se ve
+  // obligado a pedir el index.html (y por tanto los .js con el ?v= nuevo) a GitHub.
+  setTimeout(()=>{ window.location.replace(location.pathname + '?_r=' + Date.now()); }, 2500);
 }
 
 // ── Albaranes ───────────────────────────────────────────────────────────────
@@ -189,6 +193,13 @@ function _listenBudgets(){
 }
 function _listenExtraExpenses(){
   fbDb.ref('extraExpenses').on('value', snap => { extraExpenses = snap.val() || {}; });
+}
+// ── Control de facturación y compras (% food cost) ──────────────────────────
+function _listenFoodCost(){
+  fbDb.ref('foodcost').on('value', snap => {
+    foodCost = snap.val() || {};
+    if(S.view==='admin' && S.adminTab==='foodcost') renderAdminContent();
+  });
 }
 function _listenPriceHistory(){
   fbDb.ref('priceHistory').on('value', snap => {

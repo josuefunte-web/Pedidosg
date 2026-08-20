@@ -31,6 +31,7 @@ function vAdmin(){
     ${sbItem('received','Recibidos')}
     <div class="sb-section">Análisis</div>
     ${sbItem('budgets','Presupuestos')}
+    ${sbItem('foodcost','Food Cost')}
     ${sbItem('compare','Comparar precios')}
     ${sbItem('compras','Compras por producto')}
     ${sbItem('sup-history','Por proveedor')}
@@ -54,6 +55,7 @@ function vAdmin(){
   else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='received')  content=vReceived();
   else if(S.adminTab==='budgets')   content=vBudgets();
+  else if(S.adminTab==='foodcost')  content=vFoodCost();
   else if(S.adminTab==='compare')   content=vCompare();
   else if(S.adminTab==='compras')   content=vComprasProducto();
   else if(S.adminTab==='productos')  content=vProductos();

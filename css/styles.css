@@ -75,7 +75,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;
 label{display:block;font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
 select,input[type=text],input[type=tel],input[type=number],input[type=password],input[type=date]{width:100%;padding:9px 13px;border:1.5px solid var(--brd);border-radius:9px;font-size:14px;background:#fff;color:var(--txt);outline:none;transition:border-color .15s,box-shadow .15s}
 select:focus,input:focus{border-color:var(--pri);box-shadow:0 0 0 3px rgba(30,41,59,.08)}
-.sup-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.sup-tabs{margin-bottom:14px}
 .stab{padding:7px 14px;border-radius:20px;border:1.5px solid var(--brd);background:#fff;font-size:13px;cursor:pointer;font-weight:600;transition:all .2s;color:var(--mut)}
 .stab.act{background:var(--pri);color:#fff;border-color:var(--pri)}
 .pgrid{display:grid;gap:8px}
