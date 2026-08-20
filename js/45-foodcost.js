@@ -14,7 +14,7 @@ function fcImportHistorico(){
   if(!fbDb){ toast('Sin conexión Firebase','#dc2626'); return; }
   if(!confirm('¿Importar Abril-Agosto 2026 desde tu Excel? Si esos meses ya tienen datos en la app, se sobrescribirán.')) return;
   const run=()=>{
-    const data=window.FOODCOST_IMPORT_DATA;
+    const data=(typeof FOODCOST_IMPORT_DATA!=='undefined')?FOODCOST_IMPORT_DATA:window.FOODCOST_IMPORT_DATA;
     if(!data){ toast('No se pudo leer el archivo de importación','#dc2626'); return; }
     const updates={};
     Object.keys(data).forEach(mk=>{ updates['foodcost/'+mk]=data[mk]; });
@@ -24,7 +24,7 @@ function fcImportHistorico(){
   };
   if(typeof FOODCOST_IMPORT_DATA!=='undefined'){ run(); return; }
   const s=document.createElement('script');
-  s.src='js/data-foodcost-import.js?v=20260820b';
+  s.src='js/data-foodcost-import.js?v=20260820d';
   s.onload=run;
   s.onerror=()=>toast('No se pudo cargar el archivo de importación','#dc2626');
   document.head.appendChild(s);

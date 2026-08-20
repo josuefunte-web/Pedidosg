@@ -18,7 +18,7 @@ function vOrder(){
   </div>`;
   const restPickerHtml=myRests.length>1?`<div class="rest-picker">
     <div class="rest-picker-lbl">Pedido para</div>
-    ${myRests.map(r=>`<button class="stab ${S.session.restaurant===r?'act':''}" onclick="S.session.restaurant='${r.replace(/'/g,"\\'")}';S.cart={};S.orderTab='new';render()">${r}</button>`).join('')}
+    ${myRests.map(r=>`<button class="stab ${S.session.restaurant===r?'act':''}" onclick="setActiveRestaurant('${r.replace(/'/g,"\\'")}')">${r}</button>`).join('')}
   </div>`:'';
 
   if(S.orderTab==='history'){
@@ -36,7 +36,14 @@ function vOrder(){
   }
 
   const sups=visibleSups();
-  if(!sups.length) return `<div class="main">${adminBanner}${tabsHtml}<div class="empty"><div class="ei"></div><div class="et">No hay proveedores activos para este local.</div></div></div>`;
+  if(!sups.length){
+    // Distinguir "todavía no ha llegado nada de Firebase" (conexión lenta) de
+    // "el admin ha desactivado todos los proveedores para este local" — mostrar
+    // solo el segundo mensaje como definitivo evita que una conexión lenta se
+    // vea igual que un local sin proveedores configurados.
+    const stillLoading=Object.keys(suppliers).length===0;
+    return `<div class="main">${adminBanner}${tabsHtml}<div class="empty"><div class="ei">${stillLoading?'⏳':''}</div><div class="et">${stillLoading?'Cargando proveedores…':'No hay proveedores activos para este local.'}</div>${stillLoading?'<div style="font-size:12px;color:var(--mut);margin-top:6px">Si tarda mucho, comprueba tu conexión a internet.</div>':''}</div></div>`;
+  }
   if(!suppliers[S.supId]||!(sups.find(s=>s.id===S.supId))) S.supId=sups[0].id;
   const sup=suppliers[S.supId];
   const cnt=Object.values(S.cart).reduce((s,sc2)=>s+Object.values(sc2).reduce((a,v)=>a+v,0),0);

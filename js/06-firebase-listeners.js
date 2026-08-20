@@ -273,11 +273,13 @@ function _syncCurrentSessionFromAuth(){
   if(!me) return;
   if(me.status==='approved' && S.view==='pending-approval'){
     const myRests=me.restaurants||[me.restaurant];
+    const _rest0=myRests[0]||me.restaurant;
     S.session={
       uid:me.uid, email:me.email,
       name:me.name||me.restaurant,
-      restaurant:myRests[0]||me.restaurant,
+      restaurant:_rest0,
       restaurants:myRests,
+      userId:userIdForRestaurant(_rest0),
       isAdmin:false,
       needsApproval:me.needsApproval!==false
     };
@@ -293,6 +295,7 @@ function _syncCurrentSessionFromAuth(){
       S.session.restaurants=myRests;
       // Si el restaurante activo ya no está permitido, cambiar al primero
       if(!myRests.includes(S.session.restaurant)) S.session.restaurant=myRests[0];
+      S.session.userId=userIdForRestaurant(S.session.restaurant);
       S.session.needsApproval=me.needsApproval!==false;
       render();
     }

@@ -19,3 +19,11 @@ function visibleSups(){
   if(!S.session||S.session.isAdmin) return all;
   return all.filter(s=>!(s.disabledFor||[]).includes(S.session.userId));
 }
+// Traduce el nombre de restaurante guardado en la sesión (S.session.restaurant,
+// p.ej. "El Pinos") al id fijo u1-u12 de cfg.users que usa disabledFor,
+// templates y pedidos recurrentes. Sin esto S.session.userId queda undefined
+// y esas comprobaciones ('...').includes(undefined) nunca coinciden con nada.
+function userIdForRestaurant(name){
+  const u=cfg.users.find(x=>x.restaurant===name);
+  return u?u.id:null;
+}

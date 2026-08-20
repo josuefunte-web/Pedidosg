@@ -155,7 +155,8 @@ self.addEventListener('fetch',e=>{
           if(isAdminUser){ goAdmin(); return; }
           if(u && u.status==='approved'){
             const myRests=u.restaurants||[u.restaurant];
-            S.session={uid:user.uid,email:user.email,name:u.name||u.restaurant,restaurant:myRests[0]||u.restaurant,restaurants:myRests,isAdmin:false,needsApproval:u.needsApproval!==false};
+            const _rest0=myRests[0]||u.restaurant;
+            S.session={uid:user.uid,email:user.email,name:u.name||u.restaurant,restaurant:_rest0,restaurants:myRests,userId:userIdForRestaurant(_rest0),isAdmin:false,needsApproval:u.needsApproval!==false};
             showHdr(false);
             S.view='order';
             const sl=visibleSups(); if(sl.length) S.supId=sl[0].id;
