@@ -11,7 +11,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!fbAuth){
     setTimeout(()=>{
       if(!fbAuth && typeof firebase !== 'undefined'){
-        try{ fbApp=firebase.initializeApp(FB_CONFIG); fbDb=firebase.database(); fbAuth=firebase.auth(); initFirebaseListeners(); initAdminAccount(); }catch(e){}
+        try{ fbApp=firebase.initializeApp(FB_CONFIG); fbDb=firebase.database(); fbAuth=firebase.auth(); initFirebaseListeners(); }catch(e){}
         // Re-renderizar para quitar el spinner de "Conectando"
         if(S.view==='login') render();
       }
@@ -142,7 +142,6 @@ self.addEventListener('fetch',e=>{
   initFirebaseListeners();
   addMissingSuppliers();
   updateCoreSuppliers();
-  initAdminAccount(); // Crea / verifica la cuenta de admin en Firebase Auth
 
   // ── Firebase Auth: siempre registrar onAuthStateChanged ──
   // (debe registrarse ANTES de restaurar sesión admin para capturar logins de restaurantes)

@@ -7,7 +7,6 @@ let S={
   orderTab:'new',
   editUserId:null, editSupId:null, openSupId:null,
   editOrderId:null, editItems:[], chatOpen:null,
-  pinTarget:null, pinBuf:'',
   albView:'list', albItems:[], albRestaurant:'', albSupId:'', albDate:new Date().toISOString().split('T')[0], albPhoto:null,
   fcPeriod:'month', fcDate:new Date().toISOString().split('T')[0],
   showSaveTemplate:false,

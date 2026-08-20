@@ -1,5 +1,5 @@
 /* ═══════════════ LOCAL STORAGE (config, users, PINs) ═══════════════ */
-let cfg      = JSON.parse(localStorage.getItem('oc_cfg') || JSON.stringify({adminPIN:'0000',adminName:'Josué',adminPhone:'',adminEmail:'josue.funte@gmail.com',users:DEFAULT_USERS}));
+let cfg      = JSON.parse(localStorage.getItem('oc_cfg') || JSON.stringify({adminName:'Josué',adminPhone:'',adminEmail:'josue.funte@gmail.com',users:DEFAULT_USERS}));
 if(!cfg.adminEmail) cfg.adminEmail='josue.funte@gmail.com';
 if(!cfg.users) cfg.users=DEFAULT_USERS;
 function saveCfg(){

@@ -4,7 +4,6 @@ function vSettings(){
     <div class="card-t">Administrador</div>
     <div class="fg"><label>Nombre</label><input type="text" value="${cfg.adminName}" onchange="cfg.adminName=this.value;saveCfg()"/></div>
     <div class="fg"><label>Email administrador</label><input type="email" value="${cfg.adminEmail||'josue.funte@gmail.com'}" onchange="cfg.adminEmail=this.value.trim();saveCfg()"/><div style="font-size:12px;color:var(--mut);margin-top:4px">Usa este correo para iniciar sesión como administrador</div></div>
-    <div class="fg"><label>PIN administrador (acceso rápido, 4 dígitos)</label><input type="password" value="${cfg.adminPIN}" maxlength="4" onchange="cfg.adminPIN=this.value;saveCfg()"/></div>
     <div class="fg">
       <label>Tu WhatsApp — para recibir notificaciones de pedidos</label>
       <input type="tel" value="${cfg.adminPhone||''}" placeholder="34612345678" onchange="cfg.adminPhone=this.value.replace(/\\D/g,'');saveCfg()"/>
@@ -99,9 +98,5 @@ function vSettings(){
       <button class="btn btn-no btn-sm" onclick="if(confirm('¿Borrar TODOS los pedidos de Firebase?')){fbDb.ref('orders').remove();toast('Pedidos eliminados','#dc2626')}">Borrar pedidos</button>
       <button class="btn btn-no btn-sm" onclick="if(confirm('¿Borrar todos los albaranes?')){fbDb.ref('albaranes').remove();toast('Albaranes eliminados','#dc2626')}">Borrar albaranes</button>
     </div>
-    <div class="card-t" style="margin-top:20px"> Importar Tarifa CWC 2026 → Disbesa</div>
-    <div style="font-size:13px;color:var(--mut);margin-bottom:10px">1.815 productos de la tarifa negociada 14/04/2026. Añade o actualiza productos en el proveedor Disbesa.</div>
-    <button class="btn btn-pri btn-sm" onclick="importarTarifaCWC()">Importar tarifa CWC 2026 en Disbesa</button>
-    <div id="cwc-import-status" style="font-size:13px;margin-top:8px;color:var(--mut)"></div>
   </div>`;
 }

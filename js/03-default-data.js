@@ -1,17 +1,17 @@
 /* ═══════════════ DEFAULT DATA ═══════════════ */
 const DEFAULT_USERS=[
-  {id:'u1', name:"El Pinos",           restaurant:"El Pinos",           pin:'4837',needsApproval:true},
-  {id:'u2', name:"O'carro Meson",      restaurant:"O'carro Meson",      pin:'7291',needsApproval:true},
-  {id:'u3', name:"O'carro XXI",        restaurant:"O'carro XXI",        pin:'3658',needsApproval:true},
-  {id:'u4', name:"La Flecha",          restaurant:"La Flecha",          pin:'9042',needsApproval:true},
-  {id:'u5', name:"Amaru",              restaurant:"Amaru",              pin:'6174',needsApproval:true},
-  {id:'u6', name:"La Violeta",         restaurant:"La Violeta",         pin:'2895',needsApproval:true},
-  {id:'u7', name:"Els Arcs",           restaurant:"Els Arcs",           pin:'5463',needsApproval:true},
-  {id:'u8', name:"El Feliu",           restaurant:"El Feliu",           pin:'8720',needsApproval:true},
-  {id:'u9', name:"Pepet",              restaurant:"Pepet",              pin:'1934',needsApproval:true},
-  {id:'u10',name:"Petit Bar",          restaurant:"Petit Bar",          pin:'7356',needsApproval:true},
-  {id:'u11',name:"La Fabrica Del Gel", restaurant:"La Fabrica Del Gel", pin:'4089',needsApproval:true},
-  {id:'u12',name:"El Floc",            restaurant:"El Floc",            pin:'6517',needsApproval:true},
+  {id:'u1', name:"El Pinos",           restaurant:"El Pinos",           needsApproval:true},
+  {id:'u2', name:"O'carro Meson",      restaurant:"O'carro Meson",      needsApproval:true},
+  {id:'u3', name:"O'carro XXI",        restaurant:"O'carro XXI",        needsApproval:true},
+  {id:'u4', name:"La Flecha",          restaurant:"La Flecha",          needsApproval:true},
+  {id:'u5', name:"Amaru",              restaurant:"Amaru",              needsApproval:true},
+  {id:'u6', name:"La Violeta",         restaurant:"La Violeta",         needsApproval:true},
+  {id:'u7', name:"Els Arcs",           restaurant:"Els Arcs",           needsApproval:true},
+  {id:'u8', name:"El Feliu",           restaurant:"El Feliu",           needsApproval:true},
+  {id:'u9', name:"Pepet",              restaurant:"Pepet",              needsApproval:true},
+  {id:'u10',name:"Petit Bar",          restaurant:"Petit Bar",          needsApproval:true},
+  {id:'u11',name:"La Fabrica Del Gel", restaurant:"La Fabrica Del Gel", needsApproval:true},
+  {id:'u12',name:"El Floc",            restaurant:"El Floc",            needsApproval:true},
 ];
 const DEFAULT_SUPS={
   bencar:{id:'bencar',name:'Bencar',emoji:'🥩',phone:'',products:[

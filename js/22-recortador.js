@@ -174,34 +174,63 @@ async function handleAlbExcel(file){
 function albAddItem(){ S.albItems.push({code:'',name:'',unit:'KG',qty:1,price:0});render(); }
 function albDelItem(i){ S.albItems.splice(i,1);render(); }
 
+// Entry point: elige Mistral (si hay clave) o el fallback OCR.space.
+// Refactorizado 19 ago 2026: antes era una función de 157 líneas con las tres
+// ramas metidas dentro; ahora cada rama es su propia función pequeña.
 async function runOCR(){
-  if(!S.albPhoto){toast('Añade una foto primero','#dc2626');return;}
-  const mistralKey=cfg.mistralKey||'';
+  if(!S.albPhoto){ toast('Añade una foto primero','#dc2626'); return; }
   const prog=document.getElementById('ocr-progress');
+  const showProg=(msg)=>{ if(prog){ prog.style.display='block'; prog.textContent=msg; } };
+  const hideProg=()=>{ if(prog) prog.style.display='none'; };
 
-  // --- Mistral OCR (principal) ---
+  const mistralKey=cfg.mistralKey||'';
   if(mistralKey){
-    if(prog){prog.style.display='block';prog.textContent='Leyendo documento con Mistral OCR...';}
     try{
       const isPdf=S.albFileType==='pdf';
-      const mediaType=isPdf?'application/pdf':(S.albPhoto.match(/data:([^;]+)/)||[])[1]||'image/jpeg';
-      const base64=S.albPhoto.replace(/^data:[^;]+;base64,/,'');
-      const dataUri=`data:${mediaType};base64,${base64}`;
+      if(isPdf) await _runOCRMistralPDF(mistralKey, showProg);
+      else await _runOCRMistralImage(mistralKey, showProg);
+    }catch(e){
+      console.error(e);
+      toast('Error Mistral OCR: '+e.message,'#dc2626',5000);
+    }finally{
+      hideProg(); render();
+    }
+    return;
+  }
 
-      // Catálogo del proveedor seleccionado, para que la IA empareje en vez de adivinar
-      const _sup=suppliers[S.albSupId]||{};
-      const _cat=(Array.isArray(_sup.products)?_sup.products:Object.values(_sup.products||{}))
-        .map(p=>({code:String(p.code||''),name:p.name,unit:p.unit||'UN',price:parseFloat(p.price||0)}));
-      const catalogBlock=_cat.length
-        ? `CATÁLOGO DEL PROVEEDOR "${_sup.name||''}" (empareja cada línea del albarán con UNO de estos productos por código o por nombre parecido; usa el NOMBRE y la UNIDAD EXACTOS del catálogo):
+  try{
+    await _runOCRSpaceFallback(showProg);
+  }catch(e){
+    console.error(e);
+    toast('Error de conexión con OCR. Comprueba tu internet.','#dc2626');
+  }finally{
+    hideProg(); render();
+  }
+}
+
+// Construye el data-URI que Mistral pide para foto o PDF.
+function _mistralDataUri(){
+  const isPdf=S.albFileType==='pdf';
+  const mediaType=isPdf?'application/pdf':(S.albPhoto.match(/data:([^;]+)/)||[])[1]||'image/jpeg';
+  const base64=S.albPhoto.replace(/^data:[^;]+;base64,/,'');
+  return `data:${mediaType};base64,${base64}`;
+}
+
+// Construye el prompt de extracción (con o sin catálogo del proveedor).
+function _mistralPrompt(){
+  const _sup=suppliers[S.albSupId]||{};
+  const _cat=(Array.isArray(_sup.products)?_sup.products:Object.values(_sup.products||{}))
+    .map(p=>({code:String(p.code||''),name:p.name,unit:p.unit||'UN',price:parseFloat(p.price||0)}));
+  const catalogBlock=_cat.length
+    ? `CATÁLOGO DEL PROVEEDOR "${_sup.name||''}" (empareja cada línea del albarán con UNO de estos productos por código o por nombre parecido; usa el NOMBRE y la UNIDAD EXACTOS del catálogo):
 ${_cat.map(p=>`- code:${p.code||'-'} | ${p.name} | ${p.unit} | ${p.price}€`).join('\n')}
 
 Reglas de emparejamiento:
 - Si una línea del albarán coincide con un producto del catálogo (mismo código, o nombre claramente equivalente aunque esté abreviado o con errores de OCR), usa el "name" y "unit" EXACTOS del catálogo y marca "matched":true.
 - Solo la cantidad (qty) y el precio (price) se toman del albarán. Si el albarán no trae precio, usa el del catálogo.
 - Si una línea NO está en el catálogo, inclúyela igual con "matched":false y el nombre tal como aparece.\n`
-        : '';
-      const promptText=`Eres un asistente que extrae líneas de productos de albaranes de proveedor.
+    : '';
+  const promptText=`Eres un asistente que extrae líneas de productos de albaranes de proveedor.
 ${catalogBlock}Extrae TODOS los productos del albarán con su nombre, cantidad, unidad y precio unitario.
 Las cantidades pueden estar en columnas tipo "UNID." (unidades/cajas) o "KG" (peso); usa la cantidad realmente entregada. El importe suele estar en la columna "BRUTO" o "IMPORTE".
 Responde ÚNICAMENTE con un JSON, sin texto adicional, con esta forma:
@@ -214,120 +243,137 @@ Responde ÚNICAMENTE con un JSON, sin texto adicional, con esta forma:
 - matched: true si coincide con el catálogo, false si no
 
 Ignora líneas de totales, IVA, cabeceras, direcciones o textos que no sean productos.`;
+  return { promptText, catalogSize:_cat.length };
+}
 
-      let chatBody, diagText='';
-      if(isPdf){
-        // PDF: leer texto con Mistral OCR y luego extraer
-        if(prog) prog.textContent='Paso 1/2 — leyendo el PDF...';
-        const ocrResp=await fetch('https://api.mistral.ai/v1/ocr',{
-          method:'POST',
-          headers:{'Authorization':'Bearer '+mistralKey,'Content-Type':'application/json'},
-          body:JSON.stringify({model:'mistral-ocr-latest',document:{type:'document_url',document_url:dataUri}})
-        });
-        if(!ocrResp.ok){ const err=await ocrResp.json().catch(()=>({})); throw new Error(err?.message||'Error Mistral OCR ('+ocrResp.status+')'); }
-        const ocrData=await ocrResp.json();
-        const markdown=(ocrData.pages||[]).map(p=>p.markdown||'').join('\n');
-        diagText=markdown;
-        console.log('[OCR] Texto leído del PDF:\n',markdown);
-        if(!markdown.trim()){toast('Mistral no leyó texto del PDF. Prueba con otra calidad.','#d97706',6000);return;}
-        if(prog) prog.textContent='Paso 2/2 — extrayendo productos...';
-        chatBody={model:'mistral-medium-latest',messages:[{role:'user',content:`${promptText}\n\nTEXTO DEL ALBARÁN:\n${markdown}`}],response_format:{type:'json_object'}};
-      } else {
-        // Imagen: visión directa — lee también las tablas que el OCR de texto deja como imagen
-        if(prog) prog.textContent='Leyendo el albarán con IA de visión...';
-        diagText='(imagen analizada directamente con visión)';
-        chatBody={model:'pixtral-12b-2409',messages:[{role:'user',content:[{type:'text',text:promptText},{type:'image_url',image_url:dataUri}]}],response_format:{type:'json_object'}};
-      }
-      const chatResp=await fetch('https://api.mistral.ai/v1/chat/completions',{
-        method:'POST',
-        headers:{'Authorization':'Bearer '+mistralKey,'Content-Type':'application/json'},
-        body:JSON.stringify(chatBody)
-      });
-      if(!chatResp.ok){
-        const err=await chatResp.json().catch(()=>({}));
-        throw new Error(err?.message||'Error Mistral chat ('+chatResp.status+')');
-      }
-      const chatData=await chatResp.json();
-      let parsed=[];
-      const rawContent=chatData.choices?.[0]?.message?.content||'[]';
-      console.log('[OCR] Respuesta de extracción (mistral-medium):\n',rawContent);
-      try{
-        const raw=rawContent;
-        const obj=JSON.parse(raw);
-        // El modelo puede devolver {items:[...]} o directamente [...]
-        const arr=Array.isArray(obj)?obj:(obj.items||obj.products||obj.lineas||Object.values(obj).find(v=>Array.isArray(v))||[]);
-        parsed=arr.filter(it=>it.name&&it.qty>0).map(it=>({
-          code:String(it.code||''),
-          name:String(it.name).slice(0,60),
-          qty:Math.round(parseFloat(it.qty)*100)/100,
-          unit:it.unit||'UN',
-          price:Math.round(parseFloat(it.price||0)*100)/100,
-          matched:it.matched===true
-        }));
-      }catch(e){ console.warn('Parse error:',e); }
+// Parsea la respuesta del chat de Mistral en una lista de items normalizados.
+function _mistralParseItems(rawContent){
+  try{
+    const obj=JSON.parse(rawContent);
+    // El modelo puede devolver {items:[...]} o directamente [...]
+    const arr=Array.isArray(obj)?obj:(obj.items||obj.products||obj.lineas||Object.values(obj).find(v=>Array.isArray(v))||[]);
+    return arr.filter(it=>it.name&&it.qty>0).map(it=>({
+      code:String(it.code||''),
+      name:String(it.name).slice(0,60),
+      qty:Math.round(parseFloat(it.qty)*100)/100,
+      unit:it.unit||'UN',
+      price:Math.round(parseFloat(it.price||0)*100)/100,
+      matched:it.matched===true
+    }));
+  }catch(e){ console.warn('Parse error:',e); return []; }
+}
 
-      if(parsed.length>0){
-        S.albItems=[...S.albItems,...parsed];
-        const nMatch=parsed.filter(it=>it.matched).length;
-        const detail=_cat.length?` (${nMatch} del catálogo)`:'';
-        toast(`${parsed.length} producto${parsed.length!==1?'s':''} reconocido${parsed.length!==1?'s':''}${detail}. Revisa y corrige.`,'#16a34a');
-      } else {
-        // Mistral SÍ leyó texto pero la extracción no devolvió productos → mostrar diagnóstico
-        toast('Mistral leyó el albarán pero no extrajo líneas. Pulsa para ver el texto leído.','#d97706',6000);
-        if(confirm('Mistral analizó el albarán pero no consiguió sacar las líneas de producto.\n\n¿Quieres ver el detalle? (para diagnosticar)')){
-          alert(((diagText||'')+'\n\n--- RESPUESTA IA ---\n'+(rawContent||'')).slice(0,1500)||'(vacío)');
-        }
-      }
-    }catch(e){
-      console.error(e);
-      toast('Error Mistral OCR: '+e.message,'#dc2626',5000);
-    }finally{
-      if(prog)prog.style.display='none';render();
+// Llamada al chat de Mistral con el body ya construido.
+async function _mistralChat(mistralKey, chatBody){
+  const resp=await fetch('https://api.mistral.ai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+mistralKey,'Content-Type':'application/json'},
+    body:JSON.stringify(chatBody)
+  });
+  if(!resp.ok){
+    const err=await resp.json().catch(()=>({}));
+    throw new Error(err?.message||'Error Mistral chat ('+resp.status+')');
+  }
+  const data=await resp.json();
+  return data.choices?.[0]?.message?.content||'[]';
+}
+
+// Publica los items detectados al carrito de albarán + toast de resultado.
+function _publishOCRItems(parsed, catalogSize, diagText, rawContent){
+  if(parsed.length>0){
+    S.albItems=[...S.albItems,...parsed];
+    const nMatch=parsed.filter(it=>it.matched).length;
+    const detail=catalogSize?` (${nMatch} del catálogo)`:'';
+    toast(`${parsed.length} producto${parsed.length!==1?'s':''} reconocido${parsed.length!==1?'s':''}${detail}. Revisa y corrige.`,'#16a34a');
+    return;
+  }
+  // Mistral SÍ leyó texto pero la extracción no devolvió productos → mostrar diagnóstico
+  toast('Mistral leyó el albarán pero no extrajo líneas. Pulsa para ver el texto leído.','#d97706',6000);
+  if(confirm('Mistral analizó el albarán pero no consiguió sacar las líneas de producto.\n\n¿Quieres ver el detalle? (para diagnosticar)')){
+    alert(((diagText||'')+'\n\n--- RESPUESTA IA ---\n'+(rawContent||'')).slice(0,1500)||'(vacío)');
+  }
+}
+
+// Rama 1: imagen → visión directa (pixtral). Lee también las tablas que el
+// OCR de texto deja como imagen.
+async function _runOCRMistralImage(mistralKey, showProg){
+  showProg('Leyendo el albarán con IA de visión...');
+  const { promptText, catalogSize } = _mistralPrompt();
+  const dataUri=_mistralDataUri();
+  const chatBody={
+    model:'pixtral-12b-2409',
+    messages:[{role:'user',content:[{type:'text',text:promptText},{type:'image_url',image_url:dataUri}]}],
+    response_format:{type:'json_object'}
+  };
+  const rawContent=await _mistralChat(mistralKey, chatBody);
+  console.log('[OCR] Respuesta de visión (pixtral):\n',rawContent);
+  const parsed=_mistralParseItems(rawContent);
+  _publishOCRItems(parsed, catalogSize, '(imagen analizada directamente con visión)', rawContent);
+}
+
+// Rama 2: PDF → paso 1 Mistral OCR (texto), paso 2 mistral-medium (extracción).
+async function _runOCRMistralPDF(mistralKey, showProg){
+  showProg('Paso 1/2 — leyendo el PDF...');
+  const { promptText, catalogSize } = _mistralPrompt();
+  const dataUri=_mistralDataUri();
+  const ocrResp=await fetch('https://api.mistral.ai/v1/ocr',{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+mistralKey,'Content-Type':'application/json'},
+    body:JSON.stringify({model:'mistral-ocr-latest',document:{type:'document_url',document_url:dataUri}})
+  });
+  if(!ocrResp.ok){ const err=await ocrResp.json().catch(()=>({})); throw new Error(err?.message||'Error Mistral OCR ('+ocrResp.status+')'); }
+  const ocrData=await ocrResp.json();
+  const markdown=(ocrData.pages||[]).map(p=>p.markdown||'').join('\n');
+  console.log('[OCR] Texto leído del PDF:\n',markdown);
+  if(!markdown.trim()){ toast('Mistral no leyó texto del PDF. Prueba con otra calidad.','#d97706',6000); return; }
+  showProg('Paso 2/2 — extrayendo productos...');
+  const chatBody={
+    model:'mistral-medium-latest',
+    messages:[{role:'user',content:`${promptText}\n\nTEXTO DEL ALBARÁN:\n${markdown}`}],
+    response_format:{type:'json_object'}
+  };
+  const rawContent=await _mistralChat(mistralKey, chatBody);
+  console.log('[OCR] Respuesta de extracción (mistral-medium):\n',rawContent);
+  const parsed=_mistralParseItems(rawContent);
+  _publishOCRItems(parsed, catalogSize, markdown, rawContent);
+}
+
+// Rama 3: fallback OCR.space cuando no hay clave Mistral. Menos preciso — el
+// parser local `parseOCRText` intenta extraer los productos de las líneas.
+async function _runOCRSpaceFallback(showProg){
+  const apiKey=cfg.ocrSpaceKey||'helloworld';
+  showProg('Reconociendo texto...');
+  const formData=new FormData();
+  formData.append('base64Image', S.albPhoto);
+  formData.append('language','spa');
+  formData.append('OCREngine','2');
+  formData.append('isTable','true');
+  formData.append('scale','true');
+  formData.append('detectOrientation','true');
+  if(S.albFileType==='pdf') formData.append('filetype','PDF');
+  const resp=await fetch('https://api.ocr.space/parse/image',{
+    method:'POST',
+    headers:{'apikey': apiKey},
+    body:formData
+  });
+  const data=await resp.json();
+  if(data.IsErroredOnProcessing||data.OCRExitCode===99){
+    const msg=data.ErrorMessage?.[0]||'Error OCR';
+    if(msg.includes('Limit')||msg.includes('apikey')||apiKey==='helloworld'){
+      toast('Configura tu API key de Mistral en Configuración para mejor OCR','#d97706',7000);
+    } else {
+      toast('Error OCR: '+msg,'#dc2626');
     }
     return;
   }
-
-  // --- Fallback: OCR.space (si no hay clave Mistral) ---
-  const apiKey=cfg.ocrSpaceKey||'helloworld';
-  if(prog){prog.style.display='block';prog.textContent='Reconociendo texto...';}
-  try{
-    const formData=new FormData();
-    formData.append('base64Image', S.albPhoto);
-    formData.append('language','spa');
-    formData.append('OCREngine','2');
-    formData.append('isTable','true');
-    formData.append('scale','true');
-    formData.append('detectOrientation','true');
-    if(S.albFileType==='pdf') formData.append('filetype','PDF');
-    const resp=await fetch('https://api.ocr.space/parse/image',{
-      method:'POST',
-      headers:{'apikey': apiKey},
-      body:formData
-    });
-    const data=await resp.json();
-    if(data.IsErroredOnProcessing||data.OCRExitCode===99){
-      const msg=data.ErrorMessage?.[0]||'Error OCR';
-      if(msg.includes('Limit')||msg.includes('apikey')||apiKey==='helloworld'){
-        toast('Configura tu API key de Mistral en Configuración para mejor OCR','#d97706',7000);
-      } else {
-        toast('Error OCR: '+msg,'#dc2626');
-      }
-      return;
-    }
-    const text=(data.ParsedResults||[]).map(r=>r.ParsedText||'').join('\n');
-    if(!text.trim()){toast('No se reconoció texto. Prueba con foto más clara.','#d97706');return;}
-    const parsed=parseOCRText(text);
-    if(parsed.length>0){
-      S.albItems=[...S.albItems,...parsed];
-      toast(`${parsed.length} producto${parsed.length!==1?'s':''} reconocido${parsed.length!==1?'s':''}. Revisa y corrige.`,'#16a34a');
-    } else {
-      toast('No se identificaron productos. Revisa la foto o añade manualmente.','#d97706');
-    }
-  }catch(e){
-    console.error(e);
-    toast('Error de conexión con OCR. Comprueba tu internet.','#dc2626');
-  }finally{
-    if(prog)prog.style.display='none';render();
+  const text=(data.ParsedResults||[]).map(r=>r.ParsedText||'').join('\n');
+  if(!text.trim()){ toast('No se reconoció texto. Prueba con foto más clara.','#d97706'); return; }
+  const parsed=parseOCRText(text);
+  if(parsed.length>0){
+    S.albItems=[...S.albItems,...parsed];
+    toast(`${parsed.length} producto${parsed.length!==1?'s':''} reconocido${parsed.length!==1?'s':''}. Revisa y corrige.`,'#16a34a');
+  } else {
+    toast('No se identificaron productos. Revisa la foto o añade manualmente.','#d97706');
   }
 }
 

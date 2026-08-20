@@ -32,12 +32,6 @@ function toast(msg,col='#222',dur=3500){
 }
 function waURL(phone,text){ return `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`; }
 
-function msgAdmin(o){
-  const sup=suppliers[o.supId];
-  const lines=(o.items||[]).map(it=>`• ${it.name}: ${convQtyStr(it.qty,it.unit,it.baseUnit||it.unit,it.conversions)}`).join('\n');
-  const noteLine=o.notes?`\n Nota: ${o.notes}`:'';
-  return ` *SOLICITUD PEDIDO — Provea*\n${o.restaurant}\n Proveedor: ${sup?sup.emoji+' '+sup.name:'?'}\n ${new Date(o.createdAt).toLocaleDateString('es-ES')}\n\n${lines}\n\n*Total: ${fmt(total(o))}*${noteLine}\n\n_App Provea_`;
-}
 function msgSupplier(o){
   const lines=(o.items||[]).map(it=>`• ${it.name} (${it.unit}): ${it.qty}`).join('\n');
   const isConsolidated=o.restaurant&&o.restaurant.includes('Consolidado');
