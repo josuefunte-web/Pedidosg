@@ -128,7 +128,7 @@ function supDetailForm(sup){
   <div class="sh" style="margin-top:20px">Horario de pedidos</div>
   <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Marca los días de la semana en que este proveedor acepta pedidos y la hora límite. Los locales verán un aviso en "Nuevo pedido" cuando toque pedir.</div>
   <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-    ${[['1','L'],['2','M'],['3','X'],['4','J'],['5','V'],['6','S'],['0','D']].map(([k,lbl])=>{const on=(sup.orderDays||[]).includes(k);return `<label style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;background:${on?'var(--pri)':'var(--srf)'};color:${on?'#fff':'var(--txt)'};border:1.5px solid ${on?'var(--pri)':'var(--brd)'}"><input type="checkbox" ${on?'checked':''} onchange="toggleSupOrderDay('${sup.id}','${k}',this.checked)" style="display:none"/>${lbl}</label>`;}).join('')}
+    ${[['1','L'],['2','M'],['3','X'],['4','J'],['5','V'],['6','S'],['0','D']].map(([k,lbl])=>{const on=(sup.orderDays||[]).includes(k);return `<button type="button" onclick="toggleSupOrderDay('${sup.id}','${k}')" style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;background:${on?'var(--pri)':'var(--srf)'};color:${on?'#fff':'var(--txt)'};border:1.5px solid ${on?'var(--pri)':'var(--brd)'};padding:0">${lbl}</button>`;}).join('')}
   </div>
   <div style="display:flex;align-items:center;gap:8px">
     <label style="font-size:13px;color:var(--mut)">Hora límite:</label>
@@ -138,13 +138,18 @@ function supDetailForm(sup){
 }
 // Toggle si el proveedor sirve un día concreto de la semana. Guarda los días
 // como strings '0'-'6' compatibles con Date.getDay() (0=Domingo, 1=Lunes,...).
-function toggleSupOrderDay(sid,day,checked){
+// Fuerza re-render tras cambiar para que el botón se vea marcado/desmarcado al instante.
+function toggleSupOrderDay(sid,day){
   if(!suppliers[sid]) return;
   const arr=suppliers[sid].orderDays||[];
-  if(checked){ if(!arr.includes(day)) arr.push(day); }
-  else{ const i=arr.indexOf(day); if(i>=0) arr.splice(i,1); }
+  const i=arr.indexOf(day);
+  if(i>=0) arr.splice(i,1);
+  else arr.push(day);
   suppliers[sid].orderDays=arr;
   saveSups(sid);
+  const _sy=window.scrollY;
+  renderAdminContent();
+  requestAnimationFrame(()=>window.scrollTo(0,_sy));
 }
 function setSupOrderCutoff(sid,val){
   if(!suppliers[sid]) return;
