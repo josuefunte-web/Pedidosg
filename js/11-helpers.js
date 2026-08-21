@@ -67,3 +67,24 @@ function closeWA(){
   if(_waNext){const n=_waNext;_waNext=null;setTimeout(()=>showWA(n.phone,n.msg,n.desc),150);}
 }
 function copyWAMsg(){ navigator.clipboard.writeText(_waMsg).then(()=>toast('Copiado','#16a34a')); }
+
+// ── "🔄 Actualizar datos" ─────────────────────────────────────────────────
+// Autoservicio para usuarios cuya app se ha quedado con datos viejos en
+// localStorage (proveedores, plantillas, etc.). Vacía las cachés locales y
+// obliga a la app a volver a pedir todo a Firebase desde cero. La página
+// se recarga para que los listeners re-establezcan y todo se pinte limpio.
+function refreshData(){
+  try{
+    if(!confirm('Descargar todos los datos otra vez? Puede tardar unos segundos si tu conexión es lenta.')) return;
+    // Borrar todas las cachés locales de datos sincronizados con Firebase
+    // (mantener sesión, preferencias UI y cfg local que se regeneran solos)
+    ['oc_suppliers','oc_orders','oc_albaranes','oc_templates','oc_priceHistory','oc_inventory','oc_inventoryMovements','oc_extraExpenses','oc_budgets','oc_revenue','oc_escandallos','oc_menus','oc_recetas','oc_authUsers','oc_foodcost']
+      .forEach(k=>{ try{ localStorage.removeItem(k); }catch(e){} });
+    toast('Descargando datos frescos...','#0369a1',2000);
+    // Recarga forzando URL nueva para saltarnos cualquier caché del navegador
+    setTimeout(()=>{ location.replace(location.pathname+'?_r='+Date.now()); }, 800);
+  }catch(e){
+    console.warn('refreshData error:',e);
+    toast('Error al actualizar','#dc2626');
+  }
+}

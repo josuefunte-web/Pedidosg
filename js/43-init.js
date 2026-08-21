@@ -203,6 +203,14 @@ self.addEventListener('fetch',e=>{
             S.view='order';
             const sl=visibleSups(); if(sl.length) S.supId=sl[0].id;
             render();
+            // Al hacer login, forzar una lectura fresca de proveedores desde
+            // Firebase para reemplazar cualquier snapshot antiguo cacheado en
+            // localStorage. El listener existente (_listenSuppliers) hará el
+            // resto: cuando lleguen los datos frescos actualizará `suppliers`,
+            // guardará el nuevo snapshot en localStorage y re-renderizará.
+            // Esto resuelve el caso del usuario con localStorage stale que
+            // ve una lista de proveedores desactualizada.
+            try{ fbDb.ref('suppliers').once('value').catch(()=>{}); }catch(e){}
           } else if(u && (u.status==='pending'||u.status==='rejected')){
             S.session={uid:user.uid,email:user.email,pendingStatus:u.status};
             document.getElementById('hdr').style.display='none';
