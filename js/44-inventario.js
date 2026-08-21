@@ -16,7 +16,17 @@ function importSupplierProducts(rest){
   const existingNames=new Set(Object.values(existing).map(p=>(p.name||'').trim().toLowerCase()));
   let added=0;
   const batch={};
-  supList().forEach(sup=>{
+  // Solo importar productos de proveedores que estén habilitados para este local.
+  // Antes se usaba supList() (todos), lo que hacía que aparecieran en el inventario
+  // productos de proveedores que el admin había desactivado para ese restaurante.
+  const restUserIds=(cfg.users||[]).filter(u=>{const rests=u.restaurants||[u.restaurant];return rests.includes(rest);}).map(u=>u.id);
+  const allowedSups=supList().filter(s=>{
+    const dis=s.disabledFor||[];
+    // Un proveedor está habilitado para este local si al menos uno de los
+    // userIds de ese local NO está en la lista de desactivados del proveedor.
+    return restUserIds.length===0||restUserIds.some(uid=>!dis.includes(uid));
+  });
+  allowedSups.forEach(sup=>{
     (sup.products||[]).forEach(p=>{
       const nameNorm=(p.name||'').trim().toLowerCase();
       if(!nameNorm||existingNames.has(nameNorm)) return;
@@ -192,15 +202,25 @@ function vInventario(){
   const allRests=Object.keys(cfg.users||{}).map(u=>{const ud=cfg.users[u];return ud.restaurants||[ud.restaurant||u];}).flat().filter((v,i,a)=>a.indexOf(v)===i).sort();
   const rest=S.invRest||allRests[0]||'';
   if(!S.invRest&&rest) S.invRest=rest;
-  const items=getInvItems(rest);
-  const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0));
+  const allItems=getInvItems(rest);
 
-  // Pestañas por proveedor/categoría — solo proveedores activos para este restaurante
-  // Solo mostrar pestañas de proveedores activos para este restaurante
+  // Filtro por proveedores activos para este restaurante
   const restUserIds=(cfg.users||[]).filter(u=>{const rests=u.restaurants||[u.restaurant];return rests.includes(rest);}).map(u=>u.id);
   const activeSups=supList().filter(s=>{const dis=s.disabledFor||[];return restUserIds.length===0||restUserIds.some(uid=>!dis.includes(uid));});
   const activeSupCatNames=new Set(activeSups.map(s=>(s.emoji?s.emoji+' ':'')+s.name));
   const allSupCatNames=new Set(supList().map(s=>(s.emoji?s.emoji+' ':'')+s.name));
+
+  // Ocultar (sin borrar de Firebase) los productos que vengan de proveedores
+  // desactivados para este local. Se mantienen en la base de datos por si el
+  // admin reactiva el proveedor más adelante — reaparecerán automáticamente.
+  // Un item se muestra si:
+  //   · su categoría NO coincide con ningún proveedor (categoría manual), o
+  //   · su categoría coincide con un proveedor activo para este local.
+  const items=allItems.filter(it=>{
+    const c=it.category||'Sin categoría';
+    return !allSupCatNames.has(c) || activeSupCatNames.has(c);
+  });
+  const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0));
   // Incluir: categorías de proveedores activos + categorías manuales (no coinciden con ningún proveedor)
   const filteredCats=[...new Set(items.map(it=>it.category||'Sin categoría'))].filter(c=>!allSupCatNames.has(c)||activeSupCatNames.has(c)).sort();
   if(S.invCat&&!filteredCats.includes(S.invCat)) S.invCat=null;
@@ -321,7 +341,17 @@ function vInventario(){
 
 // ── Vista restaurante ─────────────────────────────────────
 function vLocalInventario(rest){
-  const items=getInvItems(rest);
+  const allItems=getInvItems(rest);
+  // Ocultar productos de proveedores desactivados para este local (misma lógica
+  // que en vInventario) — se preservan en Firebase por si se reactiva el prov.
+  const restUserIds=(cfg.users||[]).filter(u=>{const rests=u.restaurants||[u.restaurant];return rests.includes(rest);}).map(u=>u.id);
+  const activeSups=supList().filter(s=>{const dis=s.disabledFor||[];return restUserIds.length===0||restUserIds.some(uid=>!dis.includes(uid));});
+  const activeSupCatNames=new Set(activeSups.map(s=>(s.emoji?s.emoji+' ':'')+s.name));
+  const allSupCatNames=new Set(supList().map(s=>(s.emoji?s.emoji+' ':'')+s.name));
+  const items=allItems.filter(it=>{
+    const c=it.category||'Sin categoría';
+    return !allSupCatNames.has(c) || activeSupCatNames.has(c);
+  });
   const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0));
   const alertBanner=lowItems.length?`<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e;margin-bottom:12px"><strong>${lowItems.length} producto${lowItems.length>1?'s':''} con stock bajo:</strong> ${lowItems.map(it=>`${it.name} (${parseFloat(it.qty)||0} ${it.unit||'ud'})`).join(', ')}</div>`:'';
   const isEditing=S.invEditId!==null;

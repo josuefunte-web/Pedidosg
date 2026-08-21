@@ -124,7 +124,34 @@ function supDetailForm(sup){
   <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Desmarca los locales que <strong>no</strong> deben ver este proveedor</div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
     ${cfg.users.map(u=>{const dis=(sup.disabledFor||[]).includes(u.id);return`<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;background:${dis?'var(--srf)':'transparent'};border:1px solid ${dis?'var(--brd)':'transparent'}"><input type="checkbox" ${!dis?'checked':''} onchange="toggleSupVisibility('${sup.id}','${u.id}',this.checked)"/><span style="font-size:13px;${dis?'color:var(--mut)':''}">${dis?'':''} ${u.restaurant}</span></label>`;}).join('')}
+  </div>
+  <div class="sh" style="margin-top:20px">Horario de pedidos</div>
+  <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Marca los días de la semana en que este proveedor acepta pedidos y la hora límite. Los locales verán un aviso en "Nuevo pedido" cuando toque pedir.</div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+    ${[['1','L'],['2','M'],['3','X'],['4','J'],['5','V'],['6','S'],['0','D']].map(([k,lbl])=>{const on=(sup.orderDays||[]).includes(k);return `<label style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;background:${on?'var(--pri)':'var(--srf)'};color:${on?'#fff':'var(--txt)'};border:1.5px solid ${on?'var(--pri)':'var(--brd)'}"><input type="checkbox" ${on?'checked':''} onchange="toggleSupOrderDay('${sup.id}','${k}',this.checked)" style="display:none"/>${lbl}</label>`;}).join('')}
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <label style="font-size:13px;color:var(--mut)">Hora límite:</label>
+    <input type="time" value="${sup.orderCutoffTime||''}" onchange="setSupOrderCutoff('${sup.id}',this.value)" style="padding:6px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:14px;background:var(--card);color:var(--txt)"/>
+    ${sup.orderCutoffTime?`<button class="btn btn-ghost btn-xs" onclick="setSupOrderCutoff('${sup.id}','')">Quitar</button>`:''}
   </div>`;
+}
+// Toggle si el proveedor sirve un día concreto de la semana. Guarda los días
+// como strings '0'-'6' compatibles con Date.getDay() (0=Domingo, 1=Lunes,...).
+function toggleSupOrderDay(sid,day,checked){
+  if(!suppliers[sid]) return;
+  const arr=suppliers[sid].orderDays||[];
+  if(checked){ if(!arr.includes(day)) arr.push(day); }
+  else{ const i=arr.indexOf(day); if(i>=0) arr.splice(i,1); }
+  suppliers[sid].orderDays=arr;
+  saveSups(sid);
+}
+function setSupOrderCutoff(sid,val){
+  if(!suppliers[sid]) return;
+  if(val) suppliers[sid].orderCutoffTime=val;
+  else delete suppliers[sid].orderCutoffTime;
+  saveSups(sid);
+  renderAdminContent();
 }
 function saveSup2(id){
   const name=document.getElementById('sf-name-'+id)?.value.trim();

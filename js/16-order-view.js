@@ -57,6 +57,34 @@ function vOrder(){
     :`<div class="banner blue">Tus pedidos se aprueban automáticamente y van directo al proveedor.</div>`;
   const _vacUser=cfg.users.find(u=>u.restaurant===S.session.restaurant);
   const vacBanner=_vacUser&&_vacUser.vacaciones?'<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e">Modo vacaciones activo — los pedidos están desactivados temporalmente</div>':'';
+  // Aviso "hoy toca pedir a": recorre proveedores visibles para este local,
+  // detecta cuáles tienen HOY como día de reparto y no se ha pedido todavía,
+  // y muestra un banner con la hora límite. Desaparece automáticamente en
+  // cuanto se envía el pedido a ese proveedor (comprobamos orders del día).
+  const _today0=new Date(); _today0.setHours(0,0,0,0);
+  const _todayDay=String(new Date().getDay()); // '0'-'6' compatible con orderDays
+  const _pendingToday=sups.filter(s=>{
+    if(!s.orderDays||!s.orderDays.includes(_todayDay)) return false;
+    if(!s.orderCutoffTime) return false;
+    // ¿ya se ha pedido HOY a este proveedor desde este local?
+    const yaPedido=orders.some(o=>o.supId===s.id&&o.restaurant===S.session.restaurant&&new Date(o.createdAt)>=_today0&&o.status!=='rejected');
+    return !yaPedido;
+  });
+  // Ordenar por hora límite (más urgente primero)
+  _pendingToday.sort((a,b)=>(a.orderCutoffTime||'').localeCompare(b.orderCutoffTime||''));
+  const _nowMin=new Date().getHours()*60+new Date().getMinutes();
+  const cutoffBanner=_pendingToday.length?`<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e;margin-bottom:12px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:6px">📅 Pedidos pendientes para hoy</div>
+    ${_pendingToday.map(s=>{
+      const [hh,mm]=(s.orderCutoffTime||'0:0').split(':').map(Number);
+      const cutMin=hh*60+(mm||0);
+      const expired=_nowMin>cutMin;
+      const urgent=!expired&&(cutMin-_nowMin)<=60;
+      const col=expired?'#dc2626':urgent?'#dc2626':'#92400e';
+      const lbl=expired?`⚠️ HORA PASADA (límite ${s.orderCutoffTime})`:urgent?`⏰ URGENTE — antes de las ${s.orderCutoffTime}`:`antes de las ${s.orderCutoffTime}`;
+      return `<div style="font-size:13px;padding:2px 0;color:${col}"><strong>${s.emoji||''} ${s.name}</strong> — ${lbl}</div>`;
+    }).join('')}
+  </div>`:'';
   const stabs=`<select onchange="setSup(this.value)" style="max-width:320px;font-weight:600;cursor:pointer">${sups.map(s=>{const sc2=S.cart[s.id]||{};const n=Object.values(sc2).reduce((a,v)=>a+v,0);return `<option value="${s.id}" ${S.supId===s.id?'selected':''}>${s.emoji} ${s.name}${n>0?` — ${n} en el carrito`:''}</option>`;}).join('')}</select>`;
   const searchTerm=(S.prodSearch||'').toLowerCase().trim();
   const filteredProds=sup.products.filter(p=>!searchTerm||p.name.toLowerCase().includes(searchTerm));
@@ -145,6 +173,7 @@ function vOrder(){
   return `<div class="main">
     ${adminBanner}${tabsHtml}${restPickerHtml}${note}
     ${vacBanner}
+    ${cutoffBanner}
     ${recurringBanner}
     ${tplSection}
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:10px 0 6px">
