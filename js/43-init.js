@@ -78,7 +78,16 @@ window.addEventListener('DOMContentLoaded',()=>{
     const mBlob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
     document.getElementById('pwa-manifest').href=URL.createObjectURL(mBlob);
 
-    // 4. Service Worker — cachea scripts CDN para uso sin conexión parcial
+    // 4. Service Worker — dos estrategias distintas según el tipo de archivo:
+    //    · CDN externas (Firebase, Chart.js, xlsx): cache-first — nunca cambian
+    //      por versión, así que servirlas desde caché es rápido y funciona offline.
+    //    · Archivos propios de la app (html/js/css en nuestro dominio):
+    //      NETWORK-FIRST — siempre intenta la red primero para que cualquier
+    //      subida a GitHub se refleje al instante en la próxima visita, y solo
+    //      cae a caché si el usuario está sin conexión. Esto resuelve de raíz
+    //      el problema de "los usuarios ven código antiguo": el service worker
+    //      pasa por encima de la caché del navegador y garantiza que si hay
+    //      internet, se carga siempre la última versión.
     if('serviceWorker' in navigator){
       const CDN=[
         'https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-app-compat.js',
@@ -88,18 +97,51 @@ window.addEventListener('DOMContentLoaded',()=>{
         'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
       ];
       const swCode=`
-const CACHE='provea-v2';
+const CACHE='provea-v3';
 const CDN=${JSON.stringify(CDN)};
+const APP_HOST=self.location.host;
+
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>Promise.allSettled(CDN.map(u=>c.add(u)))));
   self.skipWaiting();
 });
-self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k))))); self.clients.claim(); });
+
+self.addEventListener('activate',e=>{
+  e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
+  self.clients.claim();
+});
+
 self.addEventListener('fetch',e=>{
-  const u=e.request.url;
-  if(CDN.some(c=>u===c)){
-    e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{caches.open(CACHE).then(c=>c.put(e.request,res.clone()));return res;})));
+  const req=e.request;
+  if(req.method!=='GET') return;
+  const url=new URL(req.url);
+
+  // 1) CDN externas: cache-first (nunca cambian entre versiones)
+  if(CDN.indexOf(req.url)!==-1){
+    e.respondWith(
+      caches.match(req).then(r=>r||fetch(req).then(res=>{
+        if(res && res.status===200){ const clone=res.clone(); caches.open(CACHE).then(c=>c.put(req,clone)); }
+        return res;
+      }))
+    );
+    return;
   }
+
+  // 2) Archivos propios de la app (mismo host): NETWORK-FIRST
+  if(url.host===APP_HOST){
+    e.respondWith(
+      fetch(req).then(res=>{
+        if(res && res.status===200 && res.type==='basic'){
+          const clone=res.clone();
+          caches.open(CACHE).then(c=>c.put(req,clone));
+        }
+        return res;
+      }).catch(()=>caches.match(req).then(r=>r||new Response('Sin conexión',{status:503,statusText:'Offline'})))
+    );
+    return;
+  }
+
+  // 3) Cualquier otra cosa (Firebase Realtime DB, etc.): pass-through al navegador
 });`;
       const swBlob=new Blob([swCode],{type:'application/javascript'});
       navigator.serviceWorker.register(URL.createObjectURL(swBlob),{type:'classic'}).catch(()=>{});
