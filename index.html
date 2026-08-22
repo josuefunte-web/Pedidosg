@@ -22,7 +22,7 @@
      navegadores que aún sirven un index.html viejo desde su propia caché. -->
 <script>
 (function(){
-  window.APP_VERSION='20260821h';
+  window.APP_VERSION='20260821i';
   try{
     fetch('version.json?t='+Date.now(),{cache:'no-store'})
       .then(function(r){return r.ok?r.json():null;})
@@ -44,7 +44,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <!-- Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260821h">
+<link rel="stylesheet" href="css/styles.css?v=20260821i">
 </head>
 <body>
 
@@ -101,53 +101,53 @@
 <!-- Aviso de pedidos pendientes de enviar (sin conexión) -->
 <div id="pending-orders-badge" onclick="flushPendingOrders()" title="Toca para reintentar el envío" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:9000;background:#d97706;color:#fff;font-weight:700;font-size:13px;padding:9px 16px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25);align-items:center;gap:8px;cursor:pointer"></div>
 
-<script src="js/01-core-errors.js?v=20260821h"></script>
-<script src="js/02-firebase-config.js?v=20260821h"></script>
-<script src="js/03-default-data.js?v=20260821h"></script>
-<script src="js/04-storage-config.js?v=20260821h"></script>
-<script src="js/05-firebase-data.js?v=20260821h"></script>
-<script src="js/06-firebase-listeners.js?v=20260821h"></script>
-<script src="js/07-auth.js?v=20260821h"></script>
-<script src="js/08-admin-solicitudes.js?v=20260821h"></script>
-<script src="js/09-save-functions.js?v=20260821h"></script>
-<script src="js/10-state.js?v=20260821h"></script>
-<script src="js/11-helpers.js?v=20260821h"></script>
-<script src="js/13-navigation.js?v=20260821h"></script>
-<script src="js/14-render.js?v=20260821h"></script>
-<script src="js/15-login.js?v=20260821h"></script>
-<script src="js/16-order-view.js?v=20260821h"></script>
-<script src="js/17-local-gastos.js?v=20260821h"></script>
-<script src="js/18-admin-view.js?v=20260821h"></script>
-<script src="js/19-albaranes.js?v=20260821h"></script>
-<script src="js/20-new-albaran.js?v=20260821h"></script>
-<script src="js/21-iva-albaran.js?v=20260821h"></script>
-<script src="js/22-recortador.js?v=20260821h"></script>
-<script src="js/23-suppliers.js?v=20260821h"></script>
-<script src="js/24-plantillas.js?v=20260821h"></script>
-<script src="js/25-pedidos-recurrentes.js?v=20260821h"></script>
-<script src="js/26-presupuestos.js?v=20260821h"></script>
-<script src="js/27-comparativa.js?v=20260821h"></script>
-<script src="js/28-settings.js?v=20260821h"></script>
-<script src="js/29-push-notifications.js?v=20260821h"></script>
-<script src="js/30-order-actions.js?v=20260821h"></script>
-<script src="js/31-escandallos.js?v=20260821h"></script>
-<script src="js/32a-escandallos-detalle-render.js?v=20260821h"></script>
-<script src="js/32b-escandallos-detalle-secciones.js?v=20260821h"></script>
-<script src="js/32c-escandallos-detalle-ingredientes.js?v=20260821h"></script>
-<script src="js/32d-escandallos-detalle-export.js?v=20260821h"></script>
-<script src="js/33-menus.js?v=20260821h"></script>
-<script src="js/34-auto-clasificacion-escandallos.js?v=20260821h"></script>
-<script src="js/35-auto-clasificacion-productos.js?v=20260821h"></script>
-<script src="js/36-escandallos-local.js?v=20260821h"></script>
-<script src="js/37-recetas.js?v=20260821h"></script>
-<script src="js/38-budget-chart.js?v=20260821h"></script>
-<script src="js/39-catalogo-productos.js?v=20260821h"></script>
-<script src="js/40-historial-proveedor.js?v=20260821h"></script>
-<script src="js/41-nuevos-proveedores.js?v=20260821h"></script>
-<script src="js/42-admin-account-setup.js?v=20260821h"></script>
-<script src="js/43-init.js?v=20260821h"></script>
-<script src="js/44-inventario.js?v=20260821h"></script>
-<script src="js/45-foodcost.js?v=20260821h"></script>
-<script src="js/46-sup-visibility.js?v=20260821h"></script>
+<script src="js/01-core-errors.js?v=20260821i"></script>
+<script src="js/02-firebase-config.js?v=20260821i"></script>
+<script src="js/03-default-data.js?v=20260821i"></script>
+<script src="js/04-storage-config.js?v=20260821i"></script>
+<script src="js/05-firebase-data.js?v=20260821i"></script>
+<script src="js/06-firebase-listeners.js?v=20260821i"></script>
+<script src="js/07-auth.js?v=20260821i"></script>
+<script src="js/08-admin-solicitudes.js?v=20260821i"></script>
+<script src="js/09-save-functions.js?v=20260821i"></script>
+<script src="js/10-state.js?v=20260821i"></script>
+<script src="js/11-helpers.js?v=20260821i"></script>
+<script src="js/13-navigation.js?v=20260821i"></script>
+<script src="js/14-render.js?v=20260821i"></script>
+<script src="js/15-login.js?v=20260821i"></script>
+<script src="js/16-order-view.js?v=20260821i"></script>
+<script src="js/17-local-gastos.js?v=20260821i"></script>
+<script src="js/18-admin-view.js?v=20260821i"></script>
+<script src="js/19-albaranes.js?v=20260821i"></script>
+<script src="js/20-new-albaran.js?v=20260821i"></script>
+<script src="js/21-iva-albaran.js?v=20260821i"></script>
+<script src="js/22-recortador.js?v=20260821i"></script>
+<script src="js/23-suppliers.js?v=20260821i"></script>
+<script src="js/24-plantillas.js?v=20260821i"></script>
+<script src="js/25-pedidos-recurrentes.js?v=20260821i"></script>
+<script src="js/26-presupuestos.js?v=20260821i"></script>
+<script src="js/27-comparativa.js?v=20260821i"></script>
+<script src="js/28-settings.js?v=20260821i"></script>
+<script src="js/29-push-notifications.js?v=20260821i"></script>
+<script src="js/30-order-actions.js?v=20260821i"></script>
+<script src="js/31-escandallos.js?v=20260821i"></script>
+<script src="js/32a-escandallos-detalle-render.js?v=20260821i"></script>
+<script src="js/32b-escandallos-detalle-secciones.js?v=20260821i"></script>
+<script src="js/32c-escandallos-detalle-ingredientes.js?v=20260821i"></script>
+<script src="js/32d-escandallos-detalle-export.js?v=20260821i"></script>
+<script src="js/33-menus.js?v=20260821i"></script>
+<script src="js/34-auto-clasificacion-escandallos.js?v=20260821i"></script>
+<script src="js/35-auto-clasificacion-productos.js?v=20260821i"></script>
+<script src="js/36-escandallos-local.js?v=20260821i"></script>
+<script src="js/37-recetas.js?v=20260821i"></script>
+<script src="js/38-budget-chart.js?v=20260821i"></script>
+<script src="js/39-catalogo-productos.js?v=20260821i"></script>
+<script src="js/40-historial-proveedor.js?v=20260821i"></script>
+<script src="js/41-nuevos-proveedores.js?v=20260821i"></script>
+<script src="js/42-admin-account-setup.js?v=20260821i"></script>
+<script src="js/43-init.js?v=20260821i"></script>
+<script src="js/44-inventario.js?v=20260821i"></script>
+<script src="js/45-foodcost.js?v=20260821i"></script>
+<script src="js/46-sup-visibility.js?v=20260821i"></script>
 </body>
 </html>

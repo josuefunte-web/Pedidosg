@@ -47,7 +47,9 @@ function vOrder(){
   if(!suppliers[S.supId]||!(sups.find(s=>s.id===S.supId))) S.supId=sups[0].id;
   const sup=suppliers[S.supId];
   const cnt=Object.values(S.cart).reduce((s,sc2)=>s+Object.values(sc2).reduce((a,v)=>a+v,0),0);
-  const tot=Object.entries(S.cart).reduce((s,[sid,sc2])=>{const sp=suppliers[sid];if(!sp)return s;return s+(sp.products||[]).reduce((a,p)=>a+(sc2[p.id]||0)*p.price,0);},0);
+  // Total considerando la unidad seleccionada por producto (KG, Caja, UN...) —
+  // aplica el factor de conversión sobre el precio base cuando corresponde.
+  const tot=Object.entries(S.cart).reduce((s,[sid,sc2])=>{const sp=suppliers[sid];if(!sp)return s;return s+(sp.products||[]).reduce((a,p)=>{const q=sc2[p.id]||0;if(!q)return a;const selUnit=(S.cartUnits[sid]||{})[p.id]||p.unit;return a+q*effectivePrice(p,selUnit);},0);},0);
   const supCnt=Object.keys(S.cart).length;
   const _approvalMin=cfg.approvalMinAmount||0;
   const note=S.session.needsApproval

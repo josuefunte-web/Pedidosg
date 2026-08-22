@@ -71,7 +71,7 @@ function chgQ(id,d){
   }
   // Grand total across all suppliers
   const cnt=Object.values(S.cart).reduce((s,sc2)=>s+Object.values(sc2).reduce((a,v)=>a+v,0),0);
-  const tot=Object.entries(S.cart).reduce((s,[sid,sc2])=>{const sp=suppliers[sid];if(!sp)return s;return s+(sp.products||[]).reduce((a,p)=>a+(sc2[p.id]||0)*p.price,0);},0);
+  const tot=Object.entries(S.cart).reduce((s,[sid,sc2])=>{const sp=suppliers[sid];if(!sp)return s;return s+(sp.products||[]).reduce((a,p)=>{const q=sc2[p.id]||0;if(!q)return a;const selUnit=(S.cartUnits[sid]||{})[p.id]||p.unit;return a+q*effectivePrice(p,selUnit);},0);},0);
   const bar=document.getElementById('cbar');if(bar)bar.className='cbar'+(cnt>0?' up':'');
   const cv=document.getElementById('cb-v');if(cv)cv.textContent=`${cnt} art. · ${Object.keys(S.cart).length} prov.`;
   const cs=document.getElementById('cb-s');if(cs)cs.textContent=fmt(tot);
@@ -92,7 +92,16 @@ function submitOrder(){
     _lsProds.forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
     Object.values(S._cartProds[sid]||{}).forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
     (sup.products||[]).forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
-    const items=Object.keys(sc).filter(pid=>sc[pid]>0).map(pid=>{const p=_prodMap[pid];if(!p)return null;const selUnit=(S.cartUnits[sid]&&S.cartUnits[sid][pid])||p.unit;return{...p,qty:sc[pid],unit:selUnit,baseUnit:p.unit};}).filter(Boolean);
+    // Al guardar los items del pedido, sustituimos p.price por el precio
+    // efectivo según la unidad seleccionada (KG/Caja/UN...). Así toda la
+    // cadena posterior — WhatsApp, historial, cálculos, exportaciones —
+    // usa qty × price y siempre da el importe correcto para la unidad elegida.
+    const items=Object.keys(sc).filter(pid=>sc[pid]>0).map(pid=>{
+      const p=_prodMap[pid];if(!p)return null;
+      const selUnit=(S.cartUnits[sid]&&S.cartUnits[sid][pid])||p.unit;
+      const effPrice=effectivePrice(p,selUnit);
+      return{...p,qty:sc[pid],unit:selUnit,baseUnit:p.unit,price:effPrice,basePrice:parseFloat(p.price)||0};
+    }).filter(Boolean);
     if(!items.length)return;
     const orderTotal=items.reduce((s,p)=>s+p.qty*p.price,0);
     const needApproval=S.session.needsApproval&&(approvalMinAmount<=0||orderTotal>=approvalMinAmount);
