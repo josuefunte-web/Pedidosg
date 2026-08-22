@@ -188,7 +188,16 @@ function submitOrder(){
     }).filter(Boolean);
     if(!items.length)return;
     const orderTotal=items.reduce((s,p)=>s+p.qty*p.price,0);
-    const needApproval=S.session.needsApproval&&(approvalMinAmount<=0||orderTotal>=approvalMinAmount);
+    let needApproval=S.session.needsApproval&&(approvalMinAmount<=0||orderTotal>=approvalMinAmount);
+    // Un rol con permiso de aprobación (admin3+) NO puede auto-aprobarse
+    // pedidos que superen su propio límite económico. En ese caso, aunque
+    // tenga needsApproval:false, el pedido va a pending para que un admin
+    // superior (admin2/admin1) lo apruebe.
+    // Esto cierra el hueco: sin esto, un admin3 con auto-aprobado se saltaría
+    // el límite de aprobación al hacer sus propios pedidos.
+    if(!needApproval && can('canApproveOrders') && !canApproveOrderAmount(orderTotal)){
+      needApproval = true;
+    }
     // `total` PERSISTIDO — imprescindible para que Firebase Rules validen
     // el límite económico de admin3 (newData.child('total').val() <= limit).
     // Trazabilidad: createdBy/Email para auditoría desde Firebase.
