@@ -13,8 +13,7 @@ function vOrder(){
   // Si están en esa pestaña por accidente, redirigir a "Mis pedidos" (view-only).
   if(S.orderTab==='new' && !can('canCreateOrders')) S.orderTab='history';
   const _showNewTab = can('canCreateOrders');
-  const orderIntro=`<div class="ui-page-head ui-local-head"><div><div class="ui-eyebrow">Operativa del local</div><h1>${escHtml(S.session.restaurant||'Pedidos')}</h1><p>Pedidos, inventario, costes y recetas en un solo lugar</p></div></div>`;
-  const tabsHtml=`<div class="tabs ui-local-tabs" style="margin-bottom:16px">
+  const tabsHtml=`<div class="tabs" style="margin-bottom:16px">
     ${_showNewTab?`<button class="tab ${S.orderTab==='new'?'act':''}" onclick="S.orderTab='new';render()">Hacer pedido</button>`:''}
     <button class="tab ${S.orderTab==='history'?'act':''}" onclick="S.orderTab='history';render()"> Mis pedidos${histBadge}</button>
     <button class="tab ${S.orderTab==='gastos'?'act':''}" onclick="S.orderTab='gastos';render()">Mi gasto</button>
@@ -27,17 +26,17 @@ function vOrder(){
   </div>`:'';
 
   if(S.orderTab==='history'){
-    return `<div class="main">${adminBanner}${orderIntro}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vMyOrders()}</div>`;
+    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vMyOrders()}</div>`;
   }
   if(S.orderTab==='gastos'){
-    return `<div class="main">${adminBanner}${orderIntro}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalGastos()}</div>`;
+    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalGastos()}</div>`;
   }
   if(S.orderTab==='escandallos'){
     if(!_escInit&&fbDb) initEscandallos();
-    return `<div class="main">${adminBanner}${orderIntro}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalEscandallos()}</div>`;
+    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalEscandallos()}</div>`;
   }
   if(S.orderTab==='inventario'){
-    return `<div class="main">${adminBanner}${orderIntro}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalInventario(S.session.restaurant)}</div>`;
+    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalInventario(S.session.restaurant)}</div>`;
   }
 
   const sups=visibleSups();
@@ -47,7 +46,7 @@ function vOrder(){
     // solo el segundo mensaje como definitivo evita que una conexión lenta se
     // vea igual que un local sin proveedores configurados.
     const stillLoading=Object.keys(suppliers).length===0;
-    return `<div class="main">${adminBanner}${orderIntro}${tabsHtml}<div class="empty"><div class="ei">${stillLoading?'⏳':''}</div><div class="et">${stillLoading?'Cargando proveedores…':'No hay proveedores activos para este local.'}</div>${stillLoading?'<div style="font-size:12px;color:var(--mut);margin-top:6px">Si tarda mucho, comprueba tu conexión a internet.</div>':''}</div></div>`;
+    return `<div class="main">${adminBanner}${tabsHtml}<div class="empty"><div class="ei">${stillLoading?'⏳':''}</div><div class="et">${stillLoading?'Cargando proveedores…':'No hay proveedores activos para este local.'}</div>${stillLoading?'<div style="font-size:12px;color:var(--mut);margin-top:6px">Si tarda mucho, comprueba tu conexión a internet.</div>':''}</div></div>`;
   }
   if(!suppliers[S.supId]||!(sups.find(s=>s.id===S.supId))) S.supId=sups[0].id;
   const sup=suppliers[S.supId];
@@ -88,7 +87,7 @@ function vOrder(){
       const expired=_nowMin>cutMin;
       const urgent=!expired&&(cutMin-_nowMin)<=60;
       const col=expired?'#dc2626':urgent?'#dc2626':'#92400e';
-      const lbl=expired?`⚠️ HORA PASADA (límite ${s.orderCutoffTime})`:urgent?`⏰ URGENTE — antes de las ${s.orderCutoffTime}`:`antes de las ${s.orderCutoffTime}`;
+      const lbl=expired?` HORA PASADA (límite ${s.orderCutoffTime})`:urgent?`⏰ URGENTE — antes de las ${s.orderCutoffTime}`:`antes de las ${s.orderCutoffTime}`;
       return `<div style="font-size:13px;padding:2px 0;color:${col}"><strong>${s.emoji||''} ${s.name}</strong> — ${lbl}</div>`;
     }).join('')}
   </div>`:'';
@@ -178,7 +177,7 @@ function vOrder(){
       </div>
     </div>`:''}`;
   return `<div class="main">
-    ${adminBanner}${orderIntro}${tabsHtml}${restPickerHtml}${note}
+    ${adminBanner}${tabsHtml}${restPickerHtml}${note}
     ${vacBanner}
     ${cutoffBanner}
     ${recurringBanner}
@@ -196,7 +195,7 @@ function vOrder(){
     <div class="sh">Proveedor</div>
     <div class="sup-tabs">${stabs}</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <div class="sh" style="margin:0;flex:1">Productos — ${sup.emoji} ${sup.name}</div>
+      <div class="sh" style="margin:0;flex:1">Productos — ${sup.name}</div>
       <input type="text" id="prod-search-inp" placeholder="Buscar producto..." value="${S.prodSearch||''}" oninput="filterProds(this.value)" style="padding:6px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:12px;width:180px;background:var(--card);color:var(--txt)">
     </div>
     <div id="prod-grid-wrap">${filteredProds.length?prods:`<div class="empty"><div class="ei"></div><div class="et">Sin resultados para "${S.prodSearch}"</div></div>`}</div>
@@ -205,7 +204,7 @@ function vOrder(){
         ${S.showAddProd?'✕ Cancelar':'Añadir producto que falta'}
       </button>
       ${S.showAddProd?`<div style="background:var(--srf);border:1.5px solid var(--brd);border-radius:10px;padding:14px;margin-top:8px">
-        <div style="font-size:12px;font-weight:600;color:var(--mut);margin-bottom:10px">Nuevo producto para ${sup.emoji} ${sup.name}</div>
+        <div style="font-size:12px;font-weight:600;color:var(--mut);margin-bottom:10px">Nuevo producto para ${sup.name}</div>
         <div style="display:grid;grid-template-columns:1fr 80px 90px;gap:8px;margin-bottom:10px">
           <div><label style="font-size:11px;color:var(--mut);display:block;margin-bottom:3px">Nombre</label>
             <input type="text" id="lp-name" placeholder="Ej: Lomo ibérico" style="width:100%;padding:7px 10px;border:1.5px solid var(--brd);border-radius:7px;font-size:13px;background:var(--card);color:var(--txt);box-sizing:border-box"/></div>
@@ -256,7 +255,7 @@ function vMyOrders(){
     return `<div class="oc" ${o.urgent?'style="border-color:#dc2626"':''}>
       <div class="oc-hd">
         <div>
-          <div class="oc-rest">${sup.emoji} ${sup.name}${modTag}${urgTag}</div>
+          <div class="oc-rest">${sup.name}${modTag}${urgTag}</div>
           <div class="oc-sub">${fmtD(o.createdAt||'')} · <span class="badge ${s.cls}">${s.lbl}</span>${delTag}</div>
         </div>
       </div>

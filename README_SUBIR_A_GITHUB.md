@@ -1,24 +1,32 @@
-# Provea UI 3.0 — paquete listo para GitHub
+# NOVENTIA UI 4.0 — paquete completo para GitHub
 
-## Qué sustituir
-Copia estos archivos conservando las carpetas:
+## Objetivo
+Rebranding y rediseño ejecutivo: interfaz seria, profesional, sin estética de aplicación móvil informal y con uso mínimo de elementos decorativos.
+
+## Archivos a sustituir
+Conserva exactamente estas rutas:
 
 - `index.html`
+- `version.json`
 - `css/styles.css`
 - `js/14-render.js`
 - `js/16-order-view.js`
 - `js/18-admin-view.js`
 
-## Resultado
-- Dashboard visual nuevo con KPIs, pedidos pendientes, gasto, proveedor principal y accesos rápidos.
-- Sidebar granate, header y paneles alineados con la maqueta.
-- Vista local con cabecera visual mejorada.
-- Responsive para móvil.
+## Cambios principales
+- Marca NOVENTIA en título, PWA y cabecera.
+- Header blanco corporativo.
+- Sidebar azul carbón sobrio.
+- Paleta neutra con acento vino limitado.
+- Botones, tablas, formularios y tarjetas más compactos y ejecutivos.
+- Eliminación de emojis visibles en las vistas modificadas.
+- Dashboard ejecutivo y responsive.
 
-## Importante
-- Haz una rama o copia antes.
-- El paquete conserva la lógica existente de Firebase y permisos.
-- Si `S.adminTab` sigue siendo `pending`, abre el menú y pulsa **Dashboard**. Si quieres que sea la pantalla inicial, cambia el valor inicial de `adminTab` a `dashboard` en `10-state.js`.
+## Despliegue
+1. Haz una copia o crea una rama.
+2. Sustituye los archivos respetando carpetas.
+3. Publica en GitHub Pages.
+4. Fuerza una recarga completa.
 
-## Corrección UI3b
-Evita el error si `albaranes`, `inventory` o los cálculos de Food Cost aún no están disponibles al renderizar el dashboard.
+## Nota de marca
+El nombre NOVENTIA es una decisión de diseño. La disponibilidad legal de la marca y los dominios debe verificarse antes de un lanzamiento comercial.

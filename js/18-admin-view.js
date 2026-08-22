@@ -30,8 +30,6 @@ function vAdmin(){
   const _canAssignSup = can('canAssignSuppliers'); // admin2+ → visibilidad de proveedores por local
   const sidebar=`<div class="sidebar${S.sidebarOpen?' sb-open':''}">
     <div class="sb-mini-stats" id="sb-stats">${buildSbStats(pend,appr)}</div>
-    <div class="sb-section">Principal</div>
-    ${sbItem('dashboard','Dashboard')}
     <div class="sb-section">Pedidos</div>
     ${sbItem('pending','Pendientes','sb-pend-badge')}
     ${sbItem('approved','Aprobados')}
@@ -59,8 +57,7 @@ function vAdmin(){
   </div>`;
 
   let content='';
-  if(S.adminTab==='dashboard')      content=vAdminDashboard();
-  else if(S.adminTab==='pending')   content=vPending();
+  if(S.adminTab==='pending')        content=vPending();
   else if(S.adminTab==='approved')  content=vApproved();
   else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='received')  content=vReceived();
@@ -117,7 +114,7 @@ function orderCard(o,showActions){
   const editItems=isEditing?S.editItems:(o.items||[]);
   const tot=(editItems||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
   const bc={pending:'b-p',approved:'b-a',rejected:'b-r',received:'b-recv'}[o.status]||'b-p';
-  const bl={pending:'Pendiente',approved:'Aprobado',rejected:'Rechazado',received:'✔ Recibido'}[o.status]||o.status;
+  const bl={pending:'Pendiente',approved:'Aprobado',rejected:'Rechazado',received:'Recibido'}[o.status]||o.status;
   const modTag=o.modifiedByAdmin?` <span class="badge b-f"> Modificado</span>`:'';
   const urgTag=o.urgent?` <span class="badge b-urg">URGENTE</span>`:'';
   const issuesTag=o.receivedIssues?` <span class="badge" style="background:#fef3c7;color:#92400e">Con incidencias</span>`:'';
@@ -157,7 +154,7 @@ function orderCard(o,showActions){
         <textarea id="approve-note-${o.id}" placeholder="Comentario al aprobar (opcional)..." rows="2" style="width:100%;padding:6px 8px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt);resize:none;box-sizing:border-box;margin-bottom:6px"></textarea>
         <div class="oc-acts" style="flex-wrap:wrap">
           <button class="btn btn-ok btn-sm" onclick="approveWithEdits('${o.id}')">Aprobar</button>
-          <button class="btn btn-ghost btn-sm" onclick="S.editOrderId=null;S.editItems=[];renderAdminContent()">✕ Cancelar</button>
+          <button class="btn btn-ghost btn-sm" onclick="S.editOrderId=null;S.editItems=[];renderAdminContent()">Cancelar</button>
         </div>
       </div>`;
     } else {
@@ -173,12 +170,12 @@ function orderCard(o,showActions){
         <div class="oc-acts">
           ${_apprBtn}
           <button class="btn btn-blue btn-sm" onclick="startEditOrder('${o.id}')"> Modificar</button>
-          <button class="btn btn-no btn-sm" onclick="rejectWithReason('${o.id}')">✗ Rechazar</button>
+          <button class="btn btn-no btn-sm" onclick="rejectWithReason('${o.id}')">Rechazar</button>
         </div>
       </div>`;
     }
   } else if(o.status==='approved'){
-    const sentBadge=o.sentToSupplier?`<span class="badge" style="background:#dcfce7;color:#166534;font-weight:700">✓ Enviado ${o.sentAt?fmtD(o.sentAt):''}</span>`:'';
+    const sentBadge=o.sentToSupplier?`<span class="badge" style="background:#dcfce7;color:#166534;font-weight:700">Enviado ${o.sentAt?fmtD(o.sentAt):''}</span>`:'';
     acts=`<div class="oc-acts" style="align-items:center">
       ${sentBadge}
       <button class="btn ${o.sentToSupplier?'btn-ghost':'btn-wa'} btn-sm" onclick="markSentToSupplier('${o.id}');showWA('${sup.phone||''}',msgSupplier(orders.find(x=>x.id==='${o.id}')),'Envía el pedido aprobado al proveedor')">${WA_SVG} ${o.sentToSupplier?'Reenviar':sup.name}</button>
@@ -204,7 +201,7 @@ function orderCard(o,showActions){
       ${issuesTag}
     </div>
     <div class="oc-hd">
-      <div><div class="oc-rest" style="font-size:13px;color:var(--mut);font-weight:600">${sup.emoji} ${sup.name}${modTag}</div>
+      <div><div class="oc-rest" style="font-size:13px;color:var(--mut);font-weight:600">${sup.name}${modTag}</div>
       <div class="oc-sub">${fmtD(o.createdAt)} · <span class="badge ${bc}">${bl}</span>${delTag}</div></div>
       ${acts}
     </div>
@@ -278,57 +275,6 @@ function restFilterTabs(ordersForCount, stateKey){
     ...allRests.map(r=>{const cnt=ordersForCount.filter(o=>o.restaurant===r).length;return`<button class="stab ${cur===r?'act':''}" onclick="S.${stateKey}='${r.replace(/'/g,"\\'")}';render()">${r} (${cnt})</button>`;})
   ].join('');
   return `<div class="sup-tabs" style="margin-bottom:14px;flex-wrap:wrap">${tabs}</div>`;
-}
-
-
-function vAdminDashboard(){
-  const pending=orders.filter(o=>o.status==='pending');
-  const approved=orders.filter(o=>o.status==='approved');
-  const received=orders.filter(o=>o.status==='received');
-  const todayKey=new Date().toISOString().slice(0,10);
-  const _albaranes=(typeof albaranes!=='undefined'&&albaranes)?albaranes:{};
-  const albsToday=Object.values(_albaranes).filter(a=>(a.createdAt||a.date||'').startsWith(todayKey));
-  const pendingValue=pending.reduce((s,o)=>s+total(o),0);
-  const approvedValue=approved.reduce((s,o)=>s+total(o),0);
-  const _inventory=(typeof inventory!=='undefined'&&inventory)?inventory:{};
-  const _qtyBase=(typeof invItemQtyInBase==='function')?invItemQtyInBase:(it=>parseFloat(it?.qty)||0);
-  const lowStock=Object.values(_inventory).reduce((n,rest)=>n+Object.values(rest||{}).filter(it=>(parseFloat(it.minStock)||0)>0 && _qtyBase(it)<=(parseFloat(it.minStock)||0)).length,0);
-  const mk=new Date().toISOString().slice(0,7);
-  const fcUsers=(typeof fcLocalTotals==='function')?(cfg.users||[]).map(u=>fcLocalTotals(mk,u.id)):[];
-  const fcFact=fcUsers.reduce((s,t)=>s+(t.fact||0),0);
-  const fcCompras=fcUsers.reduce((s,t)=>s+(t.compras||0),0);
-  const fcPct=fcFact>0?fcCompras/fcFact:null;
-  const latest=pending.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,5);
-  const supplierSpend={};
-  approved.concat(received).forEach(o=>{supplierSpend[o.supId]=(supplierSpend[o.supId]||0)+total(o);});
-  const topSup=Object.entries(supplierSpend).sort((a,b)=>b[1]-a[1])[0];
-  const topSupName=topSup?(suppliers[topSup[0]]?.name||topSup[0]):'Sin datos';
-  const rows=latest.length?latest.map(o=>{
-    const sup=suppliers[o.supId]||{};
-    return `<tr onclick="S.adminTab='pending';render()" style="cursor:pointer">
-      <td><strong>#${escHtml(String(o.id||'').slice(-5))}</strong>${o.urgent?' <span class="badge b-urg">Urgente</span>':''}</td>
-      <td>${sup.emoji||''} ${escHtml(sup.name||o.supId||'')}</td>
-      <td>${escHtml(o.restaurant||'')}</td><td>${fmtD(o.createdAt)}</td>
-      <td><strong>${fmt(total(o))}</strong></td><td><span class="badge b-p">Pendiente</span></td>
-    </tr>`;
-  }).join(''):`<tr><td colspan="6" class="ui-empty-row">Sin pedidos pendientes</td></tr>`;
-  return `<div class="ui-dashboard">
-    <div class="ui-page-head"><div><div class="ui-eyebrow">Panel de compras</div><h1>Hola, ${escHtml(S.session?.name||cfg.adminName||'')}</h1><p>Resumen operativo de todos los locales</p></div><button class="btn btn-acc" onclick="S.adminOrderPicker=true;render()">+ Nuevo pedido</button></div>
-    <div class="ui-kpi-grid">
-      <div class="ui-kpi"><span class="ui-kpi-icon red">🛒</span><div><small>Pedidos pendientes</small><strong>${pending.length}</strong><em>${fmt(pendingValue)}</em></div></div>
-      <div class="ui-kpi"><span class="ui-kpi-icon green">▤</span><div><small>Albaranes hoy</small><strong>${albsToday.length}</strong><em>${approved.length} aprobados</em></div></div>
-      <div class="ui-kpi"><span class="ui-kpi-icon amber">⚠</span><div><small>Stock bajo</small><strong>${lowStock}</strong><em>Productos</em></div></div>
-      <div class="ui-kpi"><span class="ui-kpi-icon blue">↗</span><div><small>Food Cost (mes)</small><strong class="${fcPct!=null&&fcPct>.35?'bad':'good'}">${fcPct==null?'—':(fcPct*100).toFixed(1)+'%'}</strong><em>${fcFact?fmt(fcCompras)+' compras':'Sin datos'}</em></div></div>
-    </div>
-    <div class="ui-dashboard-grid">
-      <section class="ui-panel ui-orders-panel"><div class="ui-panel-head"><div><h2>Pedidos pendientes de aprobación</h2><p>${pending.length} pedidos requieren revisión</p></div><button class="ui-link" onclick="S.adminTab='pending';render()">Ver todos →</button></div><div class="ui-table-wrap"><table class="ui-table"><thead><tr><th>Pedido</th><th>Proveedor</th><th>Local</th><th>Fecha</th><th>Valor</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table></div></section>
-      <aside class="ui-side-stack">
-        <section class="ui-panel ui-insight"><div class="ui-panel-head"><div><h2>Gasto aprobado</h2><p>Pedidos listos para proveedor</p></div></div><div class="ui-big-number">${fmt(approvedValue)}</div><div class="ui-mini-bars"><i style="--w:42%"></i><i style="--w:68%"></i><i style="--w:54%"></i><i style="--w:86%"></i><i style="--w:100%"></i></div></section>
-        <section class="ui-panel ui-optimal"><div class="ui-panel-head"><div><h2>Proveedor principal</h2><p>Por volumen aprobado/recibido</p></div></div><strong>${escHtml(topSupName)}</strong><span>${topSup?fmt(topSup[1]):'Sin compras registradas'}</span><button class="ui-link" onclick="S.adminTab='sup-history';render()">Ver detalle →</button></section>
-      </aside>
-    </div>
-    <div class="ui-quick-grid"><button onclick="S.adminTab='pending';render()"><b>${pending.length}</b><span>Pendientes</span></button><button onclick="S.adminTab='inventario';render()"><b>${lowStock}</b><span>Stock bajo</span></button><button onclick="S.adminTab='albaranes';render()"><b>${albsToday.length}</b><span>Albaranes hoy</span></button><button onclick="S.adminTab='foodcost';render()"><b>${fcPct==null?'—':(fcPct*100).toFixed(1)+'%'}</b><span>Food Cost</span></button></div>
-  </div>`;
 }
 
 function vPending(){
