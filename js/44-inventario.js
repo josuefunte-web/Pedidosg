@@ -9,6 +9,83 @@ function getInvItems(rest){
   return Object.values(inventory[k]||{}).sort((a,b)=>(a.category||'').localeCompare(b.category||'es')||(a.name||'').localeCompare(b.name||'es'));
 }
 
+// ── MULTI-UNIT SUPPORT ───────────────────────────────────────────────
+// Un item de inventario puede tener cantidades en varias unidades a la vez
+// (ej: 1 Caja + 3 UN + 0.3 KG del mismo producto). El campo `qtys` guarda
+// un mapa {unidad: cantidad}. Se mantiene compatibilidad con items antiguos
+// que solo tienen `qty` + `unit`: se leen como {[unit]: qty}.
+const INV_COMMON_UNITS=['KG','L','UN','Caja','Bote','Bolsa','g'];
+
+function invItemQtys(it){
+  if(!it) return {};
+  if(it.qtys && typeof it.qtys==='object'){
+    const out={};
+    Object.entries(it.qtys).forEach(([u,q])=>{ const n=parseFloat(q); if(!isNaN(n)&&n!==0) out[u]=n; });
+    return out;
+  }
+  const q=parseFloat(it.qty)||0;
+  if(q!==0 && it.unit) return {[it.unit]:q};
+  return {};
+}
+// Cadena legible: "0.3 KG · 1 Caja · 3 UN"
+function invItemQtysStr(it){
+  const qtys=invItemQtys(it);
+  const entries=Object.entries(qtys);
+  if(!entries.length) return '0 '+(it.unit||'ud');
+  return entries.map(([u,q])=>`${q} ${u}`).join(' · ');
+}
+// Busca el producto en el catálogo de un proveedor para obtener las
+// conversiones y así calcular precio por cada unidad. Match por categoría
+// (emoji+nombre) y nombre; fallback a cualquier proveedor.
+function findSupProdForInvItem(it){
+  if(!it||!it.name) return null;
+  const nameNorm=(it.name||'').trim().toLowerCase();
+  const cat=(it.category||'').trim();
+  for(const sup of Object.values(suppliers)){
+    const supCat=(sup.emoji?sup.emoji+' ':'')+sup.name;
+    if(cat===supCat||cat===sup.name){
+      const p=(sup.products||[]).find(pp=>(pp.name||'').trim().toLowerCase()===nameNorm);
+      if(p) return p;
+    }
+  }
+  for(const sup of Object.values(suppliers)){
+    const p=(sup.products||[]).find(pp=>(pp.name||'').trim().toLowerCase()===nameNorm);
+    if(p) return p;
+  }
+  return null;
+}
+// Valor total del item = suma para cada unidad de (qty × precio_por_esa_unidad).
+// Precio por unidad se obtiene del catálogo aplicando las conversiones (via
+// effectivePrice de helpers.js). Si el item no está en ningún catálogo,
+// usa su price directo solo para su unit principal.
+function invItemValue(it){
+  const qtys=invItemQtys(it);
+  const supProd=findSupProdForInvItem(it);
+  let total=0;
+  Object.entries(qtys).forEach(([u,q])=>{
+    let price=0;
+    if(supProd) price=effectivePrice(supProd,u);
+    else if(u===(it.unit||'')) price=parseFloat(it.price)||0;
+    total+=q*price;
+  });
+  return total;
+}
+// Cantidad total convertida a la unidad base del proveedor (para stock mínimo).
+function invItemQtyInBase(it){
+  const qtys=invItemQtys(it);
+  const supProd=findSupProdForInvItem(it);
+  const baseUnit=supProd?.unit||it.unit;
+  let total=0;
+  Object.entries(qtys).forEach(([u,q])=>{
+    if(u===baseUnit){ total+=q; return; }
+    const conv=(supProd?.conversions||[]).find(c=>c.fromUnit===u);
+    if(conv&&parseFloat(conv.factor)>0) total+=q*parseFloat(conv.factor);
+    else total+=q;
+  });
+  return total;
+}
+// ─────────────────────────────────────────────────────────────────────
+
 function importSupplierProducts(rest){
   if(!fbDb){ toast('Sin conexión Firebase','#dc2626'); return; }
   const k=restKey(rest);
@@ -160,11 +237,18 @@ function exportInventoryExcel(rest, catFilter){
 
 function openInvForm(rest, existingId){
   S.invEditId=existingId||null;
-  if(existingId){
+  if(existingId&&existingId!=='new'){
     const it=(inventory[restKey(rest)]||{})[existingId]||{};
-    S.invForm={name:it.name||'',unit:it.unit||'',qty:it.qty??'',minStock:it.minStock??'',category:it.category||'',price:it.price??''};
+    S.invForm={
+      name:it.name||'',
+      unit:it.unit||'',
+      qtys:invItemQtys(it), // Multi-unit map — legacy items entran aquí normalizados
+      minStock:it.minStock??'',
+      category:it.category||'',
+      price:it.price??''
+    };
   } else {
-    S.invForm={name:'',unit:'',qty:'',minStock:'',category:'',price:''};
+    S.invForm={name:'',unit:'',qtys:{},minStock:'',category:'',price:''};
   }
   render();
   setTimeout(()=>document.getElementById('inv-form-name')?.focus(),80);
@@ -172,28 +256,49 @@ function openInvForm(rest, existingId){
 
 function submitInvForm(rest){
   const name=(document.getElementById('inv-form-name')?.value||'').trim();
-  const unit=(document.getElementById('inv-form-unit')?.value||'').trim();
-  const qty=parseFloat(document.getElementById('inv-form-qty')?.value)||0;
   const minStock=parseFloat(document.getElementById('inv-form-min')?.value)||0;
   const category=(document.getElementById('inv-form-cat')?.value||'').trim();
   const price=parseFloat(document.getElementById('inv-form-price')?.value)||0;
   if(!name){ toast('Introduce un nombre','#dc2626'); return; }
-  // Marcar como 'manual' si es nuevo — esto hace que aparezca en el inventario
-  // aunque nunca se haya pedido (los importados sin flag manual solo se ven si
-  // aparecen en algún pedido de este local).
+  // Recolectar cantidades de todas las unidades del formulario multi-unit
+  const qtys={};
+  document.querySelectorAll('[data-inv-qty-unit]').forEach(el=>{
+    const u=el.getAttribute('data-inv-qty-unit');
+    const v=parseFloat(el.value);
+    if(!isNaN(v)&&v!==0) qtys[u]=v;
+  });
+  // Determinar unit "principal" para compatibilidad con exportaciones y mostrar
+  // primer valor. Se usa la primera unidad con cantidad no cero, o KG si vacío.
+  const primaryUnit=Object.keys(qtys)[0]||'KG';
+  const primaryQty=qtys[primaryUnit]||0;
   const isNew=!S.invEditId||S.invEditId==='new';
-  const id=saveInvItem(rest,{...(S.invEditId&&S.invEditId!=='new'?{id:S.invEditId}:{}),name,unit,qty,minStock,category,price,...(isNew?{manual:true}:{})});
+  const oldItem=(!isNew&&S.invEditId)?(inventory[restKey(rest)]||{})[S.invEditId]:null;
+  const id=saveInvItem(rest,{
+    ...(!isNew?{id:S.invEditId}:{}),
+    name,
+    unit:primaryUnit,
+    qty:primaryQty, // Legacy — usado por código antiguo que aún lo lee
+    qtys, // Fuente de verdad para multi-unit
+    minStock,category,price,
+    ...(isNew?{manual:true}:{})
+  });
   if(!S.invEditId&&id){
-    addInvMovement(rest,id,name,'ajuste',qty,'manual',null,'Alta de producto');
+    // Registrar movimiento por cada unidad no cero
+    Object.entries(qtys).forEach(([u,q])=>{
+      addInvMovement(rest,id,name,'ajuste',q,'manual',null,'Alta de producto — '+u);
+    });
   } else if(S.invEditId){
-    const old=(inventory[restKey(rest)]||{})[S.invEditId]||{};
-    const diff=qty-(parseFloat(old.qty)||0);
-    if(diff!==0) addInvMovement(rest,S.invEditId,name,diff>0?'entrada':'salida',Math.abs(diff),'manual',null,'Ajuste manual');
+    // Diff por unidad
+    const oldQtys=invItemQtys(oldItem||{});
+    const allUnits=new Set([...Object.keys(oldQtys),...Object.keys(qtys)]);
+    allUnits.forEach(u=>{
+      const diff=(qtys[u]||0)-(oldQtys[u]||0);
+      if(diff!==0) addInvMovement(rest,S.invEditId,name,diff>0?'entrada':'salida',Math.abs(diff),'manual',null,'Ajuste manual — '+u);
+    });
   }
   S.invEditId=null;
-  S.invForm={name:'',unit:'',qty:'',minStock:'',category:'',price:''};
+  S.invForm={name:'',unit:'',qtys:{},minStock:'',category:'',price:''};
   toast('Producto guardado','#7c3aed');
-  // Preservar scroll al guardar
   const _sv=window.scrollY;
   if(S.view==='admin') renderAdminContent();
   else { render(); requestAnimationFrame(()=>window.scrollTo(0,_sv)); }
@@ -201,10 +306,26 @@ function submitInvForm(rest){
 
 function cancelInvForm(){
   S.invEditId=null;
-  S.invForm={name:'',unit:'',qty:'',minStock:'',category:'',price:''};
+  S.invForm={name:'',unit:'',qtys:{},minStock:'',category:'',price:''};
   const _sv=window.scrollY;
   if(S.view==='admin') renderAdminContent();
   else { render(); requestAnimationFrame(()=>window.scrollTo(0,_sv)); }
+}
+
+// Devuelve el HTML de la sección multi-unit del formulario. Muestra una fila
+// por cada unidad común + las unidades que ya tenga el item aunque sean
+// personalizadas + un botón para añadir una unidad manual.
+function _renderInvQtysForm(){
+  const currentQtys=(S.invForm&&S.invForm.qtys)||{};
+  const extraUnits=Object.keys(currentQtys).filter(u=>!INV_COMMON_UNITS.includes(u));
+  const allUnits=[...INV_COMMON_UNITS,...extraUnits];
+  return `<div style="grid-column:1/-1">
+    <label style="font-size:12px;color:var(--mut)">Cantidad actual (puedes tener varias unidades a la vez)</label>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-top:4px" id="inv-qtys-grid">
+      ${allUnits.map(u=>{const v=currentQtys[u]!==undefined?currentQtys[u]:'';return `<div style="display:flex;align-items:center;gap:4px"><input type="number" min="0" step="0.001" value="${v}" data-inv-qty-unit="${u}" placeholder="0" style="flex:1;padding:6px 8px;border:1.5px solid var(--brd);border-radius:8px;font-size:14px;background:var(--card);color:var(--txt);min-width:50px"/><span style="font-size:12px;color:var(--mut);font-weight:600;min-width:36px">${u}</span></div>`;}).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--mut);margin-top:6px">Deja vacío o en 0 las unidades que no tengas. Ejemplo: 1 Caja + 3 UN + 0.3 KG</div>
+  </div>`;
 }
 
 function ajusteRapido(rest, id, delta){
@@ -250,7 +371,7 @@ function vInventario(){
     if(!supOk) return false;
     return it.manual===true || orderedNames.has(_norm(it.name));
   });
-  const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0));
+  const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&invItemQtyInBase(it)<=(parseFloat(it.minStock)||0));
   // Incluir: categorías de proveedores activos + categorías manuales (no coinciden con ningún proveedor)
   const filteredCats=[...new Set(items.map(it=>it.category||'Sin categoría'))].filter(c=>!allSupCatNames.has(c)||activeSupCatNames.has(c)).sort();
   if(S.invCat&&!filteredCats.includes(S.invCat)) S.invCat=null;
@@ -264,7 +385,7 @@ function vInventario(){
 
   const restTabs=allRests.map(r=>`<button class="stab ${rest===r?'act':''}" onclick="S.invRest='${r.replace(/'/g,"\\'")}';S.invEditId=null;S.invCat=null;render()">${r}</button>`).join('');
 
-  const alertBanner=lowItems.length?`<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e;margin-bottom:12px"><strong>${lowItems.length} producto${lowItems.length>1?'s':''} con stock bajo:</strong> ${lowItems.map(it=>`${it.name} (${parseFloat(it.qty)||0} ${it.unit||'ud'})`).join(', ')}</div>`:'';
+  const alertBanner=lowItems.length?`<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e;margin-bottom:12px"><strong>${lowItems.length} producto${lowItems.length>1?'s':''} con stock bajo:</strong> ${lowItems.map(it=>`${it.name} (${invItemQtysStr(it)})`).join(', ')}</div>`:'';
 
   const isEditing=S.invEditId!==null;
   const editItem=isEditing&&S.invEditId!=='new'?(inventory[restKey(rest)]||{})[S.invEditId]:null;
@@ -273,11 +394,10 @@ function vInventario(){
     <div style="font-weight:700;font-size:14px;margin-bottom:10px">${isEditing&&S.invEditId!=='new'?'Editar producto':' Añadir producto'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <div><label style="font-size:12px;color:var(--mut)">Nombre</label><input id="inv-form-name" class="inp" value="${(S.invForm.name||'').replace(/"/g,'&quot;')}" placeholder="ej: Pechuga de pollo" /></div>
-      <div><label style="font-size:12px;color:var(--mut)">Unidad</label><input id="inv-form-unit" class="inp" value="${S.invForm.unit||''}" placeholder="Kg, L, ud…" /></div>
-      <div><label style="font-size:12px;color:var(--mut)">Cantidad actual</label><input id="inv-form-qty" class="inp" type="number" min="0" step="0.01" value="${S.invForm.qty??''}" placeholder="0" /></div>
       <div><label style="font-size:12px;color:var(--mut)">Precio / unidad (€)</label><input id="inv-form-price" class="inp" type="number" min="0" step="0.01" value="${S.invForm.price??''}" placeholder="0.00" /></div>
       <div><label style="font-size:12px;color:var(--mut)">Stock mínimo</label><input id="inv-form-min" class="inp" type="number" min="0" step="0.01" value="${S.invForm.minStock??''}" placeholder="0 = sin alerta" /></div>
       <div><label style="font-size:12px;color:var(--mut)">Categoría</label><input id="inv-form-cat" class="inp" value="${S.invForm.category||''}" placeholder="ej: Carnes, Lácteos…" /></div>
+      ${_renderInvQtysForm()}
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-acc btn-sm" onclick="submitInvForm('${rest.replace(/'/g,"\\'")}')">Guardar</button>
@@ -290,7 +410,7 @@ function vInventario(){
     return `<tr><td>${ico} ${m.type}</td><td>${m.productName||m.productId}</td><td>${m.qty>0?'+':''}${m.qty}</td><td>${m.source==='pedido'?' Pedido':' Manual'}</td><td style="color:var(--mut)">${m.date?new Date(m.date).toLocaleDateString('es-ES'):''}</td></tr>`;
   }).join('');
 
-  const totalValor=items.reduce((s,it)=>(parseFloat(it.qty)||0)*(parseFloat(it.price)||0)+s,0);
+  const totalValor=items.reduce((s,it)=>invItemValue(it)+s,0);
   const totalItems=items.length;
   const summaryHtml=items.length?`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
     <div class="card" style="flex:1;min-width:130px;padding:12px 16px;text-align:center">
@@ -314,31 +434,29 @@ function vInventario(){
   const searchBox=`<input type="text" value="${S.invSearch||''}" placeholder="Buscar producto o categoría..." oninput="S.invSearch=this.value;render()" style="width:100%;padding:9px 14px;border:1.5px solid var(--brd);border-radius:10px;font-size:14px;background:#fff;color:var(--txt);outline:none;margin-bottom:12px;box-sizing:border-box" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>`;
 
   const table=filteredItems.length?`${searchBox}<table class="spend-table">
-    <thead><tr><th>Producto</th><th>Categoría</th><th>Cantidad</th><th>Precio/ud</th><th>Valor</th><th>Mín.</th><th>Estado</th><th>Ajuste rápido</th><th></th></tr></thead>
+    <thead><tr><th>Producto</th><th>Categoría</th><th>Cantidades</th><th>Precio base</th><th>Valor</th><th>Mín.</th><th>Estado</th><th></th></tr></thead>
     <tbody>${filteredItems.map(it=>{
-      const low=(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0);
-      const qty=parseFloat(it.qty)||0;
+      const qtyBase=invItemQtyInBase(it);
+      const low=(parseFloat(it.minStock)||0)>0&&qtyBase<=(parseFloat(it.minStock)||0);
       const price=parseFloat(it.price)||0;
-      const valor=qty*price;
+      const valor=invItemValue(it);
+      const supProd=findSupProdForInvItem(it);
+      const priceUnit=supProd?.unit||it.unit||'ud';
       return `<tr style="${low?'background:#fef9c3':''}">
         <td style="font-weight:600">${it.name}</td>
         <td style="color:var(--mut)">${it.category||'—'}</td>
-        <td><strong>${qty}</strong> ${it.unit||'ud'}</td>
-        <td style="color:var(--mut)">${price>0?fmt(price):'—'}</td>
+        <td>${invItemQtysStr(it)}</td>
+        <td style="color:var(--mut)">${price>0?fmt(price)+'/'+priceUnit:'—'}</td>
         <td style="font-weight:${valor>0?'700':'400'}">${valor>0?fmt(valor):'—'}</td>
-        <td style="color:var(--mut)">${parseFloat(it.minStock)||0} ${it.unit||'ud'}</td>
+        <td style="color:var(--mut)">${parseFloat(it.minStock)||0} ${priceUnit}</td>
         <td>${low?'<span style="color:#d97706;font-weight:700">Bajo</span>':'<span style="color:#16a34a">OK</span>'}</td>
-        <td><span style="display:flex;gap:4px;align-items:center">
-          <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:16px" onclick="ajusteRapido('${rest.replace(/'/g,"\\'")}','${it.id}',-1)">−</button>
-          <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:16px" onclick="ajusteRapido('${rest.replace(/'/g,"\\'")}','${it.id}',1)">+</button>
-        </span></td>
         <td><span style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','${it.id}')"></button>
+          <button class="btn btn-ghost btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','${it.id}')">Editar</button>
           <button class="btn btn-no btn-sm" onclick="deleteInvItem('${rest.replace(/'/g,"\\'")}','${it.id}')"></button>
         </span></td>
       </tr>`;
     }).join('')}
-    ${totalValor>0?`<tr style="background:var(--bg);font-weight:700"><td colspan="4" style="text-align:right;padding-right:8px">TOTAL</td><td>${fmt(totalValor)}</td><td colspan="4"></td></tr>`:''}
+    ${totalValor>0?`<tr style="background:var(--bg);font-weight:700"><td colspan="4" style="text-align:right;padding-right:8px">TOTAL</td><td>${fmt(totalValor)}</td><td colspan="3"></td></tr>`:''}
     </tbody></table>`
     :(items.length&&invQ?`${searchBox}<div class="empty" style="margin:0"><div class="et">Sin resultados para "<strong>${invQ}</strong>"</div></div>`
     :`<div class="empty"><div class="ei"></div><div class="et">Sin productos en el inventario de ${rest}</div></div>`);
@@ -390,18 +508,19 @@ function vLocalInventario(rest){
     if(!supOk) return false;
     return it.manual===true || orderedNames.has(_norm(it.name));
   });
-  const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0));
-  const alertBanner=lowItems.length?`<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e;margin-bottom:12px"><strong>${lowItems.length} producto${lowItems.length>1?'s':''} con stock bajo:</strong> ${lowItems.map(it=>`${it.name} (${parseFloat(it.qty)||0} ${it.unit||'ud'})`).join(', ')}</div>`:'';
+  const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&invItemQtyInBase(it)<=(parseFloat(it.minStock)||0));
+  const alertBanner=lowItems.length?`<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e;margin-bottom:12px"><strong>${lowItems.length} producto${lowItems.length>1?'s':''} con stock bajo:</strong> ${lowItems.map(it=>`${it.name} (${invItemQtysStr(it)})`).join(', ')}</div>`:'';
   const isEditing=S.invEditId!==null;
 
   const formHtml=`<div class="card" style="margin-bottom:14px">
     <div style="font-weight:700;font-size:14px;margin-bottom:10px">${S.invEditId&&S.invEditId!=='new'?'Editar producto':' Añadir producto'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <div><label style="font-size:12px;color:var(--mut)">Nombre</label><input id="inv-form-name" class="inp" value="${(S.invForm.name||'').replace(/"/g,'&quot;')}" placeholder="ej: Pechuga de pollo" /></div>
-      <div><label style="font-size:12px;color:var(--mut)">Unidad</label><input id="inv-form-unit" class="inp" value="${S.invForm.unit||''}" placeholder="Kg, L, ud…" /></div>
-      <div><label style="font-size:12px;color:var(--mut)">Cantidad actual</label><input id="inv-form-qty" class="inp" type="number" min="0" step="0.01" value="${S.invForm.qty??''}" placeholder="0" /></div>
       <div><label style="font-size:12px;color:var(--mut)">Precio / unidad (€)</label><input id="inv-form-price" class="inp" type="number" min="0" step="0.01" value="${S.invForm.price??''}" placeholder="0.00" /></div>
       <div style="grid-column:1/-1"><label style="font-size:12px;color:var(--mut)">Categoría</label><input id="inv-form-cat" class="inp" value="${S.invForm.category||''}" placeholder="ej: Carnes, Lácteos…" /></div>
+      <div><label style="font-size:12px;color:var(--mut)">Stock mínimo</label><input id="inv-form-min" class="inp" type="number" min="0" step="0.01" value="${S.invForm.minStock??''}" placeholder="0 = sin alerta" /></div>
+      <div></div>
+      ${_renderInvQtysForm()}
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-acc btn-sm" onclick="submitInvForm('${rest.replace(/'/g,"\\'")}')">Guardar</button>
@@ -409,7 +528,7 @@ function vLocalInventario(rest){
     </div>
   </div>`;
 
-  const totalValorR=items.reduce((s,it)=>(parseFloat(it.qty)||0)*(parseFloat(it.price)||0)+s,0);
+  const totalValorR=items.reduce((s,it)=>invItemValue(it)+s,0);
   const summaryRest=items.length?`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
     <div class="card" style="flex:1;min-width:120px;padding:12px 16px;text-align:center">
       <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Productos</div>
@@ -430,27 +549,25 @@ function vLocalInventario(rest){
   const searchBoxR=`<input type="text" value="${S.invSearch||''}" placeholder="Buscar producto o categoría..." oninput="S.invSearch=this.value;render()" style="width:100%;padding:9px 14px;border:1.5px solid var(--brd);border-radius:10px;font-size:14px;background:#fff;color:var(--txt);outline:none;margin-bottom:12px;box-sizing:border-box" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>`;
 
   const table=filteredR.length?`${searchBoxR}<table class="spend-table">
-    <thead><tr><th>Producto</th><th>Categoría</th><th>Cantidad</th><th>Precio/ud</th><th>Valor</th><th>Estado</th><th>Ajuste rápido</th><th></th></tr></thead>
+    <thead><tr><th>Producto</th><th>Categoría</th><th>Cantidades</th><th>Precio base</th><th>Valor</th><th>Estado</th><th></th></tr></thead>
     <tbody>${filteredR.map(it=>{
-      const low=(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0);
-      const qty=parseFloat(it.qty)||0;
+      const qtyBase=invItemQtyInBase(it);
+      const low=(parseFloat(it.minStock)||0)>0&&qtyBase<=(parseFloat(it.minStock)||0);
       const price=parseFloat(it.price)||0;
-      const valor=qty*price;
+      const valor=invItemValue(it);
+      const supProd=findSupProdForInvItem(it);
+      const priceUnit=supProd?.unit||it.unit||'ud';
       return `<tr style="${low?'background:#fef9c3':''}">
         <td style="font-weight:600">${it.name}</td>
         <td style="color:var(--mut)">${it.category||'—'}</td>
-        <td><strong>${qty}</strong> ${it.unit||'ud'}</td>
-        <td style="color:var(--mut)">${price>0?fmt(price):'—'}</td>
+        <td>${invItemQtysStr(it)}</td>
+        <td style="color:var(--mut)">${price>0?fmt(price)+'/'+priceUnit:'—'}</td>
         <td style="font-weight:${valor>0?'700':'400'}">${valor>0?fmt(valor):'—'}</td>
         <td>${low?'<span style="color:#d97706;font-weight:700">Bajo</span>':'<span style="color:#16a34a">OK</span>'}</td>
-        <td><span style="display:flex;gap:4px;align-items:center">
-          <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:16px" onclick="ajusteRapido('${rest.replace(/'/g,"\\'")}','${it.id}',-1)">−</button>
-          <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:16px" onclick="ajusteRapido('${rest.replace(/'/g,"\\'")}','${it.id}',1)">+</button>
-        </span></td>
         <td><button class="btn btn-ghost btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','${it.id}')">Editar</button></td>
       </tr>`;
     }).join('')}
-    ${totalValorR>0?`<tr style="background:var(--bg);font-weight:700"><td colspan="4" style="text-align:right;padding-right:8px">TOTAL</td><td>${fmt(totalValorR)}</td><td colspan="3"></td></tr>`:''}
+    ${totalValorR>0?`<tr style="background:var(--bg);font-weight:700"><td colspan="4" style="text-align:right;padding-right:8px">TOTAL</td><td>${fmt(totalValorR)}</td><td colspan="2"></td></tr>`:''}
     </tbody></table>`
     :(items.length&&invQR?`${searchBoxR}<div class="empty" style="margin:0"><div class="et">Sin resultados para "<strong>${invQR}</strong>"</div></div>`
     :`<div class="empty"><div class="ei"></div><div class="et">Sin productos en el inventario aún.<br><br><button class="btn btn-acc btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','new')"> Añadir primero</button></div></div>`);

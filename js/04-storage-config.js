@@ -10,7 +10,8 @@ function saveCfg(){
     approvalMinAmount: cfg.approvalMinAmount||0,
     alertThreshold: cfg.alertThreshold||300,
     priceAlertPct: cfg.priceAlertPct||5,
-    adminPhone: cfg.adminPhone||''
+    adminPhone: cfg.adminPhone||'',
+    admin3ApprovalLimit: cfg.admin3ApprovalLimit!==undefined?cfg.admin3ApprovalLimit:100
   });
 }
 

@@ -22,6 +22,12 @@ function vAdmin(){
     return `<div class="sg-direct${act?' act':''}" onclick="setTabSb('${id}')" style="display:flex;align-items:center;justify-content:space-between">${lbl}${badge}</div>`;
   }
 
+  // Filtrado de items del sidebar según el rol del usuario (Fase 1 permisos):
+  const _shopEdit = can('canManageProducts');       // admin2+ → gestión de productos/proveedores/escandallos
+  const _canReviewAlb = can('canReviewAlbaranes');  // admin2+ → revisar albaranes
+  const _canConfig = can('canConfigWeb');           // admin1 solo → configuración
+  const _canManageUsers = can('canCreateBasicUsers'); // admin2+ → alta de usuarios y solicitudes
+  const _canAssignSup = can('canAssignSuppliers'); // admin2+ → visibilidad de proveedores por local
   const sidebar=`<div class="sidebar${S.sidebarOpen?' sb-open':''}">
     <div class="sb-mini-stats" id="sb-stats">${buildSbStats(pend,appr)}</div>
     <div class="sb-section">Pedidos</div>
@@ -36,15 +42,15 @@ function vAdmin(){
     ${sbItem('compras','Compras por producto')}
     ${sbItem('sup-history','Por proveedor')}
     <div class="sb-section">Operaciones</div>
-    ${sbItem('productos','Productos')}
-    ${sbItem('albaranes','Albaranes')}
+    ${_shopEdit?sbItem('productos','Productos'):''}
+    ${_canReviewAlb?sbItem('albaranes','Albaranes'):''}
     ${sbItem('inventario','Inventario')}
     <div class="sb-section">Gestión</div>
-    ${sbItem('solicitudes','Solicitudes','sb-sol-badge')}
-    ${sbItem('suppliers','Proveedores')}
-    ${sbItem('sup-visibility','Visibilidad por local')}
-    ${sbItem('escandallos','Escandallos')}
-    ${sbItem('settings','Configuración')}
+    ${_canManageUsers?sbItem('solicitudes','Solicitudes','sb-sol-badge'):''}
+    ${_shopEdit?sbItem('suppliers','Proveedores'):''}
+    ${_canAssignSup?sbItem('sup-visibility','Visibilidad por local'):''}
+    ${_shopEdit?sbItem('escandallos','Escandallos'):''}
+    ${_canConfig?sbItem('settings','Configuración'):''}
     <div style="border-top:1px solid rgba(255,255,255,.1);margin:12px 10px 8px;padding-top:12px">
       <div class="sg-direct" onclick="S.adminOrderPicker=true;S.sidebarOpen=false;render()" style="background:rgba(251,191,36,.12);border-radius:9px;color:#fbbf24;font-weight:700;border:1px solid rgba(251,191,36,.25)">Hacer pedido</div>
     </div>
@@ -152,10 +158,17 @@ function orderCard(o,showActions){
         </div>
       </div>`;
     } else {
+      // Mostrar botón Aprobar solo si el rol tiene permiso Y el importe entra
+      // en su límite. Si no, mostrar mensaje explicativo.
+      const _canAppr=canApproveOrderAmount(total(o));
+      const _lim=currentApprovalLimit();
+      const _apprBtn=_canAppr
+        ?`<button class="btn btn-ok btn-sm" onclick="approve('${o.id}')">Aprobar</button>`
+        :`<span style="font-size:12px;color:#dc2626;padding:6px 10px;background:#fee2e2;border-radius:6px">Fuera de tu límite (${_lim===Infinity?'sin límite':fmt(_lim)})</span>`;
       acts=`<div style="width:100%">
         <textarea id="approve-note-${o.id}" placeholder="Comentario al aprobar (opcional)..." rows="2" style="width:100%;padding:6px 8px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt);resize:none;box-sizing:border-box;margin-bottom:6px"></textarea>
         <div class="oc-acts">
-          <button class="btn btn-ok btn-sm" onclick="approve('${o.id}')">Aprobar</button>
+          ${_apprBtn}
           <button class="btn btn-blue btn-sm" onclick="startEditOrder('${o.id}')"> Modificar</button>
           <button class="btn btn-no btn-sm" onclick="rejectWithReason('${o.id}')">✗ Rechazar</button>
         </div>

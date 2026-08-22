@@ -47,17 +47,29 @@ function vSolicitudes(){
     <div class="sh" style="margin-top:20px">Usuarios activos (${approved.length})</div>
     ${approved.map(u=>{
       const isEditing=S.editingPermsUid===u.uid;
+      // Rol actual del usuario (con default para usuarios legacy sin campo role)
+      const uRole=(u.role && ROLES.includes(u.role))?u.role:(u.isAdmin?'admin1':'jefe_cocina');
+      const roleLbl=ROLE_LABELS[uRole];
+      // Selector de rol — solo visible para quien puede cambiarlo
+      const myRole=currentRole();
+      const canChangeThisRole=canAssignRole(myRole,uRole);
+      const rolePickerOpts=ROLES
+        .filter(r=>canAssignRole(myRole,r))
+        .map(r=>`<option value="${r}" ${r===uRole?'selected':''}>${ROLE_LABELS[r]}</option>`).join('');
+      const rolePicker=canChangeThisRole&&rolePickerOpts?`<select onchange="setUserRole('${u.uid}',this.value)" style="padding:4px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt);font-weight:600">${rolePickerOpts}</select>`
+        :`<span style="font-size:12px;color:var(--mut);font-weight:600">${roleLbl}</span>`;
+      const blockedBadge=u.blocked?'<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:6px;font-size:11px;font-weight:700;margin-left:4px">BLOQUEADO</span>':'';
       return `
-      <div class="user-card" style="${isEditing?'border-color:var(--pri);box-shadow:0 0 0 2px rgba(26,26,46,.12)':''}">
+      <div class="user-card" style="${isEditing?'border-color:var(--pri);box-shadow:0 0 0 2px rgba(26,26,46,.12)':''}${u.blocked?';opacity:.65':''}">
         <div class="uc-hd">
           <div style="flex:1;min-width:0">
-            <div class="uc-name"> ${u.email}${u.name&&u.name!==u.email?` <span style="font-weight:400;font-size:13px;color:var(--mut)">· ${u.name}</span>`:''}</div>
-            <div class="uc-info" style="margin-top:4px">${restBadges(u)} · ${u.needsApproval?'Aprobación manual':'Auto-aprobado'}${u.isAdmin?' · <strong style="color:var(--pri)">Admin</strong>':''}</div>
+            <div class="uc-name"> ${u.email}${u.name&&u.name!==u.email?` <span style="font-weight:400;font-size:13px;color:var(--mut)">· ${u.name}</span>`:''}${blockedBadge}</div>
+            <div class="uc-info" style="margin-top:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">${restBadges(u)} · ${u.needsApproval?'Aprobación manual':'Auto-aprobado'} · ${rolePicker}</div>
           </div>
           <div class="uc-acts" style="flex-wrap:wrap;gap:4px">
-            <button class="btn btn-blue btn-sm" onclick="S.editingPermsUid='${isEditing?'':u.uid}';render()"> ${isEditing?'Cerrar':'Permisos'}</button>
+            <button class="btn btn-blue btn-sm" onclick="S.editingPermsUid='${isEditing?'':u.uid}';render()"> ${isEditing?'Cerrar':'Locales'}</button>
             <button class="btn btn-ghost btn-sm" title="${u.needsApproval?'Cambiar a auto-aprobado':'Cambiar a requiere aprobación'}" onclick="toggleNeedsApprovalAuth('${u.uid}',${!u.needsApproval})">${u.needsApproval?'Auto':'Manual'}</button>
-            <button class="btn btn-ghost btn-sm" title="${u.isAdmin?'Quitar rol admin':'Dar acceso de administrador'}" onclick="toggleAdminRole('${u.uid}',${!u.isAdmin})" style="${u.isAdmin?'background:#ede9fe;color:#7c3aed;border-color:#c4b5fd':''}"> ${u.isAdmin?'Admin ✓':'+ Admin'}</button>
+            ${can('canBlockUsers')?`<button class="btn btn-ghost btn-sm" title="${u.blocked?'Desbloquear cuenta':'Bloquear cuenta'}" onclick="toggleUserBlock('${u.uid}',${!u.blocked})" style="${u.blocked?'background:#fee2e2;color:#dc2626;border-color:#fecaca':''}">${u.blocked?'🔒 Bloqueado':'🔓'}</button>`:''}
             <button class="btn btn-no btn-xs" title="Revocar acceso" onclick="revokeUser('${u.uid}')"></button>
           </div>
         </div>
@@ -106,6 +118,29 @@ function toggleAdminRole(uid,val){
   if(val && !confirm('¿Dar acceso de administrador completo a '+u.email+'?'))return;
   fbDb.ref('authUsers/'+uid).update({isAdmin:val})
     .then(()=>toast(val?'Ya es administrador: '+u.email:'Rol admin retirado','#16a34a'));
+}
+// Cambiar el rol de un usuario. Comprueba que el rol actual del que llama
+// tiene permisos para asignar ese rol (admin1 puede todos, admin2 solo los
+// no admin: camarero/jefe_cocina/encargado).
+function setUserRole(uid,newRole){
+  const u=authUsers[uid]; if(!u) return;
+  if(!ROLES.includes(newRole)){ toast('Rol inválido','#dc2626'); return; }
+  const myRole=currentRole();
+  if(!canAssignRole(myRole,newRole)){ toast('No tienes permiso para asignar ese rol','#dc2626'); return; }
+  // También comprobar que puede asignar/cambiar el rol ANTERIOR
+  const oldRole=(u.role&&ROLES.includes(u.role))?u.role:(u.isAdmin?'admin1':'jefe_cocina');
+  if(!canAssignRole(myRole,oldRole)){ toast('No tienes permiso sobre este usuario','#dc2626'); return; }
+  // Sincronizar isAdmin con el rol (para compat con lugares donde aún se usa)
+  const updates={role:newRole,isAdmin:ROLE_LEVEL[newRole]>=ROLE_LEVEL.admin3};
+  fbDb.ref('authUsers/'+uid).update(updates)
+    .then(()=>toast('Rol actualizado: '+ROLE_LABELS[newRole],'#16a34a'));
+}
+// Bloquear/desbloquear una cuenta. Solo admin1 (via can('canBlockUsers')).
+function toggleUserBlock(uid,val){
+  const u=authUsers[uid]; if(!u) return;
+  if(val && !confirm('¿Bloquear a '+u.email+'? No podrá entrar hasta que lo desbloquees.')) return;
+  fbDb.ref('authUsers/'+uid).update({blocked:val,blockedAt:val?new Date().toISOString():null})
+    .then(()=>toast(val?'Cuenta bloqueada: '+u.email:'Cuenta desbloqueada','#16a34a'));
 }
 function revokeUser(uid){
   const u=authUsers[uid]; if(!u)return;

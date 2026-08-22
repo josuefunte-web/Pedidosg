@@ -2,13 +2,90 @@
 function setSup(id){ S.supId=id;S.prodSearch='';render(); }
 
 function setUnit(pid,unit){
+  const sup=suppliers[S.supId];if(!sup)return;
+  const prod=(sup.products||[]).find(p=>p.id===pid);
+  if(!prod) return;
+  const baseUnit=prod.unit||'KG';
+  // Si la unidad seleccionada no es la base y NO hay conversión definida para
+  // ella, obligar al usuario a introducirla ahora (queda pendiente de que el
+  // admin valide el factor). Sin esto, el precio del pedido saldría mal.
+  if(unit!==baseUnit){
+    const conv=(prod.conversions||[]).find(c=>c.fromUnit===unit&&parseFloat(c.factor)>0);
+    if(!conv){
+      promptMissingConversion(S.supId,pid,unit,()=>{
+        // Cuando termine el modal (guardado o cancelado), reaplicar setUnit
+        // solo si ahora sí existe la conversión.
+        const updatedProd=(suppliers[S.supId]?.products||[]).find(p=>p.id===pid);
+        const nowConv=(updatedProd?.conversions||[]).find(c=>c.fromUnit===unit&&parseFloat(c.factor)>0);
+        if(nowConv) _applySetUnit(pid,unit);
+      });
+      return;
+    }
+  }
+  _applySetUnit(pid,unit);
+}
+function _applySetUnit(pid,unit){
   if(!S.cartUnits[S.supId])S.cartUnits[S.supId]={};
   S.cartUnits[S.supId][pid]=unit;
-  // Rerender unit buttons in-place
   const sup=suppliers[S.supId];if(!sup)return;
-  const _UNITS=['KG','L','UN','Caja'];
+  const prod=(sup.products||[]).find(p=>p.id===pid);
+  const prodUnits=prod?_prodUnits(prod):['KG','L','UN','Caja'];
   const el=document.getElementById('ur-'+pid);
-  if(el) el.innerHTML=_UNITS.map(u=>`<button class="ubt${unit===u?' ubt-on':''}" onclick="setUnit('${pid}','${u}');event.stopPropagation()">${u}</button>`).join('');
+  if(el) el.innerHTML=prodUnits.map(u=>`<button class="ubt${unit===u?' ubt-on':''}" onclick="setUnit('${pid}','${u}');event.stopPropagation()">${u}</button>`).join('');
+  // Recalcular la barra del carrito con la nueva unidad (mismo cálculo que chgQ)
+  const cnt=Object.values(S.cart).reduce((s,sc2)=>s+Object.values(sc2).reduce((a,v)=>a+v,0),0);
+  const tot=Object.entries(S.cart).reduce((s,[sid,sc2])=>{const sp=suppliers[sid];if(!sp)return s;return s+(sp.products||[]).reduce((a,p)=>{const q=sc2[p.id]||0;if(!q)return a;const selUnit=(S.cartUnits[sid]||{})[p.id]||p.unit;return a+q*effectivePrice(p,selUnit);},0);},0);
+  const bar=document.getElementById('cbar');if(bar)bar.className='cbar'+(cnt>0?' up':'');
+  const cv=document.getElementById('cb-v');if(cv)cv.textContent=`${cnt} art. · ${Object.keys(S.cart).length} prov.`;
+  const cs=document.getElementById('cb-s');if(cs)cs.textContent=fmt(tot);
+}
+
+// Modal para pedir al usuario el factor de conversión de una unidad no
+// registrada. La conversión se guarda con pendingValidation:true para que el
+// admin luego la revise (aparece en Admin → Proveedores → sección "Conversiones
+// pendientes de validar").
+function promptMissingConversion(sid,pid,unit,onClose){
+  const sup=suppliers[sid]; if(!sup){ if(onClose)onClose(); return; }
+  const prod=(sup.products||[]).find(p=>p.id===pid); if(!prod){ if(onClose)onClose(); return; }
+  const base=prod.unit||'KG';
+  const ov=document.createElement('div');
+  ov.id='conv-prompt-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1600;display:flex;align-items:center;justify-content:center;padding:14px';
+  ov.innerHTML=`<div style="background:var(--card);border-radius:14px;padding:22px;max-width:420px;width:100%">
+    <div style="font-weight:700;font-size:16px;margin-bottom:6px">Falta la conversión de unidad</div>
+    <div style="font-size:13px;color:var(--mut);margin-bottom:14px">El precio de <strong>${prod.name}</strong> está registrado en <strong>${base}</strong>. Para pedir en <strong>${unit}</strong> necesitamos saber la equivalencia. El admin la revisará después.</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <span style="font-size:14px">1 ${unit} =</span>
+      <input type="number" id="cv-factor-inp" step="0.001" min="0" placeholder="ej: 15" style="flex:1;padding:8px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:15px;background:var(--card);color:var(--txt)"/>
+      <span style="font-size:14px;color:var(--mut)">${base}</span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ok btn-sm" onclick="_saveMissingConv('${sid}','${pid}','${unit}')" style="flex:1">Guardar y continuar</button>
+      <button class="btn btn-ghost btn-sm" onclick="_closeMissingConv()">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  window._missingConvOnClose=onClose;
+  setTimeout(()=>document.getElementById('cv-factor-inp')?.focus(),80);
+}
+function _closeMissingConv(){
+  const ov=document.getElementById('conv-prompt-ov'); if(ov) ov.remove();
+  const cb=window._missingConvOnClose; window._missingConvOnClose=null;
+  if(cb) try{cb();}catch(e){}
+}
+function _saveMissingConv(sid,pid,unit){
+  const val=parseFloat(document.getElementById('cv-factor-inp')?.value);
+  if(isNaN(val)||val<=0){ toast('Introduce un valor válido (>0)','#dc2626'); return; }
+  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
+  if(!prod){ _closeMissingConv(); return; }
+  if(!prod.conversions) prod.conversions=[];
+  const idx=prod.conversions.findIndex(c=>c.fromUnit===unit);
+  const entry={fromUnit:unit,factor:val,pendingValidation:true,addedBy:S.session?.name||S.session?.restaurant||'Local',addedAt:new Date().toISOString()};
+  if(idx>=0) prod.conversions[idx]={...prod.conversions[idx],...entry};
+  else prod.conversions.push(entry);
+  saveSups(sid);
+  toast('Conversión guardada — pendiente de validación por el admin','#0369a1',4000);
+  _closeMissingConv();
 }
 
 function filterProds(val){
@@ -150,6 +227,13 @@ function approve(id){
   const noteEl=document.getElementById('approve-note-'+id);
   const approvalNote=noteEl?noteEl.value.trim():'';
   const o=orders.find(x=>x.id===id);
+  // Verificar que el rol tiene permiso para aprobar Y que el importe no
+  // supera su límite. admin3 tiene límite configurable, admin2/admin1 no.
+  if(o && !canApproveOrderAmount(total(o))){
+    const lim=currentApprovalLimit();
+    toast(`No puedes aprobar este pedido (${fmt(total(o))}). Tu límite es ${lim===Infinity?'sin límite':fmt(lim)}.`,'#dc2626',5000);
+    return;
+  }
   updateOrder(id,{status:'approved',...(approvalNote?{approvalNote}:{})});
   if(!fbDb){ if(o){o.status='approved';if(approvalNote)o.approvalNote=approvalNote;} render(); }
   toast('Pedido aprobado','#16a34a');

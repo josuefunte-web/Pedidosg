@@ -25,6 +25,12 @@ function vSettings(){
       <input type="number" value="${cfg.priceAlertPct||5}" min="1" max="50" step="1" onchange="cfg.priceAlertPct=parseFloat(this.value)||5;saveCfg()"/>
       <div style="font-size:12px;color:var(--mut);margin-top:4px">Aviso cuando un producto sube más de este porcentaje</div>
     </div>
+    <div class="card-t" style="margin-top:20px">Roles y autorización</div>
+    <div class="fg">
+      <label>Límite de aprobación para Admin 3 (€)</label>
+      <input type="number" value="${cfg.admin3ApprovalLimit!==undefined?cfg.admin3ApprovalLimit:100}" min="0" step="10" onchange="cfg.admin3ApprovalLimit=parseFloat(this.value)||0;saveCfg()"/>
+      <div style="font-size:12px;color:var(--mut);margin-top:4px">Los usuarios con rol <strong>Admin 3</strong> pueden aprobar pedidos hasta este importe. Admin 2 y Admin 1 no tienen límite.</div>
+    </div>
     <div class="card-t" style="margin-top:20px"> Notificaciones push en el móvil</div>
     <div class="fg">
       <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px">

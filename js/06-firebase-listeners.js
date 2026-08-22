@@ -150,6 +150,7 @@ function _listenGlobalCfg(){
     if(val.alertThreshold !== undefined) cfg.alertThreshold = val.alertThreshold;
     if(val.priceAlertPct !== undefined) cfg.priceAlertPct = val.priceAlertPct;
     if(val.adminPhone !== undefined) cfg.adminPhone = val.adminPhone;
+    if(val.admin3ApprovalLimit !== undefined) cfg.admin3ApprovalLimit = val.admin3ApprovalLimit;
     localStorage.setItem('oc_cfg', JSON.stringify(cfg));
     if(val.appVersion !== undefined) _handleAppVersionChange(val.appVersion);
   });

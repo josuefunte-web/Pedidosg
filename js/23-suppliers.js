@@ -6,7 +6,8 @@ function vSuppliers(){
   const exportBtn=`<button class="btn btn-ghost btn-sm" onclick="exportExcel('all')" style="margin-bottom:14px;margin-left:8px">Exportar pedidos</button>`;
   const autoClasBtn=`<button class="btn btn-blue btn-sm" onclick="autoClasificarProductos(false)" style="margin-bottom:14px;margin-left:8px" title="Asigna categoría a los productos que no tienen ninguna, usando el nombre del producto">Clasificar productos automáticamente</button>`
     +`<button class="btn btn-ok btn-sm" onclick="reclasificarTodo()" style="margin-bottom:14px;margin-left:8px" title="Revisa TODOS los productos y corrige los que estén mal clasificados">Revisar y corregir todo</button>`;
-  const bulkBtn=`<label class="btn btn-acc btn-sm" style="margin-bottom:14px;margin-left:8px;cursor:pointer" title="Sube un XLSX con una hoja por proveedor. Crea los nuevos y actualiza precios de los existentes.">📦 Importar plantilla masiva<input type="file" accept=".xlsx,.xls" style="display:none" onchange="importBulkTarifa(this)"/></label>`;
+  // Solo admin1 puede importar plantillas masivas (potencial de sobreescribir mucho contenido)
+  const bulkBtn=can('canImportBulk')?`<label class="btn btn-acc btn-sm" style="margin-bottom:14px;margin-left:8px;cursor:pointer" title="Sube un XLSX con una hoja por proveedor. Crea los nuevos y actualiza precios de los existentes.">📦 Importar plantilla masiva<input type="file" accept=".xlsx,.xls" style="display:none" onchange="importBulkTarifa(this)"/></label>`:'';
   const list=supList().map(sup=>{
     if(!sup.products) sup.products=[];
     const open=S.openSupId===sup.id;
@@ -23,7 +24,62 @@ function vSuppliers(){
       ${open?`<div class="sc-body">${supDetailForm(sup)}</div>`:''}
     </div>`;
   }).join('');
-  return newF+exportBtn+autoClasBtn+bulkBtn+list;
+  // Banner: si hay conversiones pendientes de validar (creadas por locales),
+  // mostrar aviso arriba con enlace para revisarlas una a una.
+  const pending=[];
+  Object.values(suppliers).forEach(sup=>{
+    (sup.products||[]).forEach(p=>{
+      (p.conversions||[]).forEach(c=>{
+        if(c.pendingValidation) pending.push({sup,prod:p,conv:c});
+      });
+    });
+  });
+  const pendingBanner=pending.length?`<div class="banner" style="background:#dbeafe;border:1.5px solid #93c5fd;color:#1e40af;margin-bottom:12px;padding:12px 14px;border-radius:10px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:6px">⏳ ${pending.length} conversión${pending.length!==1?'es':''} pendiente${pending.length!==1?'s':''} de validar</div>
+    <div style="font-size:12px;margin-bottom:8px">Estas equivalencias las introdujeron locales al hacer pedidos porque faltaban. Revísalas y confirma o corrige el valor.</div>
+    ${pending.slice(0,10).map(x=>{
+      const base=x.prod.unit||'KG';
+      const who=x.conv.addedBy?` por ${x.conv.addedBy}`:'';
+      return `<div style="background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px;font-size:13px"><strong>${x.sup.name}</strong> — ${x.prod.name}<br><span style="font-size:12px;color:#0369a1">1 ${x.conv.fromUnit} = <strong>${x.conv.factor}</strong> ${base}${who?' · '+who:''}</span></div>
+        <div style="display:flex;gap:4px">
+          <input type="number" step="0.001" min="0" value="${x.conv.factor}" id="pv-inp-${x.sup.id}-${x.prod.id}-${x.conv.fromUnit}" style="width:70px;padding:4px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:13px"/>
+          <button class="btn btn-ok btn-xs" onclick="validatePendingConv('${x.sup.id}','${x.prod.id}','${x.conv.fromUnit}',document.getElementById('pv-inp-${x.sup.id}-${x.prod.id}-${x.conv.fromUnit}').value)">✓ Validar</button>
+          <button class="btn btn-no btn-xs" onclick="rejectPendingConv('${x.sup.id}','${x.prod.id}','${x.conv.fromUnit}')">✕ Borrar</button>
+        </div>
+      </div>`;
+    }).join('')}
+    ${pending.length>10?`<div style="font-size:12px;color:var(--mut);margin-top:4px">Y ${pending.length-10} más...</div>`:''}
+  </div>`:'';
+  return pendingBanner+newF+exportBtn+autoClasBtn+bulkBtn+list;
+}
+// Admin valida una conversión pendiente: guarda el factor (posiblemente
+// corregido) y quita el flag pendingValidation.
+function validatePendingConv(sid,pid,unit,newFactor){
+  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
+  if(!prod||!prod.conversions) return;
+  const conv=prod.conversions.find(c=>c.fromUnit===unit);
+  if(!conv) return;
+  const f=parseFloat(newFactor);
+  if(isNaN(f)||f<=0){ toast('Factor inválido','#dc2626'); return; }
+  conv.factor=f;
+  delete conv.pendingValidation;
+  delete conv.addedBy;
+  delete conv.addedAt;
+  saveSups(sid);
+  toast('Conversión validada','#16a34a');
+  renderAdminContent();
+}
+function rejectPendingConv(sid,pid,unit){
+  if(!confirm('¿Borrar esta conversión? El local que la introdujo tendrá que volver a añadirla si la necesita.')) return;
+  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
+  if(!prod||!prod.conversions) return;
+  const idx=prod.conversions.findIndex(c=>c.fromUnit===unit);
+  if(idx<0) return;
+  prod.conversions.splice(idx,1);
+  saveSups(sid);
+  toast('Conversión eliminada','#d97706');
+  renderAdminContent();
 }
 function supForm(sup){
   const id=sup?sup.id:'new';
@@ -420,10 +476,12 @@ function renderConvRows(sid,p){
     ${all.map(u=>{
       const conv=(p.conversions||[]).find(c=>c.fromUnit===u);
       const val=conv?conv.factor:'';
-      return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+      const pending=conv&&conv.pendingValidation;
+      return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap${pending?';background:#dbeafe;padding:4px 6px;border-radius:6px':''}">
         <span style="font-size:12px;color:var(--mut);min-width:70px">1 ${u} =</span>
         <input type="number" value="${val}" step="0.001" min="0" placeholder="—" style="width:80px;padding:3px 7px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="setProdConv('${sid}','${p.id}','${u}',this.value)"/>
         <span style="font-size:12px;color:var(--mut)">${base}</span>
+        ${pending?`<span style="font-size:11px;color:#0369a1;font-weight:700">⏳ Pendiente${conv.addedBy?' (de '+conv.addedBy+')':''}</span><button class="btn btn-ok btn-xs" onclick="validatePendingConv('${sid}','${p.id}','${u}',document.querySelector('[onchange*=\\'${p.id}\\'][onchange*=\\'${u}\\']').value)">✓ Validar</button>`:''}
         ${custom.includes(u)?`<button class="btn btn-no btn-xs" onclick="setProdConv('${sid}','${p.id}','${u}','')" title="Eliminar unidad personalizada">✕</button>`:''}
       </div>`;
     }).join('')}`;
@@ -440,8 +498,13 @@ function setProdConv(sid,pid,unit,val){
     // Vaciar = eliminar la conversión
     if(idx>=0) prod.conversions.splice(idx,1);
   } else {
-    if(idx>=0) prod.conversions[idx].factor=f;
-    else prod.conversions.push({fromUnit:unit,factor:f});
+    if(idx>=0){
+      prod.conversions[idx].factor=f;
+      // Si el admin cambia el factor, se considera validado automáticamente
+      delete prod.conversions[idx].pendingValidation;
+      delete prod.conversions[idx].addedBy;
+      delete prod.conversions[idx].addedAt;
+    } else prod.conversions.push({fromUnit:unit,factor:f});
   }
   saveSups(sid);
 }

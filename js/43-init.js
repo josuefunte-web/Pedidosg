@@ -196,9 +196,20 @@ self.addEventListener('fetch',e=>{
           const isAdminUser=(user.email && user.email.toLowerCase()===(cfg.adminEmail||'josue.funte@gmail.com').toLowerCase()) || (u && u.isAdmin===true);
           if(isAdminUser){ goAdmin(); return; }
           if(u && u.status==='approved'){
+            // ── Bloqueo de cuenta (admin1 puede bloquear usuarios) ──
+            if(u.blocked===true){
+              alert('Tu cuenta está bloqueada. Contacta con el administrador.');
+              fbAuth.signOut().catch(()=>{});
+              S.session=null; S.view='login'; render();
+              return;
+            }
             const myRests=u.restaurants||[u.restaurant];
             const _rest0=myRests[0]||u.restaurant;
-            S.session={uid:user.uid,email:user.email,name:u.name||u.restaurant,restaurant:_rest0,restaurants:myRests,userId:userIdForRestaurant(_rest0),isAdmin:false,needsApproval:u.needsApproval!==false};
+            // Determinar rol: prioridad al campo `role` si existe; si no,
+            // isAdmin → admin1; resto → jefe_cocina (default para locales
+            // existentes que no tienen rol asignado todavía).
+            const _role = (u.role && ROLES.includes(u.role)) ? u.role : (u.isAdmin ? 'admin1' : 'jefe_cocina');
+            S.session={uid:user.uid,email:user.email,name:u.name||u.restaurant,restaurant:_rest0,restaurants:myRests,userId:userIdForRestaurant(_rest0),isAdmin:false,role:_role,needsApproval:u.needsApproval!==false};
             showHdr(false);
             S.view='order';
             const sl=visibleSups(); if(sl.length) S.supId=sl[0].id;
@@ -228,7 +239,7 @@ self.addEventListener('fetch',e=>{
 
   // ── Restaurar sesión de administrador (localStorage) ──
   if(localStorage.getItem('oc_admin_session')==='1'){
-    S.session={isAdmin:true,name:cfg.adminName};
+    S.session={isAdmin:true,role:'admin1',name:cfg.adminName};
     showHdr(true);
     S.view='admin';
     render();
