@@ -75,23 +75,40 @@ function updateStockFromOrder(order, receivedItems){
   const k=restKey(rest);
   const items=receivedItems||order.items||[];
   const invNow=inventory[k]||{};
+  const sup=suppliers[order.supId];
   items.forEach(it=>{
     if(it.recvStatus==='missing') return; // no añadir si no llegó
-    const qty=parseFloat(it.qty)||0;
+    let qty=parseFloat(it.qty)||0;
     if(qty<=0) return;
+    // Localizar el producto en el catálogo del proveedor para conocer la
+    // "unidad base" (la unidad en la que está registrado el precio).
+    // TODO SIEMPRE se contabiliza en esa unidad base — así qty × precio es correcto.
+    const supProd=(sup?.products||[]).find(p=>p.name&&p.name.trim().toLowerCase()===(it.name||it.product||'').trim().toLowerCase());
+    const baseUnit=supProd?.unit||it.unit||'ud';
+    // Si el usuario pidió en otra unidad (p.ej. Caja) y el precio está por KG,
+    // convertir usando las conversiones definidas en el producto.
+    // 1 Caja * factor(15) = 15 KG → se guardan 15 KG en el inventario.
+    if(supProd && it.unit && it.unit!==baseUnit){
+      const conv=(supProd.conversions||[]).find(c=>c.fromUnit===it.unit);
+      if(conv && parseFloat(conv.factor)>0){ qty=qty*parseFloat(conv.factor); }
+    }
     // Try to match by name
     const existing=Object.values(invNow).find(p=>p.name&&p.name.trim().toLowerCase()===((it.name||it.product||'').trim().toLowerCase()));
     if(existing){
       const newQty=(parseFloat(existing.qty)||0)+qty;
       fbDb.ref('inventory/'+k+'/'+existing.id+'/qty').set(newQty);
       fbDb.ref('inventory/'+k+'/'+existing.id+'/updatedAt').set(new Date().toISOString());
+      // Si el item de inventario tenía una unidad distinta a la del precio,
+      // corregirla ahora — mantener siempre la unidad base garantiza que la
+      // valoración qty×precio sea consistente.
+      if(existing.unit!==baseUnit){
+        fbDb.ref('inventory/'+k+'/'+existing.id+'/unit').set(baseUnit);
+      }
       addInvMovement(rest,existing.id,existing.name,'entrada',qty,'pedido',order.id);
     } else {
-      // Create new product automatically
+      // Create new product automatically — siempre en la unidad base del precio
       const id='inv_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);
-      const sup=suppliers[order.supId];
-      const supProd=(sup?.products||[]).find(p=>p.name&&p.name.trim().toLowerCase()===(it.name||it.product||'').trim().toLowerCase());
-      const pData={id,name:it.name||it.product||'Producto',unit:it.unit||supProd?.unit||'ud',qty,minStock:0,price:parseFloat(supProd?.price||it.price)||0,category:sup?sup.name:'General',updatedAt:new Date().toISOString(),updatedBy:'Pedido automático'};
+      const pData={id,name:it.name||it.product||'Producto',unit:baseUnit,qty,minStock:0,price:parseFloat(supProd?.price||it.price)||0,category:sup?sup.name:'General',updatedAt:new Date().toISOString(),updatedBy:'Pedido automático'};
       fbDb.ref('inventory/'+k+'/'+id).set(pData);
       addInvMovement(rest,id,pData.name,'entrada',qty,'pedido',order.id);
     }
@@ -161,7 +178,11 @@ function submitInvForm(rest){
   const category=(document.getElementById('inv-form-cat')?.value||'').trim();
   const price=parseFloat(document.getElementById('inv-form-price')?.value)||0;
   if(!name){ toast('Introduce un nombre','#dc2626'); return; }
-  const id=saveInvItem(rest,{...(S.invEditId?{id:S.invEditId}:{}),name,unit,qty,minStock,category,price});
+  // Marcar como 'manual' si es nuevo — esto hace que aparezca en el inventario
+  // aunque nunca se haya pedido (los importados sin flag manual solo se ven si
+  // aparecen en algún pedido de este local).
+  const isNew=!S.invEditId||S.invEditId==='new';
+  const id=saveInvItem(rest,{...(S.invEditId&&S.invEditId!=='new'?{id:S.invEditId}:{}),name,unit,qty,minStock,category,price,...(isNew?{manual:true}:{})});
   if(!S.invEditId&&id){
     addInvMovement(rest,id,name,'ajuste',qty,'manual',null,'Alta de producto');
   } else if(S.invEditId){
@@ -210,15 +231,24 @@ function vInventario(){
   const activeSupCatNames=new Set(activeSups.map(s=>(s.emoji?s.emoji+' ':'')+s.name));
   const allSupCatNames=new Set(supList().map(s=>(s.emoji?s.emoji+' ':'')+s.name));
 
-  // Ocultar (sin borrar de Firebase) los productos que vengan de proveedores
-  // desactivados para este local. Se mantienen en la base de datos por si el
-  // admin reactiva el proveedor más adelante — reaparecerán automáticamente.
-  // Un item se muestra si:
-  //   · su categoría NO coincide con ningún proveedor (categoría manual), o
-  //   · su categoría coincide con un proveedor activo para este local.
+  // Nombres de productos que este local ha pedido alguna vez (normalizados)
+  const _norm=n=>(n||'').trim().toLowerCase();
+  const orderedNames=new Set();
+  orders.filter(o=>o.restaurant===rest&&o.status!=='rejected').forEach(o=>{
+    (o.items||[]).forEach(it=>{ if(it.name) orderedNames.add(_norm(it.name)); });
+  });
+
+  // Un producto aparece en el inventario si:
+  //   1. Está marcado como manual (añadido a mano por el usuario), O
+  //   2. Se ha pedido alguna vez desde este local
+  // Los productos importados masivamente que nunca se pidieron NO aparecen —
+  // no se borran, solo se ocultan. En cuanto se pidan una vez, reaparecen.
+  // Además se sigue ocultando lo de proveedores desactivados.
   const items=allItems.filter(it=>{
     const c=it.category||'Sin categoría';
-    return !allSupCatNames.has(c) || activeSupCatNames.has(c);
+    const supOk=!allSupCatNames.has(c) || activeSupCatNames.has(c);
+    if(!supOk) return false;
+    return it.manual===true || orderedNames.has(_norm(it.name));
   });
   const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0));
   // Incluir: categorías de proveedores activos + categorías manuales (no coinciden con ningún proveedor)
@@ -342,15 +372,23 @@ function vInventario(){
 // ── Vista restaurante ─────────────────────────────────────
 function vLocalInventario(rest){
   const allItems=getInvItems(rest);
-  // Ocultar productos de proveedores desactivados para este local (misma lógica
-  // que en vInventario) — se preservan en Firebase por si se reactiva el prov.
+  // Mismos dos filtros que en vInventario:
+  //   1. Ocultar productos de proveedores desactivados para este local
+  //   2. Mostrar solo productos manuales o pedidos alguna vez desde este local
   const restUserIds=(cfg.users||[]).filter(u=>{const rests=u.restaurants||[u.restaurant];return rests.includes(rest);}).map(u=>u.id);
   const activeSups=supList().filter(s=>{const dis=s.disabledFor||[];return restUserIds.length===0||restUserIds.some(uid=>!dis.includes(uid));});
   const activeSupCatNames=new Set(activeSups.map(s=>(s.emoji?s.emoji+' ':'')+s.name));
   const allSupCatNames=new Set(supList().map(s=>(s.emoji?s.emoji+' ':'')+s.name));
+  const _norm=n=>(n||'').trim().toLowerCase();
+  const orderedNames=new Set();
+  orders.filter(o=>o.restaurant===rest&&o.status!=='rejected').forEach(o=>{
+    (o.items||[]).forEach(it=>{ if(it.name) orderedNames.add(_norm(it.name)); });
+  });
   const items=allItems.filter(it=>{
     const c=it.category||'Sin categoría';
-    return !allSupCatNames.has(c) || activeSupCatNames.has(c);
+    const supOk=!allSupCatNames.has(c) || activeSupCatNames.has(c);
+    if(!supOk) return false;
+    return it.manual===true || orderedNames.has(_norm(it.name));
   });
   const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&(parseFloat(it.qty)||0)<=(parseFloat(it.minStock)||0));
   const alertBanner=lowItems.length?`<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e;margin-bottom:12px"><strong>${lowItems.length} producto${lowItems.length>1?'s':''} con stock bajo:</strong> ${lowItems.map(it=>`${it.name} (${parseFloat(it.qty)||0} ${it.unit||'ud'})`).join(', ')}</div>`:'';

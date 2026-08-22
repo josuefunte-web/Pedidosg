@@ -6,6 +6,7 @@ function vSuppliers(){
   const exportBtn=`<button class="btn btn-ghost btn-sm" onclick="exportExcel('all')" style="margin-bottom:14px;margin-left:8px">Exportar pedidos</button>`;
   const autoClasBtn=`<button class="btn btn-blue btn-sm" onclick="autoClasificarProductos(false)" style="margin-bottom:14px;margin-left:8px" title="Asigna categoría a los productos que no tienen ninguna, usando el nombre del producto">Clasificar productos automáticamente</button>`
     +`<button class="btn btn-ok btn-sm" onclick="reclasificarTodo()" style="margin-bottom:14px;margin-left:8px" title="Revisa TODOS los productos y corrige los que estén mal clasificados">Revisar y corregir todo</button>`;
+  const bulkBtn=`<label class="btn btn-acc btn-sm" style="margin-bottom:14px;margin-left:8px;cursor:pointer" title="Sube un XLSX con una hoja por proveedor. Crea los nuevos y actualiza precios de los existentes.">📦 Importar plantilla masiva<input type="file" accept=".xlsx,.xls" style="display:none" onchange="importBulkTarifa(this)"/></label>`;
   const list=supList().map(sup=>{
     if(!sup.products) sup.products=[];
     const open=S.openSupId===sup.id;
@@ -22,7 +23,7 @@ function vSuppliers(){
       ${open?`<div class="sc-body">${supDetailForm(sup)}</div>`:''}
     </div>`;
   }).join('');
-  return newF+exportBtn+autoClasBtn+list;
+  return newF+exportBtn+autoClasBtn+bulkBtn+list;
 }
 function supForm(sup){
   const id=sup?sup.id:'new';
@@ -71,7 +72,7 @@ function supDetailForm(sup){
           <div style="display:flex;flex-wrap:wrap">${alerSel}</div>
           <div style="margin-top:8px;font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Conversiones de unidad</div>
           <div id="conv-list-${sid}-${p.id}">${renderConvRows(sid,p)}</div>
-          <button class="btn btn-ghost btn-xs" style="margin-top:4px" onclick="addProdConv('${sid}','${p.id}')">+ Añadir conversión</button>
+          <button class="btn btn-ghost btn-xs" style="margin-top:4px" onclick="addProdConvCustom('${sid}','${p.id}')">+ Añadir unidad personalizada</button>
         </div>
       </div>`;
     }).join('');
@@ -403,20 +404,46 @@ function _prodUnits(p){
   const extras=(p.conversions||[]).map(c=>c.fromUnit).filter(u=>u&&u!==base);
   return [base,...extras];
 }
+// Muestra una fila por cada unidad común distinta a la del precio (unidad base).
+// Cada fila pregunta claramente: "1 [otra unidad] = [___] [unidad base]". Deja
+// el campo vacío si esa unidad no aplica al producto. Reemplaza el sistema
+// anterior con selector + factor que era ambiguo — ahora la equivalencia siempre
+// se expresa en la unidad del precio.
 function renderConvRows(sid,p){
-  const convs=p.conversions||[];
-  if(!convs.length) return `<span style="font-size:12px;color:var(--mut)">Sin conversiones</span>`;
-  const unitOpts=_U.map(u=>`<option>${u}</option>`).join('');
-  return convs.map((c,i)=>`
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
-      <span style="font-size:12px;color:var(--mut)">1</span>
-      <select style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" onchange="editConvUnit('${sid}','${p.id}',${i},this.value)">${_U.map(u=>`<option${(c.fromUnit||'Caja')===u?' selected':''}>${u}</option>`).join('')}</select>
-      <span style="font-size:12px;color:var(--mut)">=</span>
-      <input type="number" value="${c.factor||''}" step="0.001" min="0" placeholder="9" style="width:70px;padding:3px 7px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editConvFactor('${sid}','${p.id}',${i},this.value)"/>
-      <span style="font-size:12px;color:var(--mut)">${p.unit||'KG'}</span>
-      <button class="btn btn-ghost btn-xs" onclick="invertProdConv('${sid}','${p.id}',${i})" title="Invertir conversión">⇄ Invertir</button>
-      <button class="btn btn-no btn-xs" onclick="delProdConv('${sid}','${p.id}',${i})">✕</button>
-    </div>`).join('');
+  const base=p.unit||'KG';
+  const COMMON=['KG','L','UN','Caja','Bote','Bolsa','g'];
+  const others=COMMON.filter(u=>u!==base);
+  // Preservar conversiones con unidades personalizadas no listadas en COMMON
+  const custom=(p.conversions||[]).map(c=>c.fromUnit).filter(u=>u&&!COMMON.includes(u));
+  const all=[...others,...custom];
+  return `<div style="font-size:11px;color:var(--mut);margin-bottom:6px;line-height:1.4">Precio registrado en <strong>${base}</strong>. Rellena las equivalencias que apliquen a este producto (deja vacío las que no).</div>
+    ${all.map(u=>{
+      const conv=(p.conversions||[]).find(c=>c.fromUnit===u);
+      const val=conv?conv.factor:'';
+      return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--mut);min-width:70px">1 ${u} =</span>
+        <input type="number" value="${val}" step="0.001" min="0" placeholder="—" style="width:80px;padding:3px 7px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="setProdConv('${sid}','${p.id}','${u}',this.value)"/>
+        <span style="font-size:12px;color:var(--mut)">${base}</span>
+        ${custom.includes(u)?`<button class="btn btn-no btn-xs" onclick="setProdConv('${sid}','${p.id}','${u}','')" title="Eliminar unidad personalizada">✕</button>`:''}
+      </div>`;
+    }).join('')}`;
+}
+// Setter único que reemplaza addProdConv+editConvUnit+editConvFactor+delProdConv.
+// Si val es válido, crea o actualiza la conversión. Si es vacío/0, la elimina.
+function setProdConv(sid,pid,unit,val){
+  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
+  if(!prod) return;
+  if(!prod.conversions) prod.conversions=[];
+  const idx=prod.conversions.findIndex(c=>c.fromUnit===unit);
+  const f=parseFloat(val);
+  if(isNaN(f)||f<=0){
+    // Vaciar = eliminar la conversión
+    if(idx>=0) prod.conversions.splice(idx,1);
+  } else {
+    if(idx>=0) prod.conversions[idx].factor=f;
+    else prod.conversions.push({fromUnit:unit,factor:f});
+  }
+  saveSups(sid);
 }
 function _refreshConvList(sid,pid){
   const prod=suppliers[sid]?.products.find(p=>p.id===pid);
@@ -429,6 +456,21 @@ function addProdConv(sid,pid){
   if(!prod)return;
   if(!prod.conversions) prod.conversions=[];
   prod.conversions.push({fromUnit:'Caja',factor:1});
+  saveSups(sid);_refreshConvList(sid,pid);
+}
+// Pregunta al usuario el nombre de una unidad personalizada (Pack, Lata, Fardo…)
+// y la añade a la lista con factor 0 para que la rellene después.
+function addProdConvCustom(sid,pid){
+  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
+  if(!prod)return;
+  const name=(prompt('Nombre de la unidad personalizada (ej: Pack, Lata, Fardo):')||'').trim();
+  if(!name) return;
+  if(!prod.conversions) prod.conversions=[];
+  // Evitar duplicados
+  if(prod.conversions.some(c=>c.fromUnit.toLowerCase()===name.toLowerCase())){
+    toast('Esa unidad ya existe','#d97706'); return;
+  }
+  prod.conversions.push({fromUnit:name,factor:0}); // 0 = usuario debe rellenar
   saveSups(sid);_refreshConvList(sid,pid);
 }
 function delProdConv(sid,pid,idx){
@@ -521,4 +563,153 @@ function localAddProd(sid){
   S._cartProds[sid][pid]=newProd;
   render();
   toast(`"${name}" guardado en el proveedor y añadido al pedido`,'#16a34a');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// IMPORTACIÓN MASIVA — un XLSX con una hoja por proveedor.
+// Estructura esperada de cada hoja de proveedor:
+//   Fila 1: Título (se ignora)
+//   Fila 2: Subtítulo (se ignora)
+//   Fila 3: (vacía)
+//   Fila 4: Encabezados: Proveedor | Código | Descripción | Precio(€) | ...
+//   Fila 5+: Datos (nombre del producto en col C, precio en col D)
+// Se ignoran hojas 'Leyenda', 'Inventario', 'Resumen' — el resto se tratan
+// como proveedores. La coincidencia de proveedor es case-insensitive por
+// nombre. Para proveedores existentes solo se actualizan precios y se añaden
+// productos nuevos (nunca se borran) para preservar categorías/unidades/
+// alérgenos/conversiones ya configuradas manualmente.
+// ══════════════════════════════════════════════════════════════════════════
+const _BULK_IGNORE_SHEETS=['Leyenda','Inventario','Resumen','Portada','Total','Totales'];
+window._bulkPreview=null;
+
+function _bulkNormName(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/[^\w\sáéíóúñ]/gi,''); }
+
+async function importBulkTarifa(input){
+  const file=input.files[0]; if(!file) return;
+  input.value=''; // permitir volver a subir el mismo archivo
+  if(typeof XLSX==='undefined'){ toast('La librería XLSX no está cargada','#dc2626'); return; }
+  toast('Procesando plantilla…','#0369a1',2000);
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    // Índice de proveedores actuales por nombre normalizado para matching
+    const existingByName={};
+    Object.values(suppliers).forEach(s=>{ existingByName[_bulkNormName(s.name)]=s; });
+    const summary={update:[],create:[],skipped:[]};
+    wb.SheetNames.forEach(sheetName=>{
+      if(_BULK_IGNORE_SHEETS.includes(sheetName)) return;
+      const ws=wb.Sheets[sheetName];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+      // Buscar la fila de encabezado que contenga "Descripción" y "Precio"
+      let headerIdx=-1, colName=-1, colPrice=-1;
+      for(let i=0;i<Math.min(10,rows.length);i++){
+        const r=rows[i]||[];
+        for(let j=0;j<r.length;j++){
+          const v=(r[j]||'').toString().toLowerCase();
+          if(v.includes('descripci')) colName=j;
+          if(v.includes('precio')) colPrice=j;
+        }
+        if(colName>=0 && colPrice>=0){ headerIdx=i; break; }
+      }
+      if(headerIdx<0 || colName<0 || colPrice<0){ summary.skipped.push({name:sheetName,reason:'Sin encabezado Descripción/Precio'}); return; }
+      const products=[];
+      for(let i=headerIdx+1;i<rows.length;i++){
+        const r=rows[i]||[];
+        const name=(r[colName]||'').toString().trim();
+        const price=parseFloat(r[colPrice]);
+        if(!name || isNaN(price)) continue;
+        products.push({name,price});
+      }
+      if(!products.length){ summary.skipped.push({name:sheetName,reason:'Sin productos'}); return; }
+      const normed=_bulkNormName(sheetName);
+      const existing=existingByName[normed];
+      if(existing){
+        // Actualizar: contar precios que cambian y productos nuevos
+        const existingByProdName={};
+        (existing.products||[]).forEach(p=>{ existingByProdName[_bulkNormName(p.name)]=p; });
+        let priceChanges=0, added=0;
+        products.forEach(p=>{
+          const ep=existingByProdName[_bulkNormName(p.name)];
+          if(ep){
+            if(Math.abs((parseFloat(ep.price)||0)-p.price)>0.001) priceChanges++;
+          } else added++;
+        });
+        summary.update.push({sid:existing.id,name:existing.name,total:products.length,priceChanges,added,products});
+      } else {
+        summary.create.push({name:sheetName,total:products.length,products});
+      }
+    });
+    window._bulkPreview=summary;
+    _showBulkPreview();
+  }catch(e){
+    console.error('Bulk import error:',e);
+    toast('Error al leer el archivo: '+e.message,'#dc2626',5000);
+  }
+}
+
+function _showBulkPreview(){
+  const s=window._bulkPreview; if(!s) return;
+  const totalNewProds=s.create.reduce((a,c)=>a+c.total,0);
+  const totalPriceChanges=s.update.reduce((a,c)=>a+c.priceChanges,0);
+  const totalAdded=s.update.reduce((a,c)=>a+c.added,0);
+  const upList=s.update.length?`<div style="margin-top:10px"><div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0369a1">🔄 ${s.update.length} proveedores a actualizar</div><div style="max-height:180px;overflow-y:auto;font-size:12px">${s.update.map(u=>`<div style="padding:3px 0;border-bottom:1px solid var(--brd)"><strong>${u.name}</strong> — ${u.priceChanges} precio${u.priceChanges!==1?'s':''} cambia, ${u.added} producto${u.added!==1?'s':''} nuevo${u.added!==1?'s':''}</div>`).join('')}</div></div>`:'';
+  const crList=s.create.length?`<div style="margin-top:10px"><div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#16a34a">➕ ${s.create.length} proveedores nuevos</div><div style="max-height:180px;overflow-y:auto;font-size:12px">${s.create.map(c=>`<div style="padding:3px 0;border-bottom:1px solid var(--brd)"><strong>${c.name}</strong> — ${c.total} productos</div>`).join('')}</div></div>`:'';
+  const skList=s.skipped.length?`<div style="margin-top:10px"><div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#d97706">⚠️ ${s.skipped.length} hojas ignoradas</div><div style="max-height:120px;overflow-y:auto;font-size:12px">${s.skipped.map(k=>`<div style="padding:2px 0;color:var(--mut)">${k.name} — ${k.reason}</div>`).join('')}</div></div>`:'';
+  const modal=document.createElement('div');
+  modal.id='bulk-preview-ov';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1500;display:flex;align-items:center;justify-content:center;padding:12px';
+  modal.innerHTML=`<div style="background:var(--card);border-radius:14px;padding:22px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="font-weight:700;font-size:16px;margin-bottom:6px">Vista previa de la importación</div>
+    <div style="font-size:13px;color:var(--mut);margin-bottom:12px">Revisa lo que va a cambiar antes de aplicar. Nada se guarda todavía.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="flex:1;min-width:120px;padding:10px;background:#eff6ff;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:800;color:#0369a1">${s.update.length}</div><div style="font-size:11px;color:#0369a1">actualizar</div></div>
+      <div style="flex:1;min-width:120px;padding:10px;background:#f0fdf4;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:800;color:#16a34a">${s.create.length}</div><div style="font-size:11px;color:#16a34a">crear nuevos</div></div>
+      <div style="flex:1;min-width:120px;padding:10px;background:#fff7ed;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:800;color:#d97706">${totalPriceChanges+totalAdded+totalNewProds}</div><div style="font-size:11px;color:#d97706">cambios totales</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:10px;padding:8px;background:var(--srf);border-radius:6px">📝 De los proveedores existentes solo se actualizan precios y se añaden productos nuevos — nunca se borran productos ni se pierden categorías/unidades/alérgenos ya configurados.</div>
+    ${upList}${crList}${skList}
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-ok btn-sm" onclick="applyBulkTarifa()" style="flex:1">✓ Aplicar cambios</button>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bulk-preview-ov').remove();window._bulkPreview=null">Cancelar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function applyBulkTarifa(){
+  const s=window._bulkPreview; if(!s){ toast('Nada que aplicar','#dc2626'); return; }
+  if(!fbDb){ toast('Sin conexión Firebase','#dc2626'); return; }
+  const modal=document.getElementById('bulk-preview-ov');
+  if(modal) modal.innerHTML='<div style="background:var(--card);border-radius:14px;padding:30px;text-align:center"><div style="font-weight:700;font-size:16px;margin-bottom:8px">Aplicando cambios…</div><div style="font-size:13px;color:var(--mut)">No cierres esta pestaña</div></div>';
+  try{
+    const updates={};
+    // 1. Actualizar existentes: fusionar productos por nombre
+    s.update.forEach(u=>{
+      const sup=suppliers[u.sid]; if(!sup) return;
+      const byName={}; (sup.products||[]).forEach(p=>{ byName[_bulkNormName(p.name)]=p; });
+      u.products.forEach(np=>{
+        const key=_bulkNormName(np.name);
+        const ep=byName[key];
+        if(ep){ ep.price=np.price; }
+        else { byName[key]={id:'p'+uid(),name:np.name,price:np.price,unit:'UN',category:''}; }
+      });
+      updates['suppliers/'+u.sid+'/products']=Object.values(byName);
+    });
+    // 2. Crear nuevos proveedores
+    s.create.forEach(c=>{
+      const nid='s'+uid();
+      const nameStr=String(c.name||'').trim();
+      const products=c.products.map(p=>({id:'p'+uid(),name:p.name,price:p.price,unit:'UN',category:''}));
+      updates['suppliers/'+nid]={id:nid,name:nameStr,emoji:'',phone:'',products};
+    });
+    await fbDb.ref().update(updates);
+    if(modal) modal.remove();
+    window._bulkPreview=null;
+    toast(`✓ ${s.update.length} actualizados, ${s.create.length} nuevos`,'#16a34a',6000);
+    setTimeout(()=>renderAdminContent(),300);
+  }catch(e){
+    console.error('Apply bulk error:',e);
+    if(modal) modal.remove();
+    toast('Error al aplicar: '+e.message,'#dc2626',5000);
+  }
 }
