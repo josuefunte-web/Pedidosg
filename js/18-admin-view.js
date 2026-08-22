@@ -286,12 +286,15 @@ function vAdminDashboard(){
   const approved=orders.filter(o=>o.status==='approved');
   const received=orders.filter(o=>o.status==='received');
   const todayKey=new Date().toISOString().slice(0,10);
-  const albsToday=Object.values(albaranes||{}).filter(a=>(a.createdAt||a.date||'').startsWith(todayKey));
+  const _albaranes=(typeof albaranes!=='undefined'&&albaranes)?albaranes:{};
+  const albsToday=Object.values(_albaranes).filter(a=>(a.createdAt||a.date||'').startsWith(todayKey));
   const pendingValue=pending.reduce((s,o)=>s+total(o),0);
   const approvedValue=approved.reduce((s,o)=>s+total(o),0);
-  const lowStock=Object.values(inventory||{}).reduce((n,rest)=>n+Object.values(rest||{}).filter(it=>(parseFloat(it.minStock)||0)>0 && invItemQtyInBase(it)<=(parseFloat(it.minStock)||0)).length,0);
+  const _inventory=(typeof inventory!=='undefined'&&inventory)?inventory:{};
+  const _qtyBase=(typeof invItemQtyInBase==='function')?invItemQtyInBase:(it=>parseFloat(it?.qty)||0);
+  const lowStock=Object.values(_inventory).reduce((n,rest)=>n+Object.values(rest||{}).filter(it=>(parseFloat(it.minStock)||0)>0 && _qtyBase(it)<=(parseFloat(it.minStock)||0)).length,0);
   const mk=new Date().toISOString().slice(0,7);
-  const fcUsers=(cfg.users||[]).map(u=>fcLocalTotals(mk,u.id));
+  const fcUsers=(typeof fcLocalTotals==='function')?(cfg.users||[]).map(u=>fcLocalTotals(mk,u.id)):[];
   const fcFact=fcUsers.reduce((s,t)=>s+(t.fact||0),0);
   const fcCompras=fcUsers.reduce((s,t)=>s+(t.compras||0),0);
   const fcPct=fcFact>0?fcCompras/fcFact:null;
