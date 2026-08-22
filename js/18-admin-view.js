@@ -106,7 +106,7 @@ function vAdmin(){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:13px;font-weight:700;color:var(--pri)">Panel de compras</div>${liveTag}
       </div>
-      <div id="tc">${content}</div>
+      <div id="tc" class="nv-tab-${S.adminTab}">${content}</div>
     </div>
   </div>${adminOrderModal}`;
 }
@@ -280,42 +280,18 @@ function restFilterTabs(ordersForCount, stateKey){
   return `<div class="sup-tabs" style="margin-bottom:14px;flex-wrap:wrap">${tabs}</div>`;
 }
 
-
 function vAdminDashboard(){
-  const pending=orders.filter(o=>o.status==='pending');
-  const approved=orders.filter(o=>o.status==='approved');
-  const received=orders.filter(o=>o.status==='received');
-  const pendingValue=pending.reduce((n,o)=>n+total(o),0);
-  const approvedValue=approved.reduce((n,o)=>n+total(o),0);
-  const allInv=(typeof inventory!=='undefined'&&inventory)?inventory:{};
-  const qtyBase=typeof invItemQtyInBase==='function'?invItemQtyInBase:(it=>parseFloat(it?.qty)||0);
-  const invItems=Object.values(allInv).flatMap(v=>Object.values(v||{}));
-  const lowStock=invItems.filter(it=>(parseFloat(it.minStock)||0)>0&&qtyBase(it)<=(parseFloat(it.minStock)||0)).length;
-  const albData=(typeof albaranes!=='undefined'&&albaranes)?albaranes:{};
-  const today=new Date().toISOString().slice(0,10);
-  const albsToday=Object.values(albData).filter(a=>String(a.createdAt||a.date||'').startsWith(today)).length;
-  const mk=new Date().toISOString().slice(0,7);
-  let fcFact=0,fcBuy=0;
-  if(typeof fcLocalTotals==='function') (cfg.users||[]).forEach(u=>{const t=fcLocalTotals(mk,u.id);fcFact+=t.fact||0;fcBuy+=t.compras||0;});
-  const fc=fcFact>0?fcBuy/fcFact:null;
-  const recent=pending.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,6);
-  const rows=recent.length?recent.map(o=>{const sup=suppliers[o.supId]||{};return `<tr onclick="setTabSb('pending')"><td><strong>#${escHtml(String(o.id||'').slice(-6))}</strong></td><td>${escHtml(sup.name||o.supId||'')}</td><td>${escHtml(o.restaurant||'')}</td><td>${fmtD(o.createdAt)}</td><td><strong>${fmt(total(o))}</strong></td><td><span class="nv-status nv-pending">Pendiente</span></td></tr>`;}).join(''):`<tr><td colspan="6" class="nv-empty">No hay pedidos pendientes</td></tr>`;
-  const restSpend={}; approved.concat(received).forEach(o=>restSpend[o.restaurant]=(restSpend[o.restaurant]||0)+total(o));
-  const restRows=Object.entries(restSpend).sort((a,b)=>b[1]-a[1]).slice(0,4);
-  return `<div class="nv-dashboard">
-    <div class="nv-page-head"><div><span>Panel ejecutivo</span><h1>Resumen operativo</h1><p>Compras, inventario y costes de todos los locales</p></div><button class="btn btn-acc" onclick="S.adminOrderPicker=true;render()">Nuevo pedido</button></div>
-    <div class="nv-kpis">
-      <article><div><small>Pedidos pendientes</small><strong>${pending.length}</strong><em>${fmt(pendingValue)}</em></div><b>PO</b></article>
-      <article><div><small>Albaranes hoy</small><strong>${albsToday}</strong><em>${approved.length} aprobados</em></div><b>GR</b></article>
-      <article><div><small>Stock bajo</small><strong>${lowStock}</strong><em>Productos requieren atención</em></div><b>ST</b></article>
-      <article><div><small>Food Cost mensual</small><strong>${fc==null?'—':(fc*100).toFixed(1)+'%'}</strong><em>${fcFact?fmt(fcBuy)+' en compras':'Sin datos'}</em></div><b>FC</b></article>
-    </div>
-    <div class="nv-grid-main">
-      <section class="nv-panel"><header><div><h2>Pedidos pendientes de aprobación</h2><p>Operaciones que requieren revisión</p></div><button onclick="setTabSb('pending')">Ver todos</button></header><div class="nv-table-wrap"><table class="nv-table"><thead><tr><th>Pedido</th><th>Proveedor</th><th>Local</th><th>Fecha</th><th>Valor</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table></div></section>
-      <aside class="nv-side-stack"><section class="nv-panel nv-metric"><header><div><h2>Gasto aprobado</h2><p>Pedidos listos para proveedor</p></div></header><strong>${fmt(approvedValue)}</strong><div class="nv-bars"><i></i><i></i><i></i><i></i><i></i></div></section><section class="nv-panel"><header><div><h2>Gasto por local</h2><p>Mayor volumen del periodo</p></div></header><div class="nv-rank">${restRows.length?restRows.map(([r,v],i)=>`<div><span>${escHtml(r)}</span><strong>${fmt(v)}</strong></div>`).join(''):'<p>Sin compras registradas</p>'}</div></section></aside>
-    </div>
-    <div class="nv-shortcuts"><button onclick="setTabSb('pending')"><strong>${pending.length}</strong><span>Pendientes</span></button><button onclick="setTabSb('inventario')"><strong>${lowStock}</strong><span>Stock bajo</span></button><button onclick="setTabSb('albaranes')"><strong>${albsToday}</strong><span>Albaranes hoy</span></button><button onclick="setTabSb('foodcost')"><strong>${fc==null?'—':(fc*100).toFixed(1)+'%'}</strong><span>Food Cost</span></button></div>
-  </div>`;
+  const pending=orders.filter(o=>o.status==='pending'), approved=orders.filter(o=>o.status==='approved'), received=orders.filter(o=>o.status==='received');
+  const pendingValue=pending.reduce((n,o)=>n+total(o),0), approvedValue=approved.reduce((n,o)=>n+total(o),0);
+  const inv=(typeof inventory!=='undefined'&&inventory)?inventory:{};
+  const qb=typeof invItemQtyInBase==='function'?invItemQtyInBase:(x=>parseFloat(x?.qty)||0);
+  const low=Object.values(inv).flatMap(x=>Object.values(x||{})).filter(x=>(parseFloat(x.minStock)||0)>0&&qb(x)<=(parseFloat(x.minStock)||0)).length;
+  const albs=(typeof albaranes!=='undefined'&&albaranes)?albaranes:{}; const today=new Date().toISOString().slice(0,10);
+  const albsToday=Object.values(albs).filter(a=>String(a.createdAt||a.date||'').startsWith(today)).length;
+  let fact=0,buy=0; if(typeof fcLocalTotals==='function')(cfg.users||[]).forEach(u=>{const t=fcLocalTotals(new Date().toISOString().slice(0,7),u.id);fact+=t.fact||0;buy+=t.compras||0}); const fc=fact?buy/fact:null;
+  const rows=pending.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,6).map(o=>{const sup=suppliers[o.supId]||{};return `<tr onclick="setTabSb('pending')"><td><strong>#${escHtml(String(o.id||'').slice(-6))}</strong></td><td>${escHtml(sup.name||o.supId||'')}</td><td>${escHtml(o.restaurant||'')}</td><td>${fmtD(o.createdAt)}</td><td><strong>${fmt(total(o))}</strong></td><td><span class="nv-status">Pendiente</span></td></tr>`}).join('')||`<tr><td colspan="6" class="nv-empty">No hay pedidos pendientes</td></tr>`;
+  const rs={};approved.concat(received).forEach(o=>rs[o.restaurant]=(rs[o.restaurant]||0)+total(o));const ranks=Object.entries(rs).sort((a,b)=>b[1]-a[1]).slice(0,4);
+  return `<div class="nv-dashboard"><div class="nv-page-head"><div><span>Panel ejecutivo</span><h1>Resumen operativo</h1><p>Compras, inventario y costes de todos los locales</p></div><button class="btn btn-acc" onclick="S.adminOrderPicker=true;render()">Nuevo pedido</button></div><div class="nv-kpis"><article><div><small>Pedidos pendientes</small><strong>${pending.length}</strong><em>${fmt(pendingValue)}</em></div><b>PO</b></article><article><div><small>Albaranes hoy</small><strong>${albsToday}</strong><em>${approved.length} aprobados</em></div><b>GR</b></article><article><div><small>Stock bajo</small><strong>${low}</strong><em>Productos requieren atención</em></div><b>ST</b></article><article><div><small>Food Cost mensual</small><strong>${fc==null?'—':(fc*100).toFixed(1)+'%'}</strong><em>${fact?fmt(buy)+' en compras':'Sin datos'}</em></div><b>FC</b></article></div><div class="nv-grid-main"><section class="nv-panel"><header><div><h2>Pedidos pendientes de aprobación</h2><p>Operaciones que requieren revisión</p></div><button onclick="setTabSb('pending')">Ver todos</button></header><div class="nv-table-wrap"><table class="nv-table"><thead><tr><th>Pedido</th><th>Proveedor</th><th>Local</th><th>Fecha</th><th>Valor</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table></div></section><aside class="nv-side-stack"><section class="nv-panel nv-metric"><header><div><h2>Gasto aprobado</h2><p>Pedidos listos para proveedor</p></div></header><strong>${fmt(approvedValue)}</strong><div class="nv-bars"><i></i><i></i><i></i><i></i><i></i></div></section><section class="nv-panel"><header><div><h2>Gasto por local</h2><p>Mayor volumen del periodo</p></div></header><div class="nv-rank">${ranks.length?ranks.map(([n,v])=>`<div><span>${escHtml(n)}</span><strong>${fmt(v)}</strong></div>`).join(''):'<p>Sin compras registradas</p>'}</div></section></aside></div><div class="nv-shortcuts"><button onclick="setTabSb('pending')"><strong>${pending.length}</strong><span>Pendientes</span></button><button onclick="setTabSb('inventario')"><strong>${low}</strong><span>Stock bajo</span></button><button onclick="setTabSb('albaranes')"><strong>${albsToday}</strong><span>Albaranes hoy</span></button><button onclick="setTabSb('foodcost')"><strong>${fc==null?'—':(fc*100).toFixed(1)+'%'}</strong><span>Food Cost</span></button></div></div>`;
 }
 
 function vPending(){
