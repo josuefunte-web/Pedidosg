@@ -1,5 +1,5 @@
 /**
- * Provea — Mistral OCR Proxy
+ * Noventia — Mistral OCR Proxy
  *
  * Cloudflare Worker que actúa de proxy autenticado entre la PWA y Mistral.
  * Verifica que la petición viene de un usuario autenticado en Firebase Auth,

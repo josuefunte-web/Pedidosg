@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#1a1a2e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Provea">
+<meta name="apple-mobile-web-app-title" content="Noventia">
 <!-- GitHub Pages no permite configurar cabeceras HTTP de caché por archivo, así que
      reforzamos aquí con meta tags que algunos navegadores sí respetan para el
      documento HTML principal (los .js/.css ya se controlan con ?v= en su URL). -->
@@ -19,7 +19,7 @@
      con la URL de tu Cloudflare Worker cuando lo tengas desplegado. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://apis.google.com; connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.firebasedatabase.app wss://*.firebasedatabase.app https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com https://*.workers.dev https://api.ntfy.sh https://ntfy.sh; worker-src 'self' blob:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';">
 <link rel="manifest" id="pwa-manifest">
-<title>Provea — Gestión de Pedidos</title>
+<title>Noventia — Procurement & Cost Control</title>
 <!-- Chequeo activo de versión al arrancar: pide version.json al servidor
      (sin caché) y, si la versión que trae no coincide con la que este
      index.html tiene grabada, recarga forzando URL nueva. Segunda capa de
@@ -27,7 +27,7 @@
      navegadores que aún sirven un index.html viejo desde su propia caché. -->
 <script>
 (function(){
-  window.APP_VERSION='20260823c';
+  window.APP_VERSION='20260822-noventia-rebuild1';
   try{
     fetch('version.json?t='+Date.now(),{cache:'no-store'})
       .then(function(r){return r.ok?r.json():null;})
@@ -49,8 +49,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <!-- Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260823c">
-<link rel="stylesheet" href="css/noventia-ui-final.css?v=20260822-final">
+<link rel="stylesheet" href="css/styles.css?v=20260822-noventia-rebuild1">
 </head>
 <body>
 
@@ -90,16 +89,16 @@
 <header class="hdr" id="hdr" style="display:none">
   <div style="display:flex;align-items:center;gap:10px">
     <button class="hbtn-menu" id="btn-menu" onclick="S.sidebarOpen=!S.sidebarOpen;render()">≡</button>
-    <div class="logo" onclick="handleLogo()">O'<span>Carro</span> <span class="fb-dot" id="fb-dot"></span></div>
+    <div class="brand" onclick="handleLogo()"><span class="brand-mark">N</span><span class="brand-name">NOVENTIA</span><span class="fb-dot" id="fb-dot"></span></div>
   </div>
   <div class="hdr-r">
     <span class="ses-info" id="ses-info"></span>
-    <button class="hbtn" id="btn-np" style="display:none" onclick="goOrder()">+ Pedido</button>
-    <button class="hbtn" id="btn-alb-r" style="display:none" onclick="goAlbaran()">📋 Albarán</button>
+    <button class="hbtn" id="btn-np" style="display:none" onclick="goOrder()">Nuevo pedido</button>
+    <button class="hbtn" id="btn-alb-r" style="display:none" onclick="goAlbaran()">Albarán</button>
     <button class="hbtn act" id="btn-adm" style="display:none" onclick="goAdmin()"> Admin</button>
-    <button class="hbtn" id="btn-refresh" onclick="refreshData()" title="Actualizar datos desde Firebase" style="font-size:16px;padding:6px 10px">🔄</button>
-    <button class="hbtn" id="btn-dark" onclick="toggleDarkMode()" title="Modo oscuro" style="font-size:16px;padding:6px 10px">🌙</button>
-    <button class="hbtn" onclick="logout()">↩</button>
+    <button class="hbtn" id="btn-refresh" onclick="refreshData()" title="Actualizar datos desde Firebase" style="font-size:16px;padding:6px 10px">Actualizar</button>
+    <button class="hbtn" id="btn-dark" onclick="toggleDarkMode()" title="Modo oscuro" style="font-size:16px;padding:6px 10px">Tema</button>
+    <button class="hbtn" onclick="logout()">Salir</button>
   </div>
 </header>
 
@@ -107,55 +106,54 @@
 <!-- Aviso de pedidos pendientes de enviar (sin conexión) -->
 <div id="pending-orders-badge" onclick="flushPendingOrders()" title="Toca para reintentar el envío" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:9000;background:#d97706;color:#fff;font-weight:700;font-size:13px;padding:9px 16px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25);align-items:center;gap:8px;cursor:pointer"></div>
 
-<script src="js/01-core-errors.js?v=20260823c"></script>
-<script src="js/02-firebase-config.js?v=20260823c"></script>
-<script src="js/03-default-data.js?v=20260823c"></script>
-<script src="js/03a-permissions.js?v=20260823c"></script>
-<script src="js/04-storage-config.js?v=20260823c"></script>
-<script src="js/05-firebase-data.js?v=20260823c"></script>
-<script src="js/06-firebase-listeners.js?v=20260823c"></script>
-<script src="js/07-auth.js?v=20260823c"></script>
-<script src="js/08-admin-solicitudes.js?v=20260823c"></script>
-<script src="js/09-save-functions.js?v=20260823c"></script>
-<script src="js/10-state.js?v=20260823c"></script>
-<script src="js/11-helpers.js?v=20260823c"></script>
-<script src="js/13-navigation.js?v=20260823c"></script>
-<script src="js/14-render.js?v=20260823c"></script>
-<script src="js/15-login.js?v=20260823c"></script>
-<script src="js/16-order-view.js?v=20260823c"></script>
-<script src="js/17-local-gastos.js?v=20260823c"></script>
-<script src="js/18-admin-view.js?v=20260823c"></script>
-<script src="js/19-albaranes.js?v=20260823c"></script>
-<script src="js/20-new-albaran.js?v=20260823c"></script>
-<script src="js/21-iva-albaran.js?v=20260823c"></script>
-<script src="js/22-recortador.js?v=20260823c"></script>
-<script src="js/23-suppliers.js?v=20260823c"></script>
-<script src="js/24-plantillas.js?v=20260823c"></script>
-<script src="js/25-pedidos-recurrentes.js?v=20260823c"></script>
-<script src="js/26-presupuestos.js?v=20260823c"></script>
-<script src="js/27-comparativa.js?v=20260823c"></script>
-<script src="js/28-settings.js?v=20260823c"></script>
-<script src="js/29-push-notifications.js?v=20260823c"></script>
-<script src="js/30-order-actions.js?v=20260823c"></script>
-<script src="js/31-escandallos.js?v=20260823c"></script>
-<script src="js/32a-escandallos-detalle-render.js?v=20260823c"></script>
-<script src="js/32b-escandallos-detalle-secciones.js?v=20260823c"></script>
-<script src="js/32c-escandallos-detalle-ingredientes.js?v=20260823c"></script>
-<script src="js/32d-escandallos-detalle-export.js?v=20260823c"></script>
-<script src="js/33-menus.js?v=20260823c"></script>
-<script src="js/34-auto-clasificacion-escandallos.js?v=20260823c"></script>
-<script src="js/35-auto-clasificacion-productos.js?v=20260823c"></script>
-<script src="js/36-escandallos-local.js?v=20260823c"></script>
-<script src="js/37-recetas.js?v=20260823c"></script>
-<script src="js/38-budget-chart.js?v=20260823c"></script>
-<script src="js/39-catalogo-productos.js?v=20260823c"></script>
-<script src="js/40-historial-proveedor.js?v=20260823c"></script>
-<script src="js/41-nuevos-proveedores.js?v=20260823c"></script>
-<script src="js/42-admin-account-setup.js?v=20260823c"></script>
-<script src="js/43-init.js?v=20260823c"></script>
-<script src="js/44-inventario.js?v=20260823c"></script>
-<script src="js/45-foodcost.js?v=20260823c"></script>
-<script src="js/46-sup-visibility.js?v=20260823c"></script>
-<script src="js/noventia-ui-final.js?v=20260822-final"></script>
+<script src="js/01-core-errors.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/02-firebase-config.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/03-default-data.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/03a-permissions.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/04-storage-config.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/05-firebase-data.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/06-firebase-listeners.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/07-auth.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/08-admin-solicitudes.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/09-save-functions.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/10-state.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/11-helpers.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/13-navigation.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/14-render.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/15-login.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/16-order-view.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/17-local-gastos.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/18-admin-view.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/19-albaranes.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/20-new-albaran.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/21-iva-albaran.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/22-recortador.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/23-suppliers.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/24-plantillas.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/25-pedidos-recurrentes.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/26-presupuestos.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/27-comparativa.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/28-settings.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/29-push-notifications.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/30-order-actions.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/31-escandallos.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/32a-escandallos-detalle-render.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/32b-escandallos-detalle-secciones.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/32c-escandallos-detalle-ingredientes.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/32d-escandallos-detalle-export.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/33-menus.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/34-auto-clasificacion-escandallos.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/35-auto-clasificacion-productos.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/36-escandallos-local.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/37-recetas.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/38-budget-chart.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/39-catalogo-productos.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/40-historial-proveedor.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/41-nuevos-proveedores.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/42-admin-account-setup.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/43-init.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/44-inventario.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/45-foodcost.js?v=20260822-noventia-rebuild1"></script>
+<script src="js/46-sup-visibility.js?v=20260822-noventia-rebuild1"></script>
 </body>
 </html>

@@ -1,48 +1,25 @@
-# O'Carro / Provea - versión fragmentada
+# NOVENTIA — reconstrucción estable
 
-Esta carpeta contiene tu web separada en archivos para publicarla en GitHub Pages.
+Versión: `20260822-noventia-rebuild1`
 
-## Estructura
+Este paquete reconstruye el repositorio completo con los archivos recibidos.
 
-```text
-index.html
-css/styles.css
-js/*.js
-```
+## Incluye
+- Aplicación web completa (`index.html`, `css/`, `js/`).
+- Reglas de Firebase (`database.rules.json`).
+- Proxy OCR de Cloudflare (`worker.js`, `wrangler.toml`).
+- Marca NOVENTIA y estilo visual consolidado.
+- Sidebar compacto de 168 px en escritorio.
+- Editor de escandallos integrado en la página, no flotante.
 
-El orden de los archivos JavaScript está numerado para no romper dependencias. No cambies el orden de los `<script>` en `index.html` si no estás seguro.
+## Sustitución
+1. Haz una copia del repositorio actual.
+2. Elimina su contenido salvo la carpeta `.git`.
+3. Copia dentro todo el contenido de este ZIP.
+4. Publica los cambios.
+5. Despliega `database.rules.json` por separado en Firebase si corresponde.
+6. Para Cloudflare, configura el secret con `wrangler secret put MISTRAL_API_KEY`.
 
-## Archivos principales
-
-- `index.html`: estructura HTML y llamadas a CSS/JS.
-- `css/styles.css`: todos los estilos que antes estaban dentro de `<style>`.
-- `js/02-firebase-config.js`: configuración de Firebase.
-- `js/03-default-data.js`: usuarios/proveedores por defecto.
-- `js/07-auth.js`: login y registro.
-- `js/33-escandallos.js`: módulo de escandallos.
-- `js/43-init.js`: arranque de la app.
-
-## Publicar en GitHub Pages
-
-1. Descomprime este ZIP.
-2. Entra en la carpeta `ocarro_refactorizado`.
-3. Sube todo a tu repositorio de GitHub.
-4. En GitHub ve a `Settings > Pages`.
-5. Elige `Deploy from a branch`.
-6. Selecciona `main` y `/root`.
-7. Guarda.
-
-## Si lo haces por terminal
-
-```bash
-git init
-git add .
-git commit -m "Version fragmentada"
-git branch -M main
-git remote add origin https://github.com/TU_USUARIO/TU_REPOSITORIO.git
-git push -u origin main
-```
-
-## Nota de seguridad
-
-He conservado el comportamiento original para no romper la web. Aun así, conviene cambiar la contraseña inicial hardcodeada que aparece en el código y revisar las reglas de Firebase antes de publicar.
+## Notas
+- `MISTRAL_API_KEY` no está incluida.
+- `wrangler.toml` limita CORS al host de GitHub Pages indicado; si usas otro dominio, cambia `ALLOWED_ORIGIN`.
