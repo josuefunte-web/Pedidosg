@@ -223,10 +223,12 @@ function chatHTML(o){
   const unread = msgs.length;
   const badge = unread>0 ? `<span style="background:#e11d48;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:6px">${unread}</span>` : '';
   if(!open) return `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" style="font-size:12px" onclick="S.chatOpen='${o.id}';renderAdminContent&&renderAdminContent();render&&(S.view==='order'?render():null)">Chat interno${badge}</button></div>`;
+  // Escape SIEMPRE los datos de usuario (m.text, m.author) — proteger de XSS.
+  // Un local puede escribir <script> en su mensaje; sin escape se ejecuta en la sesión del admin.
   const msgsHtml = msgs.length ? msgs.map(m=>`
     <div style="display:flex;flex-direction:column;align-items:${m.isAdmin?'flex-end':'flex-start'};margin-bottom:6px">
-      <div style="max-width:80%;background:${m.isAdmin?'var(--pri)':'var(--srf)'};color:${m.isAdmin?'#fff':'var(--txt)'};border-radius:${m.isAdmin?'12px 12px 2px 12px':'12px 12px 12px 2px'};padding:7px 12px;font-size:13px">${m.text}</div>
-      <div style="font-size:10px;color:var(--mut);margin-top:2px">${m.author} · ${m.ts?new Date(m.ts).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}</div>
+      <div style="max-width:80%;background:${m.isAdmin?'var(--pri)':'var(--srf)'};color:${m.isAdmin?'#fff':'var(--txt)'};border-radius:${m.isAdmin?'12px 12px 2px 12px':'12px 12px 12px 2px'};padding:7px 12px;font-size:13px">${_e(m.text)}</div>
+      <div style="font-size:10px;color:var(--mut);margin-top:2px">${_e(m.author)} · ${m.ts?new Date(m.ts).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}</div>
     </div>`).join('') : `<div style="color:var(--mut);font-size:12px;text-align:center;padding:8px 0">Sin mensajes aún</div>`;
   return `<div style="margin-top:10px;border-top:1px solid var(--brd);padding-top:10px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -235,19 +237,35 @@ function chatHTML(o){
     </div>
     <div style="max-height:200px;overflow-y:auto;margin-bottom:8px;padding:4px 0">${msgsHtml}</div>
     <div style="display:flex;gap:6px">
-      <input id="chat-input-${o.id}" type="text" placeholder="Escribe un mensaje..." style="flex:1;padding:7px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:#fff;color:var(--txt)" onkeydown="if(event.key==='Enter')sendOrderChat('${o.id}','${author}',${isAdmin?'true':'false'})"/>
-      <button class="btn btn-pri btn-sm" onclick="sendOrderChat('${o.id}','${author}',${isAdmin?'true':'false'})">Enviar</button>
+      <input id="chat-input-${o.id}" type="text" placeholder="Escribe un mensaje..." style="flex:1;padding:7px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:#fff;color:var(--txt)" onkeydown="if(event.key==='Enter')sendOrderChat('${o.id}')"/>
+      <button class="btn btn-pri btn-sm" onclick="sendOrderChat('${o.id}')">Enviar</button>
     </div>
   </div>`;
 }
-function sendOrderChat(oid, author, isAdmin){
+// sendOrderChat: NUNCA acepta isAdmin/author del cliente — se DERIVAN del
+// rol autenticado. Antes se pasaban como parámetros, lo que permitía
+// suplantar la identidad del admin desde consola.
+function sendOrderChat(oid){
+  if(!requireNotBlocked()) return;
   const inp = document.getElementById('chat-input-'+oid);
   if(!inp) return;
   const text = inp.value.trim(); if(!text) return;
-  if(!fbDb){toast('Sin conexión Firebase','#dc2626');return;}
-  const msg = {id:uid(), author, isAdmin:!!isAdmin, text, ts:Date.now()};
+  if(!fbDb){ toast('Sin conexión Firebase','#dc2626'); return; }
+  if(!S.session || !S.session.uid){ toast('Sin sesión','#dc2626'); return; }
+  const role = currentRole();
+  const isAdmin = isAdminRole(role);
+  const author = isAdmin ? (cfg.adminName || S.session.name || 'Admin')
+                         : (S.session.name || S.session.restaurant || 'Local');
+  const msg = {
+    id: uid(),
+    uid: S.session.uid,   // Firebase Rules validan que === auth.uid
+    author,
+    isAdmin,
+    text,
+    ts: Date.now()
+  };
   fbDb.ref('orderComments/'+oid+'/'+msg.id).set(msg);
-  inp.value='';
+  inp.value = '';
 }
 function restFilterTabs(ordersForCount, stateKey){
   const allRests=[...new Set(ordersForCount.map(o=>o.restaurant||'').filter(Boolean))].sort();

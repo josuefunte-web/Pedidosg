@@ -125,6 +125,10 @@ function filterProds(val){
 }
 
 function chgQ(id,d){
+  // Bloqueo de seguridad — un rol sin permiso para crear pedidos NO puede
+  // modificar el carrito. Se protege aquí por si algún elemento residual del
+  // UI acaba llamándolo (por ej. cache antigua del navegador).
+  if(!can('canCreateOrders')){ toast('No tienes permiso para hacer pedidos','#dc2626'); return; }
   if(!S.cart[S.supId])S.cart[S.supId]={};
   const sc=S.cart[S.supId];
   const q=sc[id]||0,nq=Math.max(0,q+d);
@@ -156,6 +160,14 @@ function chgQ(id,d){
 
 function submitOrder(){
   if(!S.session){toast('Sin sesión','#dc2626');return;}
+  if(!requireNotBlocked()) return;
+  if(!requireCan('canCreateOrders')) return;
+  // El restaurant activo debe ser uno de los asignados al usuario.
+  // (Doble red: Firebase Rules ya lo rechazan, pero fallamos rápido aquí.)
+  const allowedRests = (S.session.restaurants && S.session.restaurants.length) ? S.session.restaurants : [S.session.restaurant];
+  if(!allowedRests.includes(S.session.restaurant)){
+    toast('Restaurante no autorizado en tu sesión','#dc2626'); return;
+  }
   const activeSups=Object.keys(S.cart).filter(sid=>Object.keys(S.cart[sid]||{}).length>0);
   if(!activeSups.length){toast('Añade productos al pedido','#dc2626');return;}
   const approvalMinAmount=cfg.approvalMinAmount||0;
@@ -163,16 +175,11 @@ function submitOrder(){
   activeSups.forEach(sid=>{
     const sup=suppliers[sid];if(!sup)return;
     const sc=S.cart[sid]||{};
-    // Build product lookup: localStorage + _cartProds (recién añadidos) + Firebase (toma precedencia para los existentes)
     const _lsProds=(()=>{try{return(JSON.parse(localStorage.getItem('oc_suppliers')||'{}')[sid]?.products)||[];}catch(e){return[];}})();
     const _prodMap={};
     _lsProds.forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
     Object.values(S._cartProds[sid]||{}).forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
     (sup.products||[]).forEach(p=>{if(p&&p.id)_prodMap[p.id]=p;});
-    // Al guardar los items del pedido, sustituimos p.price por el precio
-    // efectivo según la unidad seleccionada (KG/Caja/UN...). Así toda la
-    // cadena posterior — WhatsApp, historial, cálculos, exportaciones —
-    // usa qty × price y siempre da el importe correcto para la unidad elegida.
     const items=Object.keys(sc).filter(pid=>sc[pid]>0).map(pid=>{
       const p=_prodMap[pid];if(!p)return null;
       const selUnit=(S.cartUnits[sid]&&S.cartUnits[sid][pid])||p.unit;
@@ -182,8 +189,26 @@ function submitOrder(){
     if(!items.length)return;
     const orderTotal=items.reduce((s,p)=>s+p.qty*p.price,0);
     const needApproval=S.session.needsApproval&&(approvalMinAmount<=0||orderTotal>=approvalMinAmount);
-    const o={id:uid(),restaurant:S.session.restaurant,supId:sid,items,status:needApproval?'pending':'approved',autoApproved:!needApproval,createdAt:new Date().toISOString(),urgent:S.orderUrgent||false,deliveryDate:S.orderDeliveryDate||null,notes:S.orderNotes||''};
+    // `total` PERSISTIDO — imprescindible para que Firebase Rules validen
+    // el límite económico de admin3 (newData.child('total').val() <= limit).
+    // Trazabilidad: createdBy/Email para auditoría desde Firebase.
+    const o={
+      id:uid(),
+      restaurant:S.session.restaurant,
+      supId:sid,
+      items,
+      total:parseFloat(orderTotal.toFixed(2)),
+      status:needApproval?'pending':'approved',
+      autoApproved:!needApproval,
+      createdBy:currentAuthUid(),
+      createdByEmail:currentAuthEmail(),
+      createdAt:new Date().toISOString(),
+      urgent:S.orderUrgent||false,
+      deliveryDate:S.orderDeliveryDate||null,
+      notes:S.orderNotes||''
+    };
     saveOrder(o);
+    try{ auditLog('order.create',{orderId:o.id,restaurant:o.restaurant,total:o.total,supId:o.supId,autoApproved:!needApproval}); }catch(e){}
     orders2send.push(o);
   });
   if(!orders2send.length){toast('Añade productos al pedido','#dc2626');return;}
@@ -224,18 +249,30 @@ function submitOrder(){
 }
 
 function approve(id){
+  if(!requireNotBlocked()) return;
   const noteEl=document.getElementById('approve-note-'+id);
   const approvalNote=noteEl?noteEl.value.trim():'';
   const o=orders.find(x=>x.id===id);
-  // Verificar que el rol tiene permiso para aprobar Y que el importe no
-  // supera su límite. admin3 tiene límite configurable, admin2/admin1 no.
+  // Verificar rol + límite económico
   if(o && !canApproveOrderAmount(total(o))){
     const lim=currentApprovalLimit();
     toast(`No puedes aprobar este pedido (${fmt(total(o))}). Tu límite es ${lim===Infinity?'sin límite':fmt(lim)}.`,'#dc2626',5000);
     return;
   }
-  updateOrder(id,{status:'approved',...(approvalNote?{approvalNote}:{})});
-  if(!fbDb){ if(o){o.status='approved';if(approvalNote)o.approvalNote=approvalNote;} render(); }
+  // IMPORTANTE: NO tocar el campo `total` en el update. Las Firebase Rules
+  // exigen `newData.child('total').val() === data.child('total').val()`
+  // para admin3, para evitar bypass del límite manipulando el total.
+  const patch={
+    status:'approved',
+    approvedAt:new Date().toISOString(),
+    approvedBy:currentAuthUid(),
+    approvedByEmail:currentAuthEmail(),
+    approvedRole:currentRole(),
+    ...(approvalNote?{approvalNote}:{})
+  };
+  updateOrder(id,patch);
+  try{ auditLog('order.approve',{orderId:id,total:o?total(o):null,role:currentRole()}); }catch(e){}
+  if(!fbDb && o){ Object.assign(o, patch); render(); }
   toast('Pedido aprobado','#16a34a');
   const sup=o?suppliers[o.supId]:null;
   const localUser=o?cfg.users.find(u=>u.restaurant===o.restaurant):null;
@@ -245,10 +282,21 @@ function approve(id){
   else if(nextWA) showWA(nextWA.phone,nextWA.msg,nextWA.desc);
 }
 function rejectWithReason(id){
+  if(!requireNotBlocked()) return;
+  if(!requireCan('canApproveOrders') && !hasAdminAccess()){ return; }
   const reason=prompt('Motivo del rechazo (opcional):');
   if(reason===null) return; // cancelled
-  updateOrder(id,{status:'rejected',rejectReason:reason||''});
-  if(!fbDb){ const o=orders.find(o=>o.id===id);if(o){o.status='rejected';o.rejectReason=reason||'';} render(); }
+  const patch={
+    status:'rejected',
+    rejectReason:reason||'',
+    rejectedAt:new Date().toISOString(),
+    rejectedBy:currentAuthUid(),
+    rejectedByEmail:currentAuthEmail(),
+    rejectedRole:currentRole()
+  };
+  updateOrder(id,patch);
+  try{ auditLog('order.reject',{orderId:id,reason:reason||'',role:currentRole()}); }catch(e){}
+  if(!fbDb){ const o=orders.find(o=>o.id===id);if(o) Object.assign(o, patch); render(); }
   toast('Pedido rechazado','#dc2626');
 }
 function startEditOrder(id){

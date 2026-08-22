@@ -119,3 +119,54 @@ function canAssignRole(myRole, targetRole){
   if(myRole === 'admin2') return ['camarero','jefe_cocina','encargado'].includes(targetRole);
   return false;
 }
+
+// ── Helpers de seguridad extra (Fase 1 hardening) ────────────────────
+function isAdminRole(role){
+  return role === 'admin1' || role === 'admin2' || role === 'admin3';
+}
+function currentAuthUid(){
+  return (S.session && S.session.uid) || null;
+}
+function currentAuthEmail(){
+  return (S.session && S.session.email) || null;
+}
+// Guardia para operaciones sensibles en cliente. Devuelve true si tiene
+// permiso; si no, muestra toast y devuelve false. `silent` evita el toast.
+// (No sustituye a las Firebase Rules — es defensa en profundidad y UX.)
+function requireCan(perm, silent){
+  if(!can(perm)){
+    if(!silent && typeof toast === 'function') toast('Sin permiso para: '+perm, '#dc2626');
+    return false;
+  }
+  return true;
+}
+// Aborta la operación si el usuario está bloqueado — desloguea y redirige.
+function requireNotBlocked(){
+  const uid = currentAuthUid();
+  if(!uid) return false;
+  const u = (typeof authUsers !== 'undefined' && authUsers[uid]) || null;
+  if(u && u.blocked === true){
+    try{ if(typeof fbAuth !== 'undefined' && fbAuth) fbAuth.signOut().catch(()=>{}); }catch(e){}
+    S.session = null; S.view = 'login';
+    try{ render(); }catch(e){}
+    return false;
+  }
+  return true;
+}
+// Registra una acción sensible en auditLog. Append-only, cada uid escribe
+// solo sus propias entradas (Firebase Rules lo garantizan). Solo admin1 lee.
+function auditLog(action, details){
+  try{
+    if(typeof fbDb === 'undefined' || !fbDb) return;
+    if(!S.session || !S.session.uid) return;
+    const id = 'a'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    fbDb.ref('auditLog/'+id).set({
+      uid: S.session.uid,
+      email: S.session.email || null,
+      role: currentRole(),
+      action: String(action),
+      ts: Date.now(),
+      details: details || null
+    }).catch(()=>{});
+  }catch(e){}
+}

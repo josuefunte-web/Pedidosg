@@ -151,6 +151,7 @@ function _listenGlobalCfg(){
     if(val.priceAlertPct !== undefined) cfg.priceAlertPct = val.priceAlertPct;
     if(val.adminPhone !== undefined) cfg.adminPhone = val.adminPhone;
     if(val.admin3ApprovalLimit !== undefined) cfg.admin3ApprovalLimit = val.admin3ApprovalLimit;
+    if(val.mistralProxyUrl !== undefined) cfg.mistralProxyUrl = val.mistralProxyUrl;
     localStorage.setItem('oc_cfg', JSON.stringify(cfg));
     if(val.appVersion !== undefined) _handleAppVersionChange(val.appVersion);
   });

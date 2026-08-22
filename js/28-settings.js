@@ -77,8 +77,14 @@ function vSettings(){
           <li>~2€ por cada 1.000 albaranes escaneados</li>
         </ol>
       </div>
-      <label>API Key de Mistral</label>
-      <input type="password" value="${cfg.mistralKey||''}" placeholder="aytq3E..." onchange="cfg.mistralKey=this.value.trim();saveCfg()"/>
+      <label>URL del proxy OCR (Cloudflare Worker)</label>
+      <input type="url" value="${cfg.mistralProxyUrl||''}" placeholder="https://provea-mistral-proxy.tucuenta.workers.dev" onchange="cfg.mistralProxyUrl=this.value.trim();saveCfg()"/>
+      <div style="font-size:12px;color:${cfg.mistralProxyUrl?'#16a34a':'#dc2626'};margin-top:4px">${cfg.mistralProxyUrl?'✓ Proxy configurado — el OCR pasará por tu Worker autenticado':'Sin configurar — el OCR con IA no funcionará (se caerá a OCR.space básico)'}</div>
+      <div style="font-size:11px;color:var(--mut);margin-top:4px">La API key de Mistral se guarda como secret en tu Worker. NUNCA se expone al navegador.</div>
+      <!-- Legacy: la key en cliente se mantiene solo por si tu Worker no está desplegado todavía.
+           Cuando el proxy esté funcionando, borra la key de aquí. -->
+      <label style="margin-top:12px;display:block">API Key de Mistral <span style="color:#dc2626">(legacy, en desuso)</span></label>
+      <input type="password" value="${cfg.mistralKey||''}" placeholder="Solo para fallback" onchange="cfg.mistralKey=this.value.trim();saveCfg()"/>
       <div style="font-size:12px;color:${cfg.mistralKey?'#16a34a':'var(--mut)'};margin-top:4px">${cfg.mistralKey?'✓ Configurada — el OCR usará Mistral OCR (IA)':'Sin configurar — se usará OCR.space como alternativa'}</div>
     </div>
     <div class="card-t" style="margin-top:20px">OCR alternativo — OCR.space</div>
@@ -100,9 +106,11 @@ function vSettings(){
     </div>
     <div id="force-update-status" style="font-size:12px;color:var(--mut);margin-top:6px"></div>
     <div class="card-t" style="margin-top:20px">Datos</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn btn-no btn-sm" onclick="if(confirm('¿Borrar TODOS los pedidos de Firebase?')){fbDb.ref('orders').remove();toast('Pedidos eliminados','#dc2626')}">Borrar pedidos</button>
-      <button class="btn btn-no btn-sm" onclick="if(confirm('¿Borrar todos los albaranes?')){fbDb.ref('albaranes').remove();toast('Albaranes eliminados','#dc2626')}">Borrar albaranes</button>
+    <div style="font-size:12px;color:var(--mut);padding:10px;background:var(--srf);border-radius:8px;border:1px solid var(--brd)">
+      Las operaciones de borrado masivo (pedidos, albaranes) se han retirado del
+      UI por seguridad. Si de verdad necesitas borrar todo, hazlo desde
+      <strong>Firebase Console → Realtime Database</strong>, así queda registro
+      del acceso.
     </div>
   </div>`;
 }

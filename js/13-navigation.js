@@ -20,12 +20,51 @@ function logout(){
   if(fbAuth) fbAuth.signOut().catch(()=>{});
   render();
 }
-function goOrder(){ S.view='order';S.cart={};S.cartUnits={};S._cartProds={};S.orderTab='new';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
+function goOrder(){
+  S.view='order';S.cart={};S.cartUnits={};S._cartProds={};
+  // Camareros/cocineros no ven la pestaña "Hacer pedido" — arrancan en "Mis pedidos"
+  S.orderTab = can('canCreateOrders') ? 'new' : 'history';
+  const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render();
+}
 // Cambiar el local activo cuando un usuario tiene varios restaurantes asignados
 // (selector "Pedido para"). Actualiza también userId, del que dependen la
 // visibilidad de proveedores por local y las plantillas/pedidos recurrentes.
 function setActiveRestaurant(r){ S.session.restaurant=r;S.session.userId=userIdForRestaurant(r);S.cart={};S.orderTab='new';render(); }
-function goAdmin(){ S.view='admin';S.session={isAdmin:true,role:'admin1',name:cfg.adminName};S.adminOrderPicker=false;localStorage.setItem('oc_admin_session','1');showHdr(true);render(); }
-function goOrderAsAdmin(rest){ S.session={isAdmin:true,role:'admin1',name:cfg.adminName,restaurant:rest,userId:userIdForRestaurant(rest),isAdminOrder:true,needsApproval:false};S.adminOrderPicker=false;S.cart={};S.cartUnits={};S._cartProds={};S.orderTab='new';S.view='order';const sl=visibleSups();if(sl.length)S.supId=sl[0].id;showHdr(false);render(); }
+// goAdmin: navegación al panel admin. YA NO crea sesión ni escribe
+// nada en localStorage — solo cambia la vista si el usuario logueado
+// tiene rol con acceso admin. La sesión viene siempre de Firebase Auth.
+function goAdmin(){
+  if(!S.session || !hasAdminAccess()){
+    if(typeof toast==='function') toast('No tienes permiso para el panel admin','#dc2626');
+    return;
+  }
+  S.view='admin';
+  S.adminOrderPicker=false;
+  showHdr(true);
+  render();
+}
+// goOrderAsAdmin: admin abre la vista de pedido "haciéndose pasar" por
+// un local. Se mantiene el uid/email real para trazabilidad; solo se
+// cambia la fachada del restaurant activo. La autorización real (rol +
+// Rules) sigue siendo la del admin.
+function goOrderAsAdmin(rest){
+  if(!S.session || !hasAdminAccess()){
+    if(typeof toast==='function') toast('No tienes permiso','#dc2626');
+    return;
+  }
+  S.session={
+    ...S.session,
+    restaurant:rest,
+    userId:userIdForRestaurant(rest),
+    isAdminOrder:true,
+    needsApproval:false
+  };
+  S.adminOrderPicker=false;
+  S.cart={};S.cartUnits={};S._cartProds={};
+  S.orderTab='new';
+  S.view='order';
+  const sl=visibleSups();if(sl.length)S.supId=sl[0].id;
+  showHdr(false);render();
+}
 function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=visibleSups()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];S.albTotalManual=null;showHdr(false);render(); }
 function setTabSb(t){ S.adminTab=t;S.sidebarOpen=false;render(); }

@@ -185,18 +185,15 @@ self.addEventListener('fetch',e=>{
   addMissingSuppliers();
   updateCoreSuppliers();
 
-  // ── Firebase Auth: siempre registrar onAuthStateChanged ──
-  // (debe registrarse ANTES de restaurar sesión admin para capturar logins de restaurantes)
+  // ── Firebase Auth: única fuente de sesión ──
+  // (ya no hay bootstrap admin desde localStorage — todo pasa por aquí)
   if(fbAuth){
     fbAuth.onAuthStateChanged(user=>{
-      if(S.session?.isAdmin) return; // admin activo vía localStorage, ignorar
       if(user){
         fbDb.ref('authUsers/'+user.uid).once('value',snap=>{
           const u=snap.val();
-          const isAdminUser=(user.email && user.email.toLowerCase()===(cfg.adminEmail||'josue.funte@gmail.com').toLowerCase()) || (u && u.isAdmin===true);
-          if(isAdminUser){ goAdmin(); return; }
           if(u && u.status==='approved'){
-            // ── Bloqueo de cuenta (admin1 puede bloquear usuarios) ──
+            // ── Bloqueo de cuenta ──
             if(u.blocked===true){
               alert('Tu cuenta está bloqueada. Contacta con el administrador.');
               fbAuth.signOut().catch(()=>{});
@@ -205,23 +202,57 @@ self.addEventListener('fetch',e=>{
             }
             const myRests=u.restaurants||[u.restaurant];
             const _rest0=myRests[0]||u.restaurant;
-            // Determinar rol: prioridad al campo `role` si existe; si no,
-            // isAdmin → admin1; resto → jefe_cocina (default para locales
-            // existentes que no tienen rol asignado todavía).
+            // Rol: prioridad al campo `role`; si no, isAdmin legacy → admin1;
+            // resto → jefe_cocina (default para locales que aún no tienen rol).
             const _role = (u.role && ROLES.includes(u.role)) ? u.role : (u.isAdmin ? 'admin1' : 'jefe_cocina');
-            S.session={uid:user.uid,email:user.email,name:u.name||u.restaurant,restaurant:_rest0,restaurants:myRests,userId:userIdForRestaurant(_rest0),isAdmin:false,role:_role,needsApproval:u.needsApproval!==false};
-            showHdr(false);
-            S.view='order';
+            // NOTA: isAdmin del cliente es informativo (compat con UI antigua).
+            // La autoridad real es `role` + Firebase Rules. NUNCA confiar en isAdmin
+            // en cliente para decidir permisos — usar can(), hasAdminAccess(), etc.
+            S.session={
+              uid:user.uid,
+              email:user.email,
+              name:u.name||u.restaurant,
+              restaurant:_rest0,
+              restaurants:myRests,
+              userId:userIdForRestaurant(_rest0),
+              role:_role,
+              isAdmin: isAdminRole(_role),  // derivado del rol real, no del flag legacy
+              needsApproval:u.needsApproval!==false
+            };
+            // Si el rol tiene acceso admin, ir al panel admin. Si no, a la vista local.
+            if(hasAdminAccess()){
+              showHdr(true); S.view='admin';
+            } else {
+              showHdr(false); S.view='order';
+              // Camareros arrancan en "Mis pedidos", no en "Hacer pedido"
+              S.orderTab = can('canCreateOrders') ? 'new' : 'history';
+            }
             const sl=visibleSups(); if(sl.length) S.supId=sl[0].id;
             render();
-            // Al hacer login, forzar una lectura fresca de proveedores desde
-            // Firebase para reemplazar cualquier snapshot antiguo cacheado en
-            // localStorage. El listener existente (_listenSuppliers) hará el
-            // resto: cuando lleguen los datos frescos actualizará `suppliers`,
-            // guardará el nuevo snapshot en localStorage y re-renderizará.
-            // Esto resuelve el caso del usuario con localStorage stale que
-            // ve una lista de proveedores desactualizada.
             try{ fbDb.ref('suppliers').once('value').catch(()=>{}); }catch(e){}
+
+            // ── Listener runtime de bloqueo ──
+            // Si el propio user es bloqueado mientras tiene sesión abierta,
+            // se le desloguea al instante.
+            try{ if(window._blockedListener) window._blockedListener.off(); }catch(e){}
+            try{
+              window._blockedListener = fbDb.ref('authUsers/'+user.uid+'/blocked');
+              window._blockedListener.on('value', snap2 => {
+                if(snap2.val() === true){
+                  alert('Tu cuenta ha sido bloqueada por el administrador.');
+                  try{ fbAuth.signOut().catch(()=>{}); }catch(e){}
+                  S.session=null; S.view='login'; render();
+                }
+              });
+            }catch(e){}
+
+            // ── Backfill one-off de `total` en pedidos legacy ──
+            // Las nuevas Firebase Rules exigen `total` en cada pedido.
+            // Los pedidos creados antes de la Fase 1 no lo tienen. Solo
+            // admin1 corre el backfill y solo una vez por instalación.
+            if(isSuperAdmin() && !localStorage.getItem('oc_total_backfill_done')){
+              setTimeout(()=>{ try{ _backfillOrderTotals(); }catch(e){console.warn('backfill:',e);} }, 3000);
+            }
           } else if(u && (u.status==='pending'||u.status==='rejected')){
             S.session={uid:user.uid,email:user.email,pendingStatus:u.status};
             document.getElementById('hdr').style.display='none';
@@ -237,13 +268,43 @@ self.addEventListener('fetch',e=>{
     });
   }
 
-  // ── Restaurar sesión de administrador (localStorage) ──
-  if(localStorage.getItem('oc_admin_session')==='1'){
-    S.session={isAdmin:true,role:'admin1',name:cfg.adminName};
-    showHdr(true);
-    S.view='admin';
-    render();
-  } else if(!fbAuth){
-    render(); // Firebase no disponible → mostrar login
-  }
+  // ── Sin bootstrap admin desde localStorage ──
+  // La sesión SIEMPRE viene de Firebase Auth (onAuthStateChanged arriba).
+  // Firebase Auth ya persiste el token en IndexedDB, así que la sesión
+  // sobrevive a recargas sin flags extra en localStorage.
+  // Limpiamos el flag legacy por si quedaba en algún dispositivo.
+  try{ localStorage.removeItem('oc_admin_session'); }catch(e){}
+  if(!fbAuth){ render(); } // Firebase no disponible → mostrar login
 });
+
+// ── Backfill one-off del campo `total` en pedidos legacy ────────────
+// Las Firebase Rules de la Fase 1 exigen `total` en cada pedido para
+// validar el límite económico de aprobación de admin3. Los pedidos
+// creados antes tienen items pero no un campo `total`. Este backfill
+// lo calcula y lo persiste. Solo lo corre admin1, solo una vez.
+function _backfillOrderTotals(){
+  if(!fbDb) return;
+  if(!isSuperAdmin()) return;
+  fbDb.ref('orders').once('value').then(snap=>{
+    const all=snap.val()||{};
+    const updates={};
+    let count=0;
+    Object.entries(all).forEach(([id,o])=>{
+      if(o && typeof o.total !== 'number'){
+        const t=(o.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
+        updates['orders/'+id+'/total'] = parseFloat(t.toFixed(2));
+        count++;
+      }
+    });
+    if(count===0){
+      localStorage.setItem('oc_total_backfill_done','1');
+      console.log('[backfill] no orders needed total');
+      return;
+    }
+    fbDb.ref().update(updates).then(()=>{
+      localStorage.setItem('oc_total_backfill_done','1');
+      if(typeof toast==='function') toast(`Backfill OK: ${count} pedidos actualizados con total`,'#16a34a',4000);
+      console.log('[backfill] '+count+' orders backfilled');
+    }).catch(e=>console.warn('[backfill] error:',e));
+  }).catch(e=>console.warn('[backfill] read error:',e));
+}

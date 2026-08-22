@@ -263,19 +263,40 @@ function _mistralParseItems(rawContent){
   }catch(e){ console.warn('Parse error:',e); return []; }
 }
 
-// Llamada al chat de Mistral con el body ya construido.
-async function _mistralChat(mistralKey, chatBody){
-  const resp=await fetch('https://api.mistral.ai/v1/chat/completions',{
-    method:'POST',
-    headers:{'Authorization':'Bearer '+mistralKey,'Content-Type':'application/json'},
-    body:JSON.stringify(chatBody)
+// URL del Cloudflare Worker que hace de proxy a Mistral.
+// Configurable desde admin1 → Settings → OCR. Si no está configurado se cae al
+// fallback OCR.space. La API key de Mistral está en las Variables de Entorno
+// del Worker (nunca en el cliente).
+function _mistralProxyUrl(){
+  return (cfg.mistralProxyUrl||'').replace(/\/$/,'');
+}
+
+// Llamada al chat de Mistral a través del proxy autenticado.
+// El primer parámetro se ignora (antes era la API key en cliente) — ahora
+// solo se manda el idToken de Firebase Auth y el proxy inyecta la key.
+async function _mistralChat(_ignoredKey, chatBody){
+  const proxyBase = _mistralProxyUrl();
+  if(!proxyBase){
+    throw new Error('Proxy OCR no configurado. Ve a Admin → Configuración → OCR para poner la URL del Worker.');
+  }
+  if(!fbAuth || !fbAuth.currentUser){
+    throw new Error('Sesión Firebase requerida para usar el OCR.');
+  }
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const resp = await fetch(proxyBase + '/mistral/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + idToken,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(chatBody)
   });
   if(!resp.ok){
-    const err=await resp.json().catch(()=>({}));
-    throw new Error(err?.message||'Error Mistral chat ('+resp.status+')');
+    const err = await resp.json().catch(()=>({}));
+    throw new Error(err?.detail || err?.error || err?.message || ('Error proxy Mistral ('+resp.status+')'));
   }
-  const data=await resp.json();
-  return data.choices?.[0]?.message?.content||'[]';
+  const data = await resp.json();
+  return data.choices?.[0]?.message?.content || '[]';
 }
 
 // Publica los items detectados al carrito de albarán + toast de resultado.
@@ -316,12 +337,16 @@ async function _runOCRMistralPDF(mistralKey, showProg){
   showProg('Paso 1/2 — leyendo el PDF...');
   const { promptText, catalogSize } = _mistralPrompt();
   const dataUri=_mistralDataUri();
-  const ocrResp=await fetch('https://api.mistral.ai/v1/ocr',{
+  const proxyBase = _mistralProxyUrl();
+  if(!proxyBase) throw new Error('Proxy OCR no configurado.');
+  if(!fbAuth || !fbAuth.currentUser) throw new Error('Sesión Firebase requerida.');
+  const idToken = await fbAuth.currentUser.getIdToken();
+  const ocrResp=await fetch(proxyBase+'/mistral/ocr',{
     method:'POST',
-    headers:{'Authorization':'Bearer '+mistralKey,'Content-Type':'application/json'},
+    headers:{'Authorization':'Bearer '+idToken,'Content-Type':'application/json'},
     body:JSON.stringify({model:'mistral-ocr-latest',document:{type:'document_url',document_url:dataUri}})
   });
-  if(!ocrResp.ok){ const err=await ocrResp.json().catch(()=>({})); throw new Error(err?.message||'Error Mistral OCR ('+ocrResp.status+')'); }
+  if(!ocrResp.ok){ const err=await ocrResp.json().catch(()=>({})); throw new Error(err?.detail||err?.error||err?.message||'Error Mistral OCR ('+ocrResp.status+')'); }
   const ocrData=await ocrResp.json();
   const markdown=(ocrData.pages||[]).map(p=>p.markdown||'').join('\n');
   console.log('[OCR] Texto leído del PDF:\n',markdown);

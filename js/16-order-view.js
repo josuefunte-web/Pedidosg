@@ -9,8 +9,12 @@ function vOrder(){
     <span style="font-weight:600;color:#92400e">Admin — pedido para <strong>${S.session.restaurant}</strong></span>
     <button class="btn btn-ghost btn-sm" onclick="goAdmin()">← Volver al panel</button>
   </div>`:'';
+  // Ocultar la pestaña "Hacer pedido" a quien no tenga permiso (camareros).
+  // Si están en esa pestaña por accidente, redirigir a "Mis pedidos" (view-only).
+  if(S.orderTab==='new' && !can('canCreateOrders')) S.orderTab='history';
+  const _showNewTab = can('canCreateOrders');
   const tabsHtml=`<div class="tabs" style="margin-bottom:16px">
-    <button class="tab ${S.orderTab==='new'?'act':''}" onclick="S.orderTab='new';render()">Hacer pedido</button>
+    ${_showNewTab?`<button class="tab ${S.orderTab==='new'?'act':''}" onclick="S.orderTab='new';render()">Hacer pedido</button>`:''}
     <button class="tab ${S.orderTab==='history'?'act':''}" onclick="S.orderTab='history';render()"> Mis pedidos${histBadge}</button>
     <button class="tab ${S.orderTab==='gastos'?'act':''}" onclick="S.orderTab='gastos';render()">Mi gasto</button>
     <button class="tab ${S.orderTab==='escandallos'?'act':''}" onclick="S.orderTab='escandallos';render()">Escandallos</button>
@@ -245,8 +249,8 @@ function vMyOrders(){
     const modTag=o.modifiedByAdmin?`<span class="badge b-f" style="margin-left:6px"> Modificado</span>`:'';
     const urgTag=o.urgent?`<span class="badge b-urg" style="margin-left:6px">URGENTE</span>`:'';
     const delTag=o.deliveryDate?`<span style="font-size:11px;color:var(--mut);margin-left:6px"> Entrega: ${o.deliveryDate}</span>`:'';
-    const rows=(o.items||[]).map(it=>`<div class="pr"><span class="pn">${it.name||'?'}</span><span class="pq">${convQtyStr(it.qty,it.unit,it.baseUnit||it.unit,it.conversions)}</span><span class="pp">${fmt((it.qty||0)*(it.price||0))}</span></div>`).join('');
-    const rejNote=o.status==='rejected'&&o.rejectReason?`<div class="banner red" style="margin-top:8px">${o.rejectReason}</div>`:'';
+    const rows=(o.items||[]).map(it=>`<div class="pr"><span class="pn">${_e(it.name||'?')}</span><span class="pq">${_e(convQtyStr(it.qty,it.unit,it.baseUnit||it.unit,it.conversions))}</span><span class="pp">${fmt((it.qty||0)*(it.price||0))}</span></div>`).join('');
+    const rejNote=o.status==='rejected'&&o.rejectReason?`<div class="banner red" style="margin-top:8px">${_e(o.rejectReason)}</div>`:'';
     const recvBtn=o.status==='approved'?`<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="markReceived('${o.id}')">Confirmar recepción</button>`:'';
     return `<div class="oc" ${o.urgent?'style="border-color:#dc2626"':''}>
       <div class="oc-hd">
