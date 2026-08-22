@@ -13,7 +13,8 @@ function vOrder(){
   // Si están en esa pestaña por accidente, redirigir a "Mis pedidos" (view-only).
   if(S.orderTab==='new' && !can('canCreateOrders')) S.orderTab='history';
   const _showNewTab = can('canCreateOrders');
-  const tabsHtml=`<div class="tabs" style="margin-bottom:16px">
+  const orderIntro=`<div class="ui-page-head ui-local-head"><div><div class="ui-eyebrow">Operativa del local</div><h1>${escHtml(S.session.restaurant||'Pedidos')}</h1><p>Pedidos, inventario, costes y recetas en un solo lugar</p></div></div>`;
+  const tabsHtml=`<div class="tabs ui-local-tabs" style="margin-bottom:16px">
     ${_showNewTab?`<button class="tab ${S.orderTab==='new'?'act':''}" onclick="S.orderTab='new';render()">Hacer pedido</button>`:''}
     <button class="tab ${S.orderTab==='history'?'act':''}" onclick="S.orderTab='history';render()"> Mis pedidos${histBadge}</button>
     <button class="tab ${S.orderTab==='gastos'?'act':''}" onclick="S.orderTab='gastos';render()">Mi gasto</button>
@@ -26,17 +27,17 @@ function vOrder(){
   </div>`:'';
 
   if(S.orderTab==='history'){
-    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vMyOrders()}</div>`;
+    return `<div class="main">${adminBanner}${orderIntro}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vMyOrders()}</div>`;
   }
   if(S.orderTab==='gastos'){
-    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalGastos()}</div>`;
+    return `<div class="main">${adminBanner}${orderIntro}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalGastos()}</div>`;
   }
   if(S.orderTab==='escandallos'){
     if(!_escInit&&fbDb) initEscandallos();
-    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalEscandallos()}</div>`;
+    return `<div class="main">${adminBanner}${orderIntro}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalEscandallos()}</div>`;
   }
   if(S.orderTab==='inventario'){
-    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalInventario(S.session.restaurant)}</div>`;
+    return `<div class="main">${adminBanner}${orderIntro}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalInventario(S.session.restaurant)}</div>`;
   }
 
   const sups=visibleSups();
@@ -46,7 +47,7 @@ function vOrder(){
     // solo el segundo mensaje como definitivo evita que una conexión lenta se
     // vea igual que un local sin proveedores configurados.
     const stillLoading=Object.keys(suppliers).length===0;
-    return `<div class="main">${adminBanner}${tabsHtml}<div class="empty"><div class="ei">${stillLoading?'⏳':''}</div><div class="et">${stillLoading?'Cargando proveedores…':'No hay proveedores activos para este local.'}</div>${stillLoading?'<div style="font-size:12px;color:var(--mut);margin-top:6px">Si tarda mucho, comprueba tu conexión a internet.</div>':''}</div></div>`;
+    return `<div class="main">${adminBanner}${orderIntro}${tabsHtml}<div class="empty"><div class="ei">${stillLoading?'⏳':''}</div><div class="et">${stillLoading?'Cargando proveedores…':'No hay proveedores activos para este local.'}</div>${stillLoading?'<div style="font-size:12px;color:var(--mut);margin-top:6px">Si tarda mucho, comprueba tu conexión a internet.</div>':''}</div></div>`;
   }
   if(!suppliers[S.supId]||!(sups.find(s=>s.id===S.supId))) S.supId=sups[0].id;
   const sup=suppliers[S.supId];
@@ -177,7 +178,7 @@ function vOrder(){
       </div>
     </div>`:''}`;
   return `<div class="main">
-    ${adminBanner}${tabsHtml}${restPickerHtml}${note}
+    ${adminBanner}${orderIntro}${tabsHtml}${restPickerHtml}${note}
     ${vacBanner}
     ${cutoffBanner}
     ${recurringBanner}

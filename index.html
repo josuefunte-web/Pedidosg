@@ -27,7 +27,7 @@
      navegadores que aún sirven un index.html viejo desde su propia caché. -->
 <script>
 (function(){
-  window.APP_VERSION='20260823c';
+  window.APP_VERSION='20260824-ui3';
   try{
     fetch('version.json?t='+Date.now(),{cache:'no-store'})
       .then(function(r){return r.ok?r.json():null;})
@@ -49,7 +49,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <!-- Excel export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260823c">
+<link rel="stylesheet" href="css/styles.css?v=20260824-ui3">
 </head>
 <body>
 
@@ -119,11 +119,11 @@
 <script src="js/10-state.js?v=20260823c"></script>
 <script src="js/11-helpers.js?v=20260823c"></script>
 <script src="js/13-navigation.js?v=20260823c"></script>
-<script src="js/14-render.js?v=20260823c"></script>
+<script src="js/14-render.js?v=20260824-ui3"></script>
 <script src="js/15-login.js?v=20260823c"></script>
-<script src="js/16-order-view.js?v=20260823c"></script>
+<script src="js/16-order-view.js?v=20260824-ui3"></script>
 <script src="js/17-local-gastos.js?v=20260823c"></script>
-<script src="js/18-admin-view.js?v=20260823c"></script>
+<script src="js/18-admin-view.js?v=20260824-ui3"></script>
 <script src="js/19-albaranes.js?v=20260823c"></script>
 <script src="js/20-new-albaran.js?v=20260823c"></script>
 <script src="js/21-iva-albaran.js?v=20260823c"></script>
