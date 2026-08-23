@@ -1,11 +1,18 @@
-# NOVENTIA — rediseño de Compras por proveedor
+# NOVENTIA UI 6
 
-Sustituye `js/40-historial-proveedor.js` y añade `css/noventia-analytics.css`.
+Incluye:
+- Eliminación visual y navegación defensiva de Consolidado.
+- Compras por proveedor reconstruido como analítica compacta.
+- Visibilidad comercial reconstruida con vistas Por local y Por proveedor.
+- Inventario reconstruido como DataGrid ERP con KPIs, búsqueda, filtros y formulario integrado.
 
-En `index.html`, justo después de `css/styles.css`, añade:
+## Instalación automática
+1. Copia esta carpeta dentro de la raíz del repositorio.
+2. Abre Terminal en la raíz del repositorio.
+3. Ejecuta:
 
-```html
-<link rel="stylesheet" href="css/noventia-analytics.css?v=20260823-analytics1">
+```bash
+python3 NOVENTIA_UI6/INSTALAR_UI6.py
 ```
 
-El rediseño elimina emojis, compacta los proveedores, añade búsqueda, KPIs, ranking, barras comparativas y detalle desplegable responsive.
+El instalador copia los dos archivos, los añade a `index.html` y actualiza `version.json`.
