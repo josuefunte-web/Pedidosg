@@ -35,7 +35,6 @@ function vAdmin(){
     <div class="sb-section">Pedidos</div>
     ${sbItem('pending','Pendientes','sb-pend-badge')}
     ${sbItem('approved','Aprobados')}
-    ${sbItem('consolidated','Consolidado')}
     ${sbItem('received','Recibidos')}
     <div class="sb-section">Análisis</div>
     ${sbItem('budgets','Presupuestos')}
@@ -62,7 +61,6 @@ function vAdmin(){
   if(S.adminTab==='dashboard')      content=vAdminDashboard();
   else if(S.adminTab==='pending')   content=vPending();
   else if(S.adminTab==='approved')  content=vApproved();
-  else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='received')  content=vReceived();
   else if(S.adminTab==='budgets')   content=vBudgets();
   else if(S.adminTab==='foodcost')  content=vFoodCost();

@@ -7,5 +7,4 @@ FIREBASE_PROJECT_ID = "pedidos-835a1"
 FIREBASE_API_KEY = "AIzaSyCJIF3BsWdWnB59idnxCRlYbWixTp1sGb8"
 ALLOWED_ORIGIN = "https://josuefunte-web.github.io"
 
-# Configure the private key separately; never write it in this file:
-# wrangler secret put MISTRAL_API_KEY
+# Secret: wrangler secret put MISTRAL_API_KEY

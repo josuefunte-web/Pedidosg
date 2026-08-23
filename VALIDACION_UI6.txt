@@ -1,0 +1,7 @@
+VALIDACION COMPLETADA
+JavaScript validado: 52 archivos
+JSON validado: 2 archivos
+Referencias locales verificadas: 53
+Consolidado eliminado del menu y enrutado
+UI6 CSS y JS cargados una sola vez
+Cache: 20260823-noventia-ui6-final1
