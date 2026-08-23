@@ -1,0 +1,6 @@
+Validación completada
+Versión: 20260823-noventia-ui5-cache2
+Referencias locales comprobadas: 50
+JavaScript comprobado: 51
+Protección contra bucles: sessionStorage por versión
+Datos locales: no se eliminan

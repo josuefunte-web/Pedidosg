@@ -1,7 +1,5 @@
-VALIDACIÓN COMPLETADA
-
-- JavaScript comprobado con node --check: 51 archivos.
-- JSON válido: database.rules.json y version.json.
-- Referencias locales de index.html comprobadas.
-- CSS visual consolidado en css/styles.css.
-- Versión de caché unificada: 20260822-noventia-rebuild1.
+Validación completada
+- JavaScript: 51 archivos validados
+- JSON válido
+- Referencias de index comprobadas
+- Versión de caché: 20260823-noventia-ui5-final
