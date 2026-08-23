@@ -33,70 +33,24 @@ function toggleSupVisibilityQuiet(sid,uid,visible){
 }
 
 function vSupVisibility(){
-  const sups=supList();
-  const users=(cfg.users||[]).slice();
-  if(!sups.length){
-    return `<div class="main"><div class="card"><div class="card-t">Visibilidad por local</div><div style="color:var(--mut)">No hay proveedores todavía.</div></div></div>`;
-  }
-
-  // Cabecera con los 12 locales — nombre en vertical para que quepan todos
-  const headCells=users.map(u=>`
-    <th style="padding:8px 4px;text-align:center;min-width:64px;vertical-align:bottom;background:var(--srf);position:sticky;top:0;z-index:1">
-      <div style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;font-weight:600;white-space:nowrap;margin:0 auto 6px;height:110px;line-height:1.2">${u.restaurant}</div>
-      <div style="display:flex;flex-direction:column;gap:2px;align-items:center">
-        <button class="btn btn-ghost" style="font-size:10px;padding:2px 5px;line-height:1" title="Marcar todos" onclick="svSetAllForLocal('${u.id}',true)">✓</button>
-        <button class="btn btn-ghost" style="font-size:10px;padding:2px 5px;line-height:1" title="Desmarcar todos" onclick="svSetAllForLocal('${u.id}',false)">✕</button>
-      </div>
-    </th>`).join('');
-
-  // Filas: un proveedor por fila
-  const rows=sups.map(s=>{
-    const dis=s.disabledFor||[];
-    const cells=users.map(u=>{
-      const visible=!dis.includes(u.id);
-      // Cuadro grande, tocable con el dedo — usamos un checkbox nativo escalado
-      return `<td style="text-align:center;padding:6px 4px;background:${visible?'rgba(22,163,74,.08)':'transparent'}">
-        <input type="checkbox" ${visible?'checked':''} onchange="toggleSupVisibility('${s.id}','${u.id}',this.checked)" style="width:20px;height:20px;cursor:pointer;accent-color:#16a34a"/>
-      </td>`;
-    }).join('');
-    return `<tr>
-      <td style="padding:8px 10px;font-weight:600;white-space:nowrap;background:var(--card);position:sticky;left:0;z-index:1;border-right:1px solid var(--brd)">
-        <div style="display:flex;align-items:center;gap:8px">
-          <span>${s.emoji||''} ${s.name}</span>
-        </div>
-      </td>
-      ${cells}
-      <td style="padding:6px 8px;white-space:nowrap;background:var(--card);border-left:1px solid var(--brd);position:sticky;right:0">
-        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 7px" title="Visible para todos" onclick="svSetAllForSup('${s.id}',true)">Todos ✓</button>
-        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 7px;margin-left:3px" title="Oculto para todos" onclick="svSetAllForSup('${s.id}',false)">Ninguno ✕</button>
-      </td>
-    </tr>`;
+  const sups=supList(), users=(cfg.users||[]).slice();
+  if(!S.supVisMode) S.supVisMode='local';
+  if(S.supVisSearch==null) S.supVisSearch='';
+  const mode=S.supVisMode, entities=mode==='local'?users:sups;
+  if(!S.supVisSelected||!entities.some(x=>x.id===S.supVisSelected)) S.supVisSelected=entities[0]?.id||null;
+  const selected=S.supVisSelected, query=String(S.supVisSearch||'').trim().toLowerCase();
+  const nav=entities.filter(x=>!query||String(mode==='local'?x.restaurant:x.name).toLowerCase().includes(query)).map(x=>{
+    const name=mode==='local'?x.restaurant:x.name, totalN=mode==='local'?sups.length:users.length;
+    const active=mode==='local'?sups.filter(s=>!(s.disabledFor||[]).includes(x.id)).length:users.filter(u=>!(x.disabledFor||[]).includes(u.id)).length;
+    return `<button class="${selected===x.id?'act':''}" onclick="S.supVisSelected='${x.id}';renderAdminContent()"><span><b>${escHtml(name||'')}</b><small>${active} de ${totalN} visibles</small></span><i>${selected===x.id?'›':''}</i></button>`;
   }).join('');
-
-  return `<div class="main">
-    <div class="card">
-      <div class="card-t">Visibilidad de proveedores por local</div>
-      <div style="font-size:13px;color:var(--mut);margin-bottom:10px">
-        Marca la casilla para que ese local vea ese proveedor. Desmarca para ocultarlo.
-        Los cambios se guardan en el momento. Puedes usar los botones ✓/✕ de la cabecera
-        para activar o desactivar de golpe todos los proveedores de un local, o todos los
-        locales de un proveedor.
-      </div>
-      <div style="overflow:auto;max-height:78vh;border:1px solid var(--brd);border-radius:10px">
-        <table style="border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%">
-          <thead>
-            <tr>
-              <th style="padding:8px 10px;text-align:left;background:var(--srf);position:sticky;top:0;left:0;z-index:2;min-width:200px;border-right:1px solid var(--brd)">Proveedor</th>
-              ${headCells}
-              <th style="padding:8px 10px;background:var(--srf);position:sticky;top:0;right:0;z-index:2;text-align:center;min-width:150px">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-      <div style="font-size:12px;color:var(--mut);margin-top:10px">
-        ${sups.length} proveedores × ${users.length} locales — ${sups.length*users.length} combinaciones.
-      </div>
-    </div>
-  </div>`;
+  let cards='', selectedName='Sin selección', bulkOn='', bulkOff='';
+  if(selected&&mode==='local'){
+    const u=users.find(x=>x.id===selected); selectedName=u?.restaurant||selected; bulkOn=`svSetAllForLocal('${selected}',true)`;bulkOff=`svSetAllForLocal('${selected}',false)`;
+    cards=sups.map(s=>{const visible=!(s.disabledFor||[]).includes(u.id);return `<article><span><b>${escHtml(s.name||'')}</b><small>${(s.products||[]).length} productos</small></span><label class="nv-e-switch"><input type="checkbox" ${visible?'checked':''} onchange="toggleSupVisibility('${s.id}','${u.id}',this.checked);setTimeout(renderAdminContent,30)"><i></i></label></article>`}).join('');
+  }else if(selected){
+    const s=sups.find(x=>x.id===selected); selectedName=s?.name||selected; bulkOn=`svSetAllForSup('${selected}',true)`;bulkOff=`svSetAllForSup('${selected}',false)`;
+    cards=users.map(u=>{const visible=!(s.disabledFor||[]).includes(u.id);return `<article><span><b>${escHtml(u.restaurant||'')}</b><small>${escHtml(u.name||u.id)}</small></span><label class="nv-e-switch"><input type="checkbox" ${visible?'checked':''} onchange="toggleSupVisibility('${s.id}','${u.id}',this.checked);setTimeout(renderAdminContent,30)"><i></i></label></article>`}).join('');
+  }
+  return `<div class="nv-e-page"><header class="nv-e-head"><span>Administración</span><h1>Visibilidad comercial</h1><p>Configura qué proveedores puede utilizar cada local</p></header><div class="nv-e-segments nv-e-mode"><button class="nv-e-seg ${mode==='local'?'act':''}" onclick="S.supVisMode='local';S.supVisSelected=null;renderAdminContent()">Por local</button><button class="nv-e-seg ${mode==='supplier'?'act':''}" onclick="S.supVisMode='supplier';S.supVisSelected=null;renderAdminContent()">Por proveedor</button></div><div class="nv-e-master"><aside><input value="${escHtml(S.supVisSearch)}" oninput="S.supVisSearch=this.value;renderAdminContent()" placeholder="Buscar">${nav}</aside><section class="nv-e-vis"><header><div><small>${mode==='local'?'LOCAL':'PROVEEDOR'}</small><h2>${escHtml(selectedName)}</h2></div><div><button onclick="${bulkOn}">Activar todo</button><button onclick="${bulkOff}">Ocultar todo</button></div></header><div class="nv-e-vis-grid">${cards||'<div class="nv-e-empty">Sin elementos</div>'}</div></section></div></div>`;
 }

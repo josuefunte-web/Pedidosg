@@ -341,150 +341,16 @@ function ajusteRapido(rest, id, delta){
 
 // ── Vista admin ──────────────────────────────────────────
 function vInventario(){
-  const allRests=Object.keys(cfg.users||{}).map(u=>{const ud=cfg.users[u];return ud.restaurants||[ud.restaurant||u];}).flat().filter((v,i,a)=>a.indexOf(v)===i).sort();
-  const rest=S.invRest||allRests[0]||'';
-  if(!S.invRest&&rest) S.invRest=rest;
-  const allItems=getInvItems(rest);
-
-  // Filtro por proveedores activos para este restaurante
-  const restUserIds=(cfg.users||[]).filter(u=>{const rests=u.restaurants||[u.restaurant];return rests.includes(rest);}).map(u=>u.id);
-  const activeSups=supList().filter(s=>{const dis=s.disabledFor||[];return restUserIds.length===0||restUserIds.some(uid=>!dis.includes(uid));});
-  const activeSupCatNames=new Set(activeSups.map(s=>(s.emoji?s.emoji+' ':'')+s.name));
-  const allSupCatNames=new Set(supList().map(s=>(s.emoji?s.emoji+' ':'')+s.name));
-
-  // Nombres de productos que este local ha pedido alguna vez (normalizados)
-  const _norm=n=>(n||'').trim().toLowerCase();
-  const orderedNames=new Set();
-  orders.filter(o=>o.restaurant===rest&&o.status!=='rejected').forEach(o=>{
-    (o.items||[]).forEach(it=>{ if(it.name) orderedNames.add(_norm(it.name)); });
-  });
-
-  // Un producto aparece en el inventario si:
-  //   1. Está marcado como manual (añadido a mano por el usuario), O
-  //   2. Se ha pedido alguna vez desde este local
-  // Los productos importados masivamente que nunca se pidieron NO aparecen —
-  // no se borran, solo se ocultan. En cuanto se pidan una vez, reaparecen.
-  // Además se sigue ocultando lo de proveedores desactivados.
-  const items=allItems.filter(it=>{
-    const c=it.category||'Sin categoría';
-    const supOk=!allSupCatNames.has(c) || activeSupCatNames.has(c);
-    if(!supOk) return false;
-    return it.manual===true || orderedNames.has(_norm(it.name));
-  });
-  const lowItems=items.filter(it=>(parseFloat(it.minStock)||0)>0&&invItemQtyInBase(it)<=(parseFloat(it.minStock)||0));
-  // Incluir: categorías de proveedores activos + categorías manuales (no coinciden con ningún proveedor)
-  const filteredCats=[...new Set(items.map(it=>it.category||'Sin categoría'))].filter(c=>!allSupCatNames.has(c)||activeSupCatNames.has(c)).sort();
-  if(S.invCat&&!filteredCats.includes(S.invCat)) S.invCat=null;
-  const catTabs=[
-    `<button class="stab ${!S.invCat?'act':''}" onclick="S.invCat=null;render()"> Todos (${items.length})</button>`,
-    ...filteredCats.map(c=>{
-      const cnt=items.filter(it=>(it.category||'Sin categoría')===c).length;
-      return `<button class="stab ${S.invCat===c?'act':''}" onclick="S.invCat='${c.replace(/'/g,"\\'")}';render()">${c} (${cnt})</button>`;
-    })
-  ].join('');
-
-  const restTabs=allRests.map(r=>`<button class="stab ${rest===r?'act':''}" onclick="S.invRest='${r.replace(/'/g,"\\'")}';S.invEditId=null;S.invCat=null;render()">${r}</button>`).join('');
-
-  const alertBanner=lowItems.length?`<div class="banner" style="background:#fef3c7;border-color:#f59e0b;color:#92400e;margin-bottom:12px"><strong>${lowItems.length} producto${lowItems.length>1?'s':''} con stock bajo:</strong> ${lowItems.map(it=>`${it.name} (${invItemQtysStr(it)})`).join(', ')}</div>`:'';
-
-  const isEditing=S.invEditId!==null;
-  const editItem=isEditing&&S.invEditId!=='new'?(inventory[restKey(rest)]||{})[S.invEditId]:null;
-
-  const formHtml=`<div class="card" style="margin-bottom:14px">
-    <div style="font-weight:700;font-size:14px;margin-bottom:10px">${isEditing&&S.invEditId!=='new'?'Editar producto':' Añadir producto'}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      <div><label style="font-size:12px;color:var(--mut)">Nombre</label><input id="inv-form-name" class="inp" value="${(S.invForm.name||'').replace(/"/g,'&quot;')}" placeholder="ej: Pechuga de pollo" /></div>
-      <div><label style="font-size:12px;color:var(--mut)">Precio / unidad (€)</label><input id="inv-form-price" class="inp" type="number" min="0" step="0.01" value="${S.invForm.price??''}" placeholder="0.00" /></div>
-      <div><label style="font-size:12px;color:var(--mut)">Stock mínimo</label><input id="inv-form-min" class="inp" type="number" min="0" step="0.01" value="${S.invForm.minStock??''}" placeholder="0 = sin alerta" /></div>
-      <div><label style="font-size:12px;color:var(--mut)">Categoría</label><input id="inv-form-cat" class="inp" value="${S.invForm.category||''}" placeholder="ej: Carnes, Lácteos…" /></div>
-      ${_renderInvQtysForm()}
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-acc btn-sm" onclick="submitInvForm('${rest.replace(/'/g,"\\'")}')">Guardar</button>
-      <button class="btn btn-ghost btn-sm" onclick="cancelInvForm()">Cancelar</button>
-    </div>
-  </div>`;
-
-  const movRows=(Object.values(inventoryMovements[restKey(rest)]||{})||[]).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,50).map(m=>{
-    const ico=m.type==='entrada'?'':m.type==='salida'?'':'';
-    return `<tr><td>${ico} ${m.type}</td><td>${m.productName||m.productId}</td><td>${m.qty>0?'+':''}${m.qty}</td><td>${m.source==='pedido'?' Pedido':' Manual'}</td><td style="color:var(--mut)">${m.date?new Date(m.date).toLocaleDateString('es-ES'):''}</td></tr>`;
-  }).join('');
-
-  const totalValor=items.reduce((s,it)=>invItemValue(it)+s,0);
-  const totalItems=items.length;
-  const summaryHtml=items.length?`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
-    <div class="card" style="flex:1;min-width:130px;padding:12px 16px;text-align:center">
-      <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Productos</div>
-      <div style="font-size:22px;font-weight:800;color:var(--pri)">${totalItems}</div>
-    </div>
-    <div class="card" style="flex:1;min-width:130px;padding:12px 16px;text-align:center">
-      <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px">Valor total stock</div>
-      <div style="font-size:22px;font-weight:800;color:var(--pri)">${fmt(totalValor)}</div>
-    </div>
-    ${lowItems.length?`<div class="card" style="flex:1;min-width:130px;padding:12px 16px;text-align:center;border-color:#f59e0b">
-      <div style="font-size:11px;color:#92400e;text-transform:uppercase;letter-spacing:.5px">Stock bajo</div>
-      <div style="font-size:22px;font-weight:800;color:#d97706">${lowItems.length}</div>
-    </div>`:''}
-  </div>`:'';
-
-  const invQ=(S.invSearch||'').toLowerCase().trim();
-  const catFiltered=S.invCat?items.filter(it=>(it.category||'Sin categoría')===S.invCat):items;
-  const filteredItems=invQ?catFiltered.filter(it=>(it.name||'').toLowerCase().includes(invQ)||(it.category||'').toLowerCase().includes(invQ)):catFiltered;
-
-  const searchBox=`<input type="text" value="${S.invSearch||''}" placeholder="Buscar producto o categoría..." oninput="S.invSearch=this.value;render()" style="width:100%;padding:9px 14px;border:1.5px solid var(--brd);border-radius:10px;font-size:14px;background:#fff;color:var(--txt);outline:none;margin-bottom:12px;box-sizing:border-box" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>`;
-
-  const table=filteredItems.length?`${searchBox}<table class="spend-table">
-    <thead><tr><th>Producto</th><th>Categoría</th><th>Cantidades</th><th>Precio base</th><th>Valor</th><th>Mín.</th><th>Estado</th><th></th></tr></thead>
-    <tbody>${filteredItems.map(it=>{
-      const qtyBase=invItemQtyInBase(it);
-      const low=(parseFloat(it.minStock)||0)>0&&qtyBase<=(parseFloat(it.minStock)||0);
-      const price=parseFloat(it.price)||0;
-      const valor=invItemValue(it);
-      const supProd=findSupProdForInvItem(it);
-      const priceUnit=supProd?.unit||it.unit||'ud';
-      return `<tr style="${low?'background:#fef9c3':''}">
-        <td style="font-weight:600">${it.name}</td>
-        <td style="color:var(--mut)">${it.category||'—'}</td>
-        <td>${invItemQtysStr(it)}</td>
-        <td style="color:var(--mut)">${price>0?fmt(price)+'/'+priceUnit:'—'}</td>
-        <td style="font-weight:${valor>0?'700':'400'}">${valor>0?fmt(valor):'—'}</td>
-        <td style="color:var(--mut)">${parseFloat(it.minStock)||0} ${priceUnit}</td>
-        <td>${low?'<span style="color:#d97706;font-weight:700">Bajo</span>':'<span style="color:#16a34a">OK</span>'}</td>
-        <td><span style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','${it.id}')">Editar</button>
-          <button class="btn btn-no btn-sm" onclick="deleteInvItem('${rest.replace(/'/g,"\\'")}','${it.id}')"></button>
-        </span></td>
-      </tr>`;
-    }).join('')}
-    ${totalValor>0?`<tr style="background:var(--bg);font-weight:700"><td colspan="4" style="text-align:right;padding-right:8px">TOTAL</td><td>${fmt(totalValor)}</td><td colspan="3"></td></tr>`:''}
-    </tbody></table>`
-    :(items.length&&invQ?`${searchBox}<div class="empty" style="margin:0"><div class="et">Sin resultados para "<strong>${invQ}</strong>"</div></div>`
-    :`<div class="empty"><div class="ei"></div><div class="et">Sin productos en el inventario de ${rest}</div></div>`);
-
-  return `<div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div style="font-size:16px;font-weight:700">Inventario</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        ${items.length?`<button class="btn btn-acc btn-sm" onclick="exportInventoryExcel('${rest.replace(/'/g,"\\'")}',${S.invCat?JSON.stringify(S.invCat):'null'})">Exportar Excel${S.invCat?' ('+S.invCat+')':''}</button>`:''}
-        <button class="btn btn-ghost btn-sm" onclick="importSupplierProducts('${rest.replace(/'/g,"\\'")}')"> Importar catálogo</button>
-        <button class="btn btn-ghost btn-sm" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','new')"> Producto</button>
-      </div>
-    </div>
-    <div class="sup-tabs" style="margin-bottom:10px">${restTabs}</div>
-    ${filteredCats.length>0?`<div class="sup-tabs" style="margin-bottom:14px;flex-wrap:wrap">${catTabs}</div>`:''}
-    ${alertBanner}
-    ${summaryHtml}
-    ${isEditing?formHtml:''}
-    <div class="card" style="overflow-x:auto">${table}</div>
-    <div style="margin-top:14px">
-      <button class="btn btn-ghost btn-sm" onclick="S.invShowMov=!S.invShowMov;render()">${S.invShowMov?'▲ Ocultar':'▼ Ver'} historial de movimientos</button>
-      ${S.invShowMov?`<div class="card" style="margin-top:10px;overflow-x:auto">
-        <div style="font-weight:700;margin-bottom:8px">Historial (últimos 50)</div>
-        ${movRows?`<table class="spend-table"><thead><tr><th>Tipo</th><th>Producto</th><th>Cant.</th><th>Origen</th><th>Fecha</th></tr></thead><tbody>${movRows}</tbody></table>`
-        :'<div class="empty" style="margin:0"><div class="et">Sin movimientos aún</div></div>'}
-      </div>`:''}
-    </div>
-  </div>`;
+  const rests=[...new Set((cfg.users||[]).flatMap(u=>u.restaurants||[u.restaurant]).filter(Boolean))].sort();
+  const rest=S.invRest||rests[0]||''; S.invRest=rest;
+  if(S.invSearch==null) S.invSearch=''; if(!S.invStatus) S.invStatus='all';
+  const items=getInvItems(rest), low=items.filter(x=>(parseFloat(x.minStock)||0)>0&&invItemQtyInBase(x)<=(parseFloat(x.minStock)||0));
+  const totalValue=items.reduce((n,x)=>n+invItemValue(x),0), categories=new Set(items.map(x=>x.category||'Sin categoría'));
+  const q=String(S.invSearch).trim().toLowerCase();
+  const filtered=items.filter(x=>(!q||String(x.name||'').toLowerCase().includes(q)||String(x.category||'').toLowerCase().includes(q))&&(S.invStatus!=='low'||low.includes(x)));
+  const rows=filtered.map(x=>{const min=parseFloat(x.minStock)||0, qty=invItemQtyInBase(x), isLow=min>0&&qty<=min, prod=findSupProdForInvItem(x), unit=prod?.unit||x.unit||'ud', value=invItemValue(x);return `<tr><td><b>${escHtml(x.name||'')}</b><small>${escHtml(x.category||'Sin categoría')}</small></td><td>${escHtml(invItemQtysStr(x))}</td><td>${min} ${escHtml(unit)}</td><td>${value?fmt(value):'—'}</td><td><span class="nv-e-status ${isLow?'low':'ok'}">${isLow?'Stock bajo':'Correcto'}</span></td><td><button onclick="openInvForm('${rest.replace(/'/g,"\\'")}','${x.id}')">Editar</button></td></tr>`}).join('');
+  const form=S.invEditId!==null?`<section class="nv-e-form"><header><h2>${S.invEditId==='new'?'Nuevo producto':'Editar producto'}</h2><button onclick="cancelInvForm()">Cerrar</button></header><div class="nv-e-form-grid"><label>Nombre<input id="inv-form-name" value="${escHtml(S.invForm.name||'')}"></label><label>Precio por unidad<input id="inv-form-price" type="number" step="0.01" value="${S.invForm.price??''}"></label><label>Stock mínimo<input id="inv-form-min" type="number" step="0.01" value="${S.invForm.minStock??''}"></label><label>Categoría<input id="inv-form-cat" value="${escHtml(S.invForm.category||'')}"></label>${_renderInvQtysForm()}</div><footer><button class="primary" onclick="submitInvForm('${rest.replace(/'/g,"\\'")}')">Guardar producto</button><button onclick="cancelInvForm()">Cancelar</button></footer></section>`:'';
+  return `<div class="nv-e-page"><header class="nv-e-head nv-e-head-actions"><div><span>Operaciones</span><h1>Inventario</h1><p>Existencias, valoración y alertas de stock</p></div><div><button onclick="importSupplierProducts('${rest.replace(/'/g,"\\'")}')">Importar catálogo</button><button class="primary" onclick="openInvForm('${rest.replace(/'/g,"\\'")}','new')">Nuevo producto</button></div></header><div class="nv-e-toolbar"><select onchange="S.invRest=this.value;S.invEditId=null;renderAdminContent()">${rests.map(r=>`<option value="${escHtml(r)}" ${r===rest?'selected':''}>${escHtml(r)}</option>`).join('')}</select><input value="${escHtml(S.invSearch)}" oninput="S.invSearch=this.value;renderAdminContent()" placeholder="Buscar producto o categoría"><div class="nv-e-segments"><button class="nv-e-seg ${S.invStatus==='all'?'act':''}" onclick="S.invStatus='all';renderAdminContent()">Todos</button><button class="nv-e-seg ${S.invStatus==='low'?'act':''}" onclick="S.invStatus='low';renderAdminContent()">Stock bajo</button></div></div><div class="nv-e-kpis"><article><small>Valor del stock</small><b>${fmt(totalValue)}</b></article><article><small>Productos</small><b>${items.length}</b></article><article><small>Stock bajo</small><b>${low.length}</b></article><article><small>Categorías</small><b>${categories.size}</b></article></div>${form}<section class="nv-e-table"><table><thead><tr><th>Producto</th><th>Existencias</th><th>Mínimo</th><th>Valor</th><th>Estado</th><th></th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="nv-e-empty">Sin productos</td></tr>'}</tbody></table></section></div>`;
 }
 
 // ── Vista restaurante ─────────────────────────────────────

@@ -1,14 +1,5 @@
-# NOVENTIA UI 6 — paquete final integrado
+# NOVENTIA Enterprise — integración directa
 
-Este paquete ya está integrado: no requiere instalador. Conserva `.git`, sustituye el contenido del repositorio por estos archivos y publica con GitHub Desktop.
+No usa `47-noventia-ui6.js` ni capas de sobrescritura. Los módulos reales `40-historial-proveedor.js`, `44-inventario.js` y `46-sup-visibility.js` han sido sustituidos directamente. Consolidado se ha eliminado del menú y del enrutado.
 
-## Cambios estructurales
-
-- Consolidado eliminado del menú y del enrutado administrativo.
-- Compras por proveedor reconstruido como analítica compacta.
-- Visibilidad comercial reconstruida con vistas Por local y Por proveedor.
-- Inventario reconstruido como tabla ERP con KPIs, búsqueda, filtros y edición integrada.
-- CSS UI6 y JavaScript UI6 cargados al final para garantizar precedencia.
-- Versión de caché unificada.
-
-`wrangler.toml` no está incluido. Conserva el que ya tienes en el repositorio.
+Conserva `.git` y `wrangler.toml`; sustituye el resto por este paquete.
