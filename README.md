@@ -3,6 +3,7 @@
 Este paquete ya está integrado: no requiere instalador. Conserva `.git`, sustituye el contenido del repositorio por estos archivos y publica con GitHub Desktop.
 
 ## Cambios estructurales
+
 - Consolidado eliminado del menú y del enrutado administrativo.
 - Compras por proveedor reconstruido como analítica compacta.
 - Visibilidad comercial reconstruida con vistas Por local y Por proveedor.
