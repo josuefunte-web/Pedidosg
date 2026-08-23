@@ -1,6 +1,6 @@
 /* ═══════════════ STATE ═══════════════ */
 let S={
-  view:'login', adminTab:'pending',
+  view:'login', adminTab:'dashboard',
   session:null,
   supId:Object.keys(DEFAULT_SUPS)[0],
   cart:{},
@@ -28,13 +28,6 @@ let S={
   adminOrderPicker:false,
   _escLocalExpanded:{},
   _cartProds:{},
-  // Comparar precios (módulo 27-comparativa.js): filtros y detalles abiertos.
-  cmpSearch:'',
-  cmpCat:'',
-  cmpSup:'',
-  cmpKind:'all',       // 'all' | 'saving' | 'single'
-  cmpSort:'saving',    // 'saving' | 'price' | 'name' | 'pct'
-  cmpOpen:{},          // {groupKey:true}
 };
 let cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
 const PROD_CATS=['Carnes','Pescados','Verduras y Frutas','Lácteos','Pasta y Arroces','Conservas','Condimentos','Panadería','Bebidas','Limpieza','Otros'];
