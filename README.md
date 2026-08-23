@@ -1,9 +1,11 @@
-# NOVENTIA UI 5.0 — PROYECTO COMPLETO
+# NOVENTIA — rediseño de Compras por proveedor
 
-Paquete completo para sustituir el repositorio. Conserva `.git`, elimina el resto y copia dentro todo el contenido de este ZIP.
+Sustituye `js/40-historial-proveedor.js` y añade `css/noventia-analytics.css`.
 
-## Rediseñado
-Dashboard, cola de pedidos, aprobados, consolidado, recibidos, presupuestos, Food Cost, comparativa, compras por producto, historial por proveedor, productos, albaranes, inventario, solicitudes, proveedores, visibilidad, escandallos y configuración.
+En `index.html`, justo después de `css/styles.css`, añade:
 
-## Sin cambios funcionales
-No se modifican credenciales, Firebase, permisos, reglas de aprobación ni funciones de guardado. `MISTRAL_API_KEY` sigue siendo un secret de Cloudflare.
+```html
+<link rel="stylesheet" href="css/noventia-analytics.css?v=20260823-analytics1">
+```
+
+El rediseño elimina emojis, compacta los proveedores, añade búsqueda, KPIs, ranking, barras comparativas y detalle desplegable responsive.
