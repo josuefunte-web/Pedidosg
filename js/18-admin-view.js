@@ -30,11 +30,10 @@ function vAdmin(){
   const _canAssignSup = can('canAssignSuppliers'); // admin2+ → visibilidad de proveedores por local
   const sidebar=`<div class="sidebar${S.sidebarOpen?' sb-open':''}">
     <div class="sb-mini-stats" id="sb-stats">${buildSbStats(pend,appr)}</div>
-    <div class="sb-section">Principal</div>
-    ${sbItem('dashboard','Dashboard')}
     <div class="sb-section">Pedidos</div>
     ${sbItem('pending','Pendientes','sb-pend-badge')}
     ${sbItem('approved','Aprobados')}
+    ${sbItem('consolidated','Consolidado')}
     ${sbItem('received','Recibidos')}
     <div class="sb-section">Análisis</div>
     ${sbItem('budgets','Presupuestos')}
@@ -58,9 +57,9 @@ function vAdmin(){
   </div>`;
 
   let content='';
-  if(S.adminTab==='dashboard')      content=vAdminDashboard();
-  else if(S.adminTab==='pending')   content=vPending();
+  if(S.adminTab==='pending')        content=vPending();
   else if(S.adminTab==='approved')  content=vApproved();
+  else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='received')  content=vReceived();
   else if(S.adminTab==='budgets')   content=vBudgets();
   else if(S.adminTab==='foodcost')  content=vFoodCost();
@@ -104,7 +103,7 @@ function vAdmin(){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:13px;font-weight:700;color:var(--pri)">Panel de compras</div>${liveTag}
       </div>
-      <div id="tc" class="nv-tab-${S.adminTab}">${content}</div>
+      <div id="tc">${content}</div>
     </div>
   </div>${adminOrderModal}`;
 }
@@ -276,20 +275,6 @@ function restFilterTabs(ordersForCount, stateKey){
     ...allRests.map(r=>{const cnt=ordersForCount.filter(o=>o.restaurant===r).length;return`<button class="stab ${cur===r?'act':''}" onclick="S.${stateKey}='${r.replace(/'/g,"\\'")}';render()">${r} (${cnt})</button>`;})
   ].join('');
   return `<div class="sup-tabs" style="margin-bottom:14px;flex-wrap:wrap">${tabs}</div>`;
-}
-
-function vAdminDashboard(){
-  const pending=orders.filter(o=>o.status==='pending'), approved=orders.filter(o=>o.status==='approved'), received=orders.filter(o=>o.status==='received');
-  const pendingValue=pending.reduce((n,o)=>n+total(o),0), approvedValue=approved.reduce((n,o)=>n+total(o),0);
-  const inv=(typeof inventory!=='undefined'&&inventory)?inventory:{};
-  const qb=typeof invItemQtyInBase==='function'?invItemQtyInBase:(x=>parseFloat(x?.qty)||0);
-  const low=Object.values(inv).flatMap(x=>Object.values(x||{})).filter(x=>(parseFloat(x.minStock)||0)>0&&qb(x)<=(parseFloat(x.minStock)||0)).length;
-  const albs=(typeof albaranes!=='undefined'&&albaranes)?albaranes:{}; const today=new Date().toISOString().slice(0,10);
-  const albsToday=Object.values(albs).filter(a=>String(a.createdAt||a.date||'').startsWith(today)).length;
-  let fact=0,buy=0; if(typeof fcLocalTotals==='function')(cfg.users||[]).forEach(u=>{const t=fcLocalTotals(new Date().toISOString().slice(0,7),u.id);fact+=t.fact||0;buy+=t.compras||0}); const fc=fact?buy/fact:null;
-  const rows=pending.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,6).map(o=>{const sup=suppliers[o.supId]||{};return `<tr onclick="setTabSb('pending')"><td><strong>#${escHtml(String(o.id||'').slice(-6))}</strong></td><td>${escHtml(sup.name||o.supId||'')}</td><td>${escHtml(o.restaurant||'')}</td><td>${fmtD(o.createdAt)}</td><td><strong>${fmt(total(o))}</strong></td><td><span class="nv-status">Pendiente</span></td></tr>`}).join('')||`<tr><td colspan="6" class="nv-empty">No hay pedidos pendientes</td></tr>`;
-  const rs={};approved.concat(received).forEach(o=>rs[o.restaurant]=(rs[o.restaurant]||0)+total(o));const ranks=Object.entries(rs).sort((a,b)=>b[1]-a[1]).slice(0,4);
-  return `<div class="nv-dashboard"><div class="nv-page-head"><div><span>Panel ejecutivo</span><h1>Resumen operativo</h1><p>Compras, inventario y costes de todos los locales</p></div><button class="btn btn-acc" onclick="S.adminOrderPicker=true;render()">Nuevo pedido</button></div><div class="nv-kpis"><article><div><small>Pedidos pendientes</small><strong>${pending.length}</strong><em>${fmt(pendingValue)}</em></div><b>PO</b></article><article><div><small>Albaranes hoy</small><strong>${albsToday}</strong><em>${approved.length} aprobados</em></div><b>GR</b></article><article><div><small>Stock bajo</small><strong>${low}</strong><em>Productos requieren atención</em></div><b>ST</b></article><article><div><small>Food Cost mensual</small><strong>${fc==null?'—':(fc*100).toFixed(1)+'%'}</strong><em>${fact?fmt(buy)+' en compras':'Sin datos'}</em></div><b>FC</b></article></div><div class="nv-grid-main"><section class="nv-panel"><header><div><h2>Pedidos pendientes de aprobación</h2><p>Operaciones que requieren revisión</p></div><button onclick="setTabSb('pending')">Ver todos</button></header><div class="nv-table-wrap"><table class="nv-table"><thead><tr><th>Pedido</th><th>Proveedor</th><th>Local</th><th>Fecha</th><th>Valor</th><th>Estado</th></tr></thead><tbody>${rows}</tbody></table></div></section><aside class="nv-side-stack"><section class="nv-panel nv-metric"><header><div><h2>Gasto aprobado</h2><p>Pedidos listos para proveedor</p></div></header><strong>${fmt(approvedValue)}</strong><div class="nv-bars"><i></i><i></i><i></i><i></i><i></i></div></section><section class="nv-panel"><header><div><h2>Gasto por local</h2><p>Mayor volumen del periodo</p></div></header><div class="nv-rank">${ranks.length?ranks.map(([n,v])=>`<div><span>${escHtml(n)}</span><strong>${fmt(v)}</strong></div>`).join(''):'<p>Sin compras registradas</p>'}</div></section></aside></div><div class="nv-shortcuts"><button onclick="setTabSb('pending')"><strong>${pending.length}</strong><span>Pendientes</span></button><button onclick="setTabSb('inventario')"><strong>${low}</strong><span>Stock bajo</span></button><button onclick="setTabSb('albaranes')"><strong>${albsToday}</strong><span>Albaranes hoy</span></button><button onclick="setTabSb('foodcost')"><strong>${fc==null?'—':(fc*100).toFixed(1)+'%'}</strong><span>Food Cost</span></button></div></div>`;
 }
 
 function vPending(){
