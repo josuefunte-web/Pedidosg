@@ -1,174 +1,57 @@
-/* ═══════════════ SUPPLIER MGMT ═══════════════
-   Vista de Proveedores rediseñada con look NOVENTIA:
-   cabecera profesional, KPIs reales, buscador, tabla ERP compacta
-   con detalle plegable. Sin emojis en la lista. supDetailForm y
-   funciones satélite (saveSup2, delSup, etc.) NO se han tocado.
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════ SUPPLIER MGMT ═══════════════ */
 function vSuppliers(){
-  const curMonth = new Date().toISOString().slice(0,7);
-  const curYear  = new Date().toISOString().slice(0,4);
-  const sups     = supList();
-
-  // ── KPIs reales ────────────────────────────────────────────────
-  const totalSups     = sups.length;
-  const totalProducts = sups.reduce(function(s,sp){ return s + ((sp.products||[]).length); }, 0);
-  const spendMonth    = orders
-    .filter(function(o){ return o.status!=='rejected' && (o.createdAt||'').startsWith(curMonth); })
-    .reduce(function(s,o){ return s + total(o); }, 0);
-  const spendYear     = orders
-    .filter(function(o){ return o.status!=='rejected' && (o.createdAt||'').startsWith(curYear); })
-    .reduce(function(s,o){ return s + total(o); }, 0);
-
-  // ── Banner de conversiones pendientes de validar ───────────────
+  const curMonth=new Date().toISOString().slice(0,7);
+  const curYear=new Date().toISOString().slice(0,4);
+  const newF=S.editSupId==='new'?supForm(null):`<button class="btn btn-pri btn-sm" onclick="S.editSupId='new';render()" style="margin-bottom:14px">+ Añadir proveedor</button>`;
+  const exportBtn=`<button class="btn btn-ghost btn-sm" onclick="exportExcel('all')" style="margin-bottom:14px;margin-left:8px">Exportar pedidos</button>`;
+  const autoClasBtn=`<button class="btn btn-blue btn-sm" onclick="autoClasificarProductos(false)" style="margin-bottom:14px;margin-left:8px" title="Asigna categoría a los productos que no tienen ninguna, usando el nombre del producto">Clasificar productos automáticamente</button>`
+    +`<button class="btn btn-ok btn-sm" onclick="reclasificarTodo()" style="margin-bottom:14px;margin-left:8px" title="Revisa TODOS los productos y corrige los que estén mal clasificados">Revisar y corregir todo</button>`;
+  // Solo admin1 puede importar plantillas masivas (potencial de sobreescribir mucho contenido)
+  const bulkBtn=can('canImportBulk')?`<label class="btn btn-acc btn-sm" style="margin-bottom:14px;margin-left:8px;cursor:pointer" title="Sube un XLSX con una hoja por proveedor. Crea los nuevos y actualiza precios de los existentes.">📦 Importar plantilla masiva<input type="file" accept=".xlsx,.xls" style="display:none" onchange="importBulkTarifa(this)"/></label>`:'';
+  const list=supList().map(sup=>{
+    if(!sup.products) sup.products=[];
+    const open=S.openSupId===sup.id;
+    const supOrders=orders.filter(o=>o.supId===sup.id&&o.status!=='rejected');
+    const mesActual=supOrders.filter(o=>(o.createdAt||'').startsWith(curMonth)).reduce((s,o)=>s+total(o),0);
+    const anoActual=supOrders.filter(o=>(o.createdAt||'').startsWith(curYear)).reduce((s,o)=>s+total(o),0);
+    const balanceHtml=`<div style="display:flex;gap:10px;margin-top:4px;flex-wrap:wrap">
+      <span style="font-size:11px;background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:6px;font-weight:600">Este mes: ${fmt(mesActual)}</span>
+      <span style="font-size:11px;background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:6px;font-weight:600">Este año: ${fmt(anoActual)}</span>
+    </div>`;
+    return `<div class="sup-card"><div class="sc-hd"><div><div class="sc-name">${sup.emoji} ${sup.name}</div><div class="sc-info">${sup.products.length} productos · ${sup.phone||'Sin número'}</div>${balanceHtml}</div>
+      <div class="sc-acts"><button class="btn btn-ghost btn-sm" onclick="S.openSupId=S.openSupId==='${sup.id}'?null:'${sup.id}';render()">${open?'▲ Cerrar':'Editar'}</button>
+      <button class="btn btn-no btn-sm" onclick="delSup('${sup.id}')"></button></div></div>
+      ${open?`<div class="sc-body">${supDetailForm(sup)}</div>`:''}
+    </div>`;
+  }).join('');
+  // Banner: si hay conversiones pendientes de validar (creadas por locales),
+  // mostrar aviso arriba con enlace para revisarlas una a una.
   const pending=[];
-  Object.values(suppliers).forEach(function(sup){
-    (sup.products||[]).forEach(function(p){
-      (p.conversions||[]).forEach(function(c){
-        if(c.pendingValidation) pending.push({sup:sup,prod:p,conv:c});
+  Object.values(suppliers).forEach(sup=>{
+    (sup.products||[]).forEach(p=>{
+      (p.conversions||[]).forEach(c=>{
+        if(c.pendingValidation) pending.push({sup,prod:p,conv:c});
       });
     });
   });
-  const pendingBanner = pending.length ? _supPendingBanner(pending) : '';
-
-  // ── Estado local: buscador ─────────────────────────────────────
-  if(S.supSearch===undefined) S.supSearch='';
-  const q = (S.supSearch||'').trim().toLowerCase();
-  const shownSups = q
-    ? sups.filter(function(sp){ return (sp.name||'').toLowerCase().indexOf(q)>-1; })
-    : sups;
-
-  // ── Cabecera + acción primaria + acciones secundarias ──────────
-  const canBulk = (typeof can==='function' && can('canImportBulk'));
-  const head =
-    '<div class="sup-head">' +
-      '<div class="sup-head-l">' +
-        '<div class="sup-head-t">Proveedores</div>' +
-        '<div class="sup-head-s">Gestiona el catálogo del grupo, precios y visibilidad por local</div>' +
-      '</div>' +
-      '<div class="sup-head-r">' +
-        (S.editSupId==='new' ? '' :
-          '<button class="btn btn-pri btn-sm" onclick="S.editSupId=\'new\';render()">+ Nuevo proveedor</button>') +
-      '</div>' +
-    '</div>';
-
-  const kpis =
-    '<div class="sup-kpi-grid">' +
-      '<div class="sup-kpi"><div class="sup-kpi-l">Proveedores</div><div class="sup-kpi-v">' + totalSups + '</div></div>' +
-      '<div class="sup-kpi"><div class="sup-kpi-l">Productos en catálogo</div><div class="sup-kpi-v">' + totalProducts + '</div></div>' +
-      '<div class="sup-kpi"><div class="sup-kpi-l">Gasto del mes</div><div class="sup-kpi-v">' + fmt(spendMonth) + '</div></div>' +
-      '<div class="sup-kpi"><div class="sup-kpi-l">Gasto del año</div><div class="sup-kpi-v">' + fmt(spendYear) + '</div></div>' +
-    '</div>';
-
-  const tools =
-    '<div class="sup-tools">' +
-      '<input class="sup-input sup-search" type="text" placeholder="Buscar proveedor..." value="' + _a(S.supSearch||'') + '" oninput="supSetSearch(this.value)"/>' +
-      '<div class="sup-tools-r">' +
-        '<button class="btn btn-ghost btn-sm" onclick="exportExcel(\'all\')">Exportar pedidos</button>' +
-        '<button class="btn btn-ghost btn-sm" onclick="autoClasificarProductos(false)" title="Asigna categoría a los productos que no tienen ninguna">Clasificar automáticamente</button>' +
-        '<button class="btn btn-ghost btn-sm" onclick="reclasificarTodo()" title="Revisa todos los productos y corrige los que estén mal clasificados">Revisar clasificación</button>' +
-        (canBulk ? '<label class="btn btn-acc btn-sm" style="cursor:pointer" title="Sube un XLSX con una hoja por proveedor">Importar plantilla masiva<input type="file" accept=".xlsx,.xls" style="display:none" onchange="importBulkTarifa(this)"/></label>' : '') +
-      '</div>' +
-    '</div>';
-
-  // Formulario de alta nuevo (aparece encima de la tabla si S.editSupId==='new')
-  const newForm = S.editSupId==='new'
-    ? '<div class="sup-panel sup-new-panel">' +
-        '<div class="sup-panel-t">Nuevo proveedor</div>' +
-        supForm(null) +
-      '</div>'
-    : '';
-
-  // ── Tabla / cards de proveedores ───────────────────────────────
-  let listHtml = '';
-  if(!totalSups){
-    listHtml = '<div class="sup-empty"><div class="sup-empty-t">Sin proveedores</div><div class="sup-empty-s">Añade el primer proveedor con el botón "Nuevo proveedor".</div></div>';
-  } else if(!shownSups.length){
-    listHtml = '<div class="sup-empty"><div class="sup-empty-t">Sin resultados</div><div class="sup-empty-s">Ningún proveedor coincide con la búsqueda.</div></div>';
-  } else {
-    const rows = shownSups.map(function(sup){
-      if(!sup.products) sup.products = [];
-      const open = S.openSupId===sup.id;
-      const supOrders = orders.filter(function(o){ return o.supId===sup.id && o.status!=='rejected'; });
-      const mesActual = supOrders.filter(function(o){ return (o.createdAt||'').startsWith(curMonth); }).reduce(function(s,o){ return s+total(o); }, 0);
-      const anoActual = supOrders.filter(function(o){ return (o.createdAt||'').startsWith(curYear);  }).reduce(function(s,o){ return s+total(o); }, 0);
-      const contact   = sup.phone ? _e(sup.phone) : '<span class="sup-mut">Sin teléfono</span>';
-      const orderCount = supOrders.length;
-
-      const head =
-        '<tr class="sup-row' + (open?' sup-open':'') + '" data-sup-id="' + _a(sup.id) + '" onclick="supToggle(this.dataset.supId)">' +
-          '<td class="sup-td sup-td-name"><div class="sup-name">' + _e(sup.name || '') + '</div><div class="sup-sub">' + orderCount + ' pedido' + (orderCount===1?'':'s') + '</div></td>' +
-          '<td class="sup-td sup-td-num">' + sup.products.length + '</td>' +
-          '<td class="sup-td sup-td-contact sup-hide-md">' + contact + '</td>' +
-          '<td class="sup-td sup-td-num">' + fmt(mesActual) + '</td>' +
-          '<td class="sup-td sup-td-num sup-hide-md">' + fmt(anoActual) + '</td>' +
-          '<td class="sup-td sup-td-acts">' +
-            '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();supToggle(\'' + _a(sup.id) + '\')">' + (open?'Cerrar':'Editar') + '</button>' +
-            '<button class="btn btn-no btn-sm" onclick="event.stopPropagation();delSup(\'' + _a(sup.id) + '\')" title="Eliminar proveedor">Borrar</button>' +
-          '</td>' +
-        '</tr>';
-
-      const detail = open
-        ? '<tr class="sup-detail-tr"><td colspan="6" class="sup-detail-td">' + supDetailForm(sup) + '</td></tr>'
-        : '';
-
-      return head + detail;
-    }).join('');
-
-    listHtml =
-      '<div class="sup-panel">' +
-        '<div class="sup-table-w">' +
-          '<table class="sup-table">' +
-            '<thead><tr>' +
-              '<th class="sup-th">Proveedor</th>' +
-              '<th class="sup-th sup-th-num">Productos</th>' +
-              '<th class="sup-th sup-hide-md">Contacto</th>' +
-              '<th class="sup-th sup-th-num">Gasto mes</th>' +
-              '<th class="sup-th sup-th-num sup-hide-md">Gasto año</th>' +
-              '<th class="sup-th sup-th-acts">Acciones</th>' +
-            '</tr></thead>' +
-            '<tbody>' + rows + '</tbody>' +
-          '</table>' +
-        '</div>' +
-      '</div>';
-  }
-
-  return head + pendingBanner + kpis + tools + newForm + listHtml;
-}
-
-// Buscador y toggle expuestos globalmente (usa dataset para evitar XSS
-// al interpolar el id dentro de un handler onclick).
-window.supSetSearch = function(v){
-  S.supSearch = v;
-  if(typeof renderAdminContent==='function') renderAdminContent();
-  var el = document.querySelector('.sup-search');
-  if(el){ try{ el.focus(); el.setSelectionRange(v.length, v.length); }catch(e){} }
-};
-window.supToggle = function(sid){
-  S.openSupId = (S.openSupId===sid) ? null : sid;
-  render();
-};
-
-// Banner NOVENTIA para conversiones pendientes de validar
-function _supPendingBanner(pending){
-  const rows = pending.slice(0,10).map(function(x){
-    const base=x.prod.unit||'KG';
-    const who=x.conv.addedBy?' · añadida por '+_e(x.conv.addedBy):'';
-    return '<div class="sup-pend-row">' +
-      '<div class="sup-pend-info"><strong>' + _e(x.sup.name) + '</strong> — ' + _e(x.prod.name) +
-        '<br><span class="sup-pend-eq">1 ' + _e(x.conv.fromUnit) + ' = <strong>' + _e(String(x.conv.factor)) + '</strong> ' + _e(base) + who + '</span></div>' +
-      '<div class="sup-pend-acts">' +
-        '<input type="number" step="0.001" min="0" value="' + _a(String(x.conv.factor)) + '" id="pv-inp-' + _a(x.sup.id) + '-' + _a(x.prod.id) + '-' + _a(x.conv.fromUnit) + '" class="sup-input"/>' +
-        '<button class="btn btn-ok btn-xs" onclick="validatePendingConv(\'' + _a(x.sup.id) + '\',\'' + _a(x.prod.id) + '\',\'' + _a(x.conv.fromUnit) + '\',document.getElementById(\'pv-inp-' + _a(x.sup.id) + '-' + _a(x.prod.id) + '-' + _a(x.conv.fromUnit) + '\').value)">Validar</button>' +
-        '<button class="btn btn-no btn-xs" onclick="rejectPendingConv(\'' + _a(x.sup.id) + '\',\'' + _a(x.prod.id) + '\',\'' + _a(x.conv.fromUnit) + '\')">Borrar</button>' +
-      '</div>' +
-    '</div>';
-  }).join('');
-  const more = pending.length>10 ? '<div class="sup-pend-more">Y ' + (pending.length-10) + ' más…</div>' : '';
-  return '<div class="sup-pend-banner">' +
-    '<div class="sup-pend-t">' + pending.length + ' conversión' + (pending.length!==1?'es':'') + ' pendiente' + (pending.length!==1?'s':'') + ' de validar</div>' +
-    '<div class="sup-pend-s">Estas equivalencias las introdujeron locales al hacer pedidos porque faltaban. Revísalas y confirma o corrige el valor.</div>' +
-    rows + more +
-  '</div>';
+  const pendingBanner=pending.length?`<div class="banner" style="background:#dbeafe;border:1.5px solid #93c5fd;color:#1e40af;margin-bottom:12px;padding:12px 14px;border-radius:10px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:6px">⏳ ${pending.length} conversión${pending.length!==1?'es':''} pendiente${pending.length!==1?'s':''} de validar</div>
+    <div style="font-size:12px;margin-bottom:8px">Estas equivalencias las introdujeron locales al hacer pedidos porque faltaban. Revísalas y confirma o corrige el valor.</div>
+    ${pending.slice(0,10).map(x=>{
+      const base=x.prod.unit||'KG';
+      const who=x.conv.addedBy?` por ${x.conv.addedBy}`:'';
+      return `<div style="background:#fff;border-radius:8px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px;font-size:13px"><strong>${x.sup.name}</strong> — ${x.prod.name}<br><span style="font-size:12px;color:#0369a1">1 ${x.conv.fromUnit} = <strong>${x.conv.factor}</strong> ${base}${who?' · '+who:''}</span></div>
+        <div style="display:flex;gap:4px">
+          <input type="number" step="0.001" min="0" value="${x.conv.factor}" id="pv-inp-${x.sup.id}-${x.prod.id}-${x.conv.fromUnit}" style="width:70px;padding:4px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:13px"/>
+          <button class="btn btn-ok btn-xs" onclick="validatePendingConv('${x.sup.id}','${x.prod.id}','${x.conv.fromUnit}',document.getElementById('pv-inp-${x.sup.id}-${x.prod.id}-${x.conv.fromUnit}').value)">✓ Validar</button>
+          <button class="btn btn-no btn-xs" onclick="rejectPendingConv('${x.sup.id}','${x.prod.id}','${x.conv.fromUnit}')">✕ Borrar</button>
+        </div>
+      </div>`;
+    }).join('')}
+    ${pending.length>10?`<div style="font-size:12px;color:var(--mut);margin-top:4px">Y ${pending.length-10} más...</div>`:''}
+  </div>`:'';
+  return pendingBanner+newF+exportBtn+autoClasBtn+bulkBtn+list;
 }
 // Admin valida una conversión pendiente: guarda el factor (posiblemente
 // corregido) y quita el flag pendingValidation.
