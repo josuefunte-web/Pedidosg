@@ -1,0 +1,7 @@
+VALIDACION COMPARADOR FIX OK
+- JS validado: 50 archivos
+- Referencias index comprobadas: 52
+- Version cache: 20260824-noventia-cmpfix2
+- Comparador reescrito como tarjetas responsive cmpx
+- Evita matriz comprimida en móvil
+- Detalle desplegable conservado
