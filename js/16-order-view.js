@@ -1,8 +1,14 @@
 /* ═══════════════ ORDER VIEW ═══════════════ */
 function vOrder(){
-  const myRests=S.session.restaurants||[S.session.restaurant];
-  // Ensure active restaurant is valid
-  if(!myRests.includes(S.session.restaurant)) S.session.restaurant=myRests[0];
+  // En modo pedido administrativo, goOrderAsAdmin() ya ha fijado el local
+  // seleccionado. No lo sobrescribimos con el primer local de la cuenta.
+  const myRests=S.session.isAdminOrder
+    ? [S.session.restaurant]
+    : (S.session.restaurants||[S.session.restaurant]);
+  // Para usuarios normales, asegurar que el local activo está autorizado.
+  if(!S.session.isAdminOrder && !myRests.includes(S.session.restaurant)){
+    S.session.restaurant=myRests[0];
+  }
   const myPending=orders.filter(o=>o.restaurant===S.session.restaurant&&o.status==='pending').length;
   const histBadge=myPending?` <span style="background:var(--acc);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px">${myPending}</span>`:'';
   const adminBanner=S.session.isAdminOrder?`<div style="background:#fef3c7;border:1.5px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
