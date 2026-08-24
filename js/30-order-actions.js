@@ -165,7 +165,10 @@ function submitOrder(){
   // El restaurant activo debe ser uno de los asignados al usuario.
   // (Doble red: Firebase Rules ya lo rechazan, pero fallamos rápido aquí.)
   const allowedRests = (S.session.restaurants && S.session.restaurants.length) ? S.session.restaurants : [S.session.restaurant];
-  if(!allowedRests.includes(S.session.restaurant)){
+  // Los administradores con acceso al panel pueden crear pedidos para cualquier
+  // local mediante "Hacer pedido". Para usuarios normales se mantiene la
+  // comprobación estricta contra sus restaurantes asignados.
+  if(!hasAdminAccess() && !allowedRests.includes(S.session.restaurant)){
     toast('Restaurante no autorizado en tu sesión','#dc2626'); return;
   }
   const activeSups=Object.keys(S.cart).filter(sid=>Object.keys(S.cart[sid]||{}).length>0);

@@ -398,7 +398,6 @@ function escOpenModal(id=null){
   });
   escRenderIngs(); escRecalc();
   document.getElementById('esc-modal-ov').style.display='block';
-  document.body.classList.add('noventia-esc-editor-open');
   window.scrollTo(0,0);
   // Cargar elaboración y receta tras mostrar modal
   requestAnimationFrame(()=>{
@@ -410,7 +409,6 @@ function escOpenModal(id=null){
 }
 function escCloseModal(){
   document.getElementById('esc-modal-ov').style.display='none';
-  document.body.classList.remove('noventia-esc-editor-open');
   _escEditId=null; _escIngs=[]; _escElab={texto:'',pasos:[]}; _escTemporada=[]; _escSecciones=[];
   const dw=document.getElementById('esc-detail-wrap'); if(dw) dw.style.display='none';
   const lw=document.getElementById('esc-list-wrap'); if(lw) lw.style.display='';

@@ -1,0 +1,107 @@
+═══════════════════════════════════════════════════════════════════════════
+VALIDACIÓN — MÓDULO COMPARAR PRECIOS (NOVENTIA)
+Versión: 20260824-noventia-comp1
+Fecha: 2026-08-23
+═══════════════════════════════════════════════════════════════════════════
+
+A. JAVASCRIPT VALIDADO
+   Herramienta: `node --check` sobre los 53 archivos de la carpeta js/.
+   Resultado: 53/53 archivos con sintaxis válida. Sin errores ni warnings.
+
+B. REFERENCIAS COMPROBADAS
+   Todos los recursos locales referenciados por index.html existen en el
+   proyecto:
+     - css/styles.css                (39813 → 45.7 KB después del overlay del comparador)
+     - css/noventia-ui-final.css
+     - 51 archivos js/*.js incluidos por <script src>
+   Ningún href/src apunta a un fichero ausente. No hay referencias a
+   ficheros suprimidos (47-noventia-ui6.js, patches, overlays…).
+
+C. UNA SOLA IMPLEMENTACIÓN DE vCompare()
+   Búsqueda: grep -rn "function vCompare\|window.vCompare *=" js/
+   Resultado:
+     js/27-comparativa.js:359:  function vCompare(){
+     js/27-comparativa.js:474:  window.vCompare = vCompare;
+   No hay ninguna otra implementación en el proyecto. La función se
+   define dentro de una IIFE y se expone a `window` una sola vez.
+
+D. RUTA compare COMPROBADA
+   - js/14-render.js (renderAdminContent):
+       else if(S.adminTab==='compare')  content=vCompare();
+   - js/18-admin-view.js (vAdmin):
+       else if(S.adminTab==='compare')   content=vCompare();
+   - js/18-admin-view.js (sidebar): sbItem('compare','Comparar precios')
+     invoca setTabSb('compare') que fija S.adminTab='compare' y llama a
+     renderAdminContent().
+   La ruta llega correctamente a la nueva vCompare().
+
+E. VERSIÓN DE CACHÉ APLICADA
+   Versión unificada: 20260824-noventia-comp1
+   Presente en:
+     - index.html → window.APP_VERSION
+     - index.html → todos los ?v= (CSS y JS locales)
+     - version.json
+   Sin versiones mezcladas. El chequeo automático de version.json en
+   index.html coincidirá con la versión fetched → no habrá bucle de
+   recarga.
+
+F. CASOS LÍMITE COMPROBADOS
+   Ejecutados en un shim Node con los helpers reales del proyecto y con
+   los siguientes escenarios. Todos devuelven HTML sin lanzar
+   excepciones:
+
+     ✓ Sin proveedores                               → mensaje vacío OK
+     ✓ Un solo proveedor                             → mensaje vacío OK
+     ✓ 2 proveedores mismo producto misma unidad      → 1 fila comparable
+     ✓ 2 proveedores unidades compatibles (L / L)     → comparable OK
+     ✓ 2 proveedores unidades incompatibles (L / Caja
+       sin conversión)                               → marca "No comparable"
+     ✓ Producto disponible en un solo proveedor      → nota "Sin alternativa"
+     ✓ Producto con precio '' o texto                 → marca "sin precio"
+     ✓ Proveedor sin products (undefined)             → no rompe
+     ✓ products como objeto {p1:{…}} en vez de array  → soportado
+     ✓ Precio con texto/inválido                      → oferta descartada
+     ✓ Búsqueda sin resultados                        → mensaje adecuado
+     ✓ Conversión vía pesoGr (Café 22€/caja de 4kg
+       vs 6€/KG) → detecta B como mejor por 0,50 €    → OK
+     ✓ Filtro por proveedor                           → OK
+     ✓ Filtro por categoría                           → OK
+     ✓ XSS en nombre de proveedor / producto          → escapado con _e / _a;
+                                                        ninguna carga
+                                                        ejecutable llega a
+                                                        un atributo onclick
+
+G. CONSOLA — SIN ERRORES
+   La validación estática (`node --check`) descarta ReferenceError /
+   SyntaxError. En caliente:
+     - S se inicializa con las nuevas claves cmp* en 10-state.js (además
+       de la inicialización defensiva dentro del propio módulo).
+     - No se accede a undefined.products: se comprueba Array.isArray y
+       fallback a Object.values.
+     - Los handlers globales (window.cmpSetSearch, cmpToggle, etc.)
+       están definidos antes de que la vista pueda invocarlos (el módulo
+       se carga con el resto de scripts en index.html y expone a window
+       en la ejecución de la IIFE al terminar de cargarse).
+
+ARCHIVOS MODIFICADOS
+   - js/27-comparativa.js   ← reescrito por completo
+   - js/10-state.js         ← añadidas claves cmpSearch/cmpCat/cmpSup/
+                              cmpKind/cmpSort/cmpOpen
+   - css/styles.css         ← bloque final "COMPARAR PRECIOS — NOVENTIA"
+   - index.html             ← APP_VERSION + todos los ?v= a
+                              20260824-noventia-comp1
+   - version.json           ← 20260824-noventia-comp1
+
+ARCHIVOS NO TOCADOS (compatibilidad NOVENTIA + seguridad)
+   - Todos los demás js/*.js
+   - css/noventia-ui-final.css
+   - database.rules.json
+   - README.md original del proyecto
+   - Carpeta worker/ (worker.js y wrangler.toml no incluidos en el ZIP
+     de entrega; conservar la carpeta local del usuario)
+   - No se han añadido dependencias ni frameworks.
+   - No se ha creado ningún archivo de overlay o patch.
+
+═══════════════════════════════════════════════════════════════════════════
+Firma automática de validación: 20260824-noventia-comp1
+═══════════════════════════════════════════════════════════════════════════
