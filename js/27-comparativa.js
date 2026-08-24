@@ -1,478 +1,159 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   COMPARAR PRECIOS — NOVENTIA
-   Reescritura completa. Reemplaza la matriz tipo Excel anterior por una
-   herramienta profesional con normalización de unidades, agrupación
-   segura, KPIs reales, filtros y detalle desplegable inline.
-
-   Contrato con el resto de la app:
-   - Se llama desde renderAdminContent() cuando S.adminTab==='compare'.
-   - Sólo depende de: supList(), fmt(n), escHtml() / _e(), _a(),
-     PROD_CATS, PROD_CAT_COLORS, S. No lee ni escribe Firebase.
-   - No cambia reglas, credenciales ni el worker.
-   - Todo texto externo (nombres, unidades) va escapado con _e / _a
-     antes de insertarse en innerHTML.
-
-   Normalización:
-   - Nombre: minúsculas + espacios colapsados + tildes → letra base.
-     Coincidencia estricta tras esa normalización (nada de fuzzy).
-   - Precio: se traduce a "unidad base" (KG o L) SOLO cuando hay una
-     conversión inequívoca:
-       · KG y L quedan tal cual.
-       · g se convierte a KG (×1000).
-       · Cualquier otra unidad (Caja, Bote, Bolsa, UN) exige que el
-         producto declare `pesoGr` o una `conversion` explícita hacia KG/L.
-       · En caso contrario, la oferta se marca "no comparable" con motivo,
-         y la interfaz lo indica claramente en el detalle.
+   COMPARAR PRECIOS — NOVENTIA 2026
+   Implementación directa. Sin overlays, sin Firebase writes y sin fuzzy matching.
    ═══════════════════════════════════════════════════════════════════════ */
-
 (function(){
-  'use strict';
+'use strict';
 
-  /* ────────── Estado (persiste entre re-renders vía S) ────────── */
-  function _initState(){
-    if(typeof S==='undefined') return;
-    if(S.cmpSearch===undefined)   S.cmpSearch='';
-    if(S.cmpCat===undefined)      S.cmpCat='';
-    if(S.cmpSup===undefined)      S.cmpSup='';
-    if(S.cmpKind===undefined)     S.cmpKind='all';       // all | saving | single
-    if(S.cmpSort===undefined)     S.cmpSort='saving';    // saving | price | name | pct
-    if(!S.cmpOpen)                S.cmpOpen={};          // {groupKey: true}
+function initCmpState(){
+  if(S.cmpSearch===undefined) S.cmpSearch='';
+  if(S.cmpCat===undefined) S.cmpCat='';
+  if(S.cmpSup===undefined) S.cmpSup='';
+  if(S.cmpKind===undefined) S.cmpKind='all';
+  if(S.cmpSort===undefined) S.cmpSort='saving';
+  if(!S.cmpOpen) S.cmpOpen={};
+}
+function cmpName(value){
+  return String(value==null?'':value).toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+}
+function cmpProducts(sup){
+  var value=sup&&sup.products;
+  return Array.isArray(value)?value:Object.values(value||{});
+}
+function cmpUnit(value){
+  var u=String(value||'').trim().toUpperCase();
+  if(u==='KGS'||u==='KILO'||u==='KILOS') return 'KG';
+  if(u==='LT'||u==='LITRO'||u==='LITROS') return 'L';
+  if(u==='GR'||u==='GRAMO'||u==='GRAMOS') return 'G';
+  return u;
+}
+/* Comparación conservadora. No inventa conversiones.
+   - KG y L ya contienen precio base.
+   - g se normaliza a KG.
+   - pesoGr permite normalizar envases/unidades a KG.
+   - Las conversiones del proyecto expresan unidades de pedido respecto a la
+     unidad base del precio; si la unidad base ya es KG/L no se necesitan aquí.
+   - Cajas/UN/Botes sin peso inequívoco quedan fuera de la comparación. */
+function cmpNormalizeOffer(product){
+  var price=parseFloat(product&&product.price), rawUnit=String(product&&product.unit||'').trim();
+  if(!Number.isFinite(price)||price<=0) return {ok:false,reason:'Sin precio válido'};
+  if(!rawUnit) return {ok:false,reason:'Sin unidad'};
+  var unit=cmpUnit(rawUnit);
+  if(unit==='KG') return {ok:true,baseUnit:'KG',price:price,method:'Precio base'};
+  if(unit==='L') return {ok:true,baseUnit:'L',price:price,method:'Precio base'};
+  if(unit==='G') return {ok:true,baseUnit:'KG',price:price*1000,method:'Conversión g → KG'};
+  var grams=parseFloat(product.pesoGr);
+  if(Number.isFinite(grams)&&grams>0){
+    return {ok:true,baseUnit:'KG',price:(price/grams)*1000,method:'Peso declarado'};
   }
-
-  /* ────────── Normalización de nombre (agrupación segura) ────────── */
-  // Regla: coincidencia estricta tras normalizar (minúsculas + espacios
-  // colapsados + tildes → letra base). No aplicamos stemming ni fuzzy
-  // matching: "Tomate pera" y "Tomate triturado" NO deben agruparse.
-  function normName(s){
-    if(s==null) return '';
-    return String(s)
-      .toLowerCase()
-      .normalize('NFD').replace(/[̀-ͯ]/g,'')  // quitar tildes
-      .replace(/\s+/g,' ')
-      .trim();
-  }
-  // Alias público por si más adelante se quiere usar desde otros módulos.
-  window.cmpNormalizeProductName = normName;
-
-  /* ────────── Precio en unidad base (KG o L) ────────── */
-  // Sólo devolvemos comparable:true cuando podemos decir con certeza
-  // cuál es el precio por unidad base. Si el producto se vende en Caja
-  // sin pesoGr ni conversion explícita, marcamos no comparable. No
-  // inventamos factores.
-  function toBaseUnitPrice(prod){
-    var price = parseFloat(prod && prod.price);
-    if(!isFinite(price) || price<=0) return {comparable:false, reason:'sin_precio'};
-    var unit  = (prod && prod.unit || '').trim();
-    if(!unit) return {comparable:false, reason:'sin_unidad'};
-
-    if(unit==='KG') return {comparable:true, baseUnit:'KG', basePrice:price};
-    if(unit==='L')  return {comparable:true, baseUnit:'L',  basePrice:price};
-    if(unit==='g')  return {comparable:true, baseUnit:'KG', basePrice:price*1000};
-
-    // pesoGr suele venir en Caja/Bote/UN → "1 unidad pesa X gramos"
-    var pesoGr = parseFloat(prod.pesoGr);
-    if(isFinite(pesoGr) && pesoGr>0){
-      return {comparable:true, baseUnit:'KG', basePrice:(price/pesoGr)*1000, viaPesoGr:true};
-    }
-
-    // Conversión explícita en el producto: {fromUnit:'KG', factor:X} donde
-    // p.unit es Caja significaría "1 Caja = X KG" cuando el usuario ha
-    // definido la conversión "hacia" la unidad base. La convención del
-    // proyecto (ver 11-helpers.js effectivePrice) es más ambigua; por
-    // seguridad sólo aceptamos conversions que declaren fromUnit igual a
-    // KG o L con factor positivo, interpretándolas como el número de
-    // unidades base por 1 unidad de venta.
-    var conv = Array.isArray(prod.conversions) ? prod.conversions : [];
-    var toKG = conv.find(function(c){ return c && c.fromUnit==='KG' && parseFloat(c.factor)>0; });
-    var toL  = conv.find(function(c){ return c && c.fromUnit==='L'  && parseFloat(c.factor)>0; });
-    if(toKG) return {comparable:true, baseUnit:'KG', basePrice: price / parseFloat(toKG.factor)};
-    if(toL)  return {comparable:true, baseUnit:'L',  basePrice: price / parseFloat(toL.factor)};
-
-    return {comparable:false, reason:'sin_conversion'};
-  }
-
-  /* ────────── Motor: construye grupos comparables ────────── */
-  function buildGroups(){
-    var sups = (typeof supList==='function') ? supList() : [];
-    var groups = {};                    // key = normName(product) → group
-
-    sups.forEach(function(sup){
-      if(!sup) return;
-      var prods;
-      if(Array.isArray(sup.products)) prods = sup.products;
-      else if(sup.products && typeof sup.products==='object') prods = Object.values(sup.products);
-      else prods = [];
-
-      prods.forEach(function(p){
-        if(!p || !p.name) return;
-        var key = normName(p.name);
-        if(!key) return;
-
-        var g = groups[key];
-        if(!g){
-          g = groups[key] = {
-            key:    key,
-            name:   String(p.name).trim(),
-            cat:    p.category || 'Otros',
-            offers: []
-          };
-        }
-        if((g.cat==='Otros' || !g.cat) && p.category) g.cat = p.category;
-
-        var base = toBaseUnitPrice(p);
-        g.offers.push({
-          supId:      sup.id,
-          supName:    sup.name || '',
-          rawPrice:   parseFloat(p.price) || 0,
-          rawUnit:    (p.unit || '').trim(),
-          basePrice:  base.comparable ? base.basePrice : null,
-          baseUnit:   base.comparable ? base.baseUnit  : null,
-          comparable: !!base.comparable,
-          reason:     base.reason || '',
-          viaPesoGr:  !!base.viaPesoGr
-        });
+  return {ok:false,reason:'Falta conversión inequívoca a KG o L'};
+}
+function cmpBuildGroups(){
+  var map={};
+  (typeof supList==='function'?supList():[]).forEach(function(sup){
+    cmpProducts(sup).forEach(function(product){
+      var key=cmpName(product&&product.name); if(!key) return;
+      if(!map[key]) map[key]={key:key,name:String(product.name||''),category:product.category||product.cat||'Otros',offers:[]};
+      var norm=cmpNormalizeOffer(product);
+      map[key].offers.push({
+        supId:String(sup.id||''),supName:String(sup.name||''),product:product,
+        rawPrice:parseFloat(product.price),rawUnit:String(product.unit||''),
+        ok:norm.ok,reason:norm.reason||'',baseUnit:norm.baseUnit||'',
+        normPrice:norm.price,method:norm.method||''
       });
     });
-
-    // Métricas por grupo (respetando familias KG vs L)
-    return Object.values(groups).map(function(g){
-      var byBase = {};
-      g.offers.forEach(function(o){
-        if(!o.comparable) return;
-        (byBase[o.baseUnit] = byBase[o.baseUnit] || []).push(o);
-      });
-      var famKeys = Object.keys(byBase).sort(function(a,b){
-        var da = byBase[a].length, db = byBase[b].length;
-        if(da!==db) return db-da;
-        return a==='KG' ? -1 : b==='KG' ? 1 : 0;
-      });
-      var famBase = famKeys[0] || null;
-      var famOffers = famBase ? byBase[famBase] : [];
-
-      // Ofertas de otra familia → no comparables entre sí con las de la dominante
-      g.offers.forEach(function(o){
-        if(o.comparable && famBase && o.baseUnit!==famBase){
-          o.comparable = false;
-          o.reason = 'familia_distinta';
-          o.basePrice = null;
-          o.baseUnit  = null;
-        }
-      });
-
-      var prices = famOffers.map(function(o){ return o.basePrice; })
-                            .filter(function(v){ return isFinite(v) && v>0; });
-      var minP = prices.length ? Math.min.apply(null, prices) : null;
-      var maxP = prices.length ? Math.max.apply(null, prices) : null;
-      var best = famOffers.find(function(o){ return o.basePrice===minP; }) || null;
-
-      g.famBase    = famBase;
-      g.minPrice   = minP;
-      g.maxPrice   = maxP;
-      g.diffAbs    = (minP!=null && maxP!=null) ? (maxP - minP) : 0;
-      g.diffPct    = (minP!=null && minP>0 && maxP!=null) ? ((maxP - minP)/minP)*100 : 0;
-      g.bestSup    = best ? best.supName : '';
-      g.compCount  = famOffers.length;
-      g.totalCount = g.offers.length;
-      g.isSingle   = g.totalCount<=1;
-      g.hasSaving  = g.compCount>=2 && g.diffAbs>0.0001;
-      return g;
-    });
-  }
-
-  /* ────────── Filtrado y ordenación ────────── */
-  function filterSort(groups){
-    var q    = normName(S.cmpSearch || '');
-    var cat  = S.cmpCat  || '';
-    var sid  = S.cmpSup  || '';
-    var kind = S.cmpKind || 'all';
-    var sort = S.cmpSort || 'saving';
-
-    var out = groups.filter(function(g){
-      if(q   && normName(g.name).indexOf(q) < 0) return false;
-      if(cat && (g.cat || 'Otros') !== cat)      return false;
-      if(sid && !g.offers.some(function(o){ return o.supId===sid; })) return false;
-      if(kind==='saving' && !g.hasSaving)        return false;
-      if(kind==='single' && g.totalCount>1)      return false;
-      return true;
-    });
-
-    out.sort(function(a,b){
-      if(sort==='name')  return a.name.localeCompare(b.name,'es');
-      if(sort==='price') return (a.minPrice==null?1e12:a.minPrice) - (b.minPrice==null?1e12:b.minPrice);
-      if(sort==='pct')   return (b.diffPct||0) - (a.diffPct||0);
-      return (b.diffAbs||0) - (a.diffAbs||0);      // 'saving' — mayor Δ €
-    });
-    return out;
-  }
-
-  /* ────────── KPIs reales ────────── */
-  function calcKpis(allGroups){
-    var comparables = allGroups.filter(function(g){ return g.compCount>=2; });
-    var ahorro = comparables.reduce(function(s,g){ return s + (g.diffAbs||0); }, 0);
-    var opor   = comparables.filter(function(g){ return g.hasSaving; }).length;
-    var supsAnalyzed = new Set();
-    allGroups.forEach(function(g){ g.offers.forEach(function(o){ supsAnalyzed.add(o.supId); }); });
-    return {
-      comparables: comparables.length,
-      ahorro:      ahorro,
-      supsCount:   supsAnalyzed.size,
-      opor:        opor
-    };
-  }
-
-  /* ────────── Render helpers ────────── */
-  function _kpi(label, valueHtml, hint){
-    return '<div class="cmp-kpi">'
-      + '<div class="cmp-kpi-l">' + _e(label) + '</div>'
-      + '<div class="cmp-kpi-v">' + valueHtml + '</div>'
-      + (hint ? '<div class="cmp-kpi-h">' + _e(hint) + '</div>' : '')
-      + '</div>';
-  }
-  function _catDot(cat){
-    var col = (typeof PROD_CAT_COLORS!=='undefined' && PROD_CAT_COLORS[cat]) || '#94a3b8';
-    return '<span class="cmp-dot" style="background:' + col + '"></span>';
-  }
-  function _sortSelect(){
-    var opts = [
-      ['saving','Mayor ahorro'],
-      ['pct',   'Mayor diferencia %'],
-      ['price', 'Menor precio'],
-      ['name',  'Nombre']
-    ];
-    return '<select class="cmp-input" onchange="cmpSetSort(this.value)">'
-      + opts.map(function(o){
-          return '<option value="' + o[0] + '"' + (S.cmpSort===o[0]?' selected':'') + '>' + _e(o[1]) + '</option>';
-        }).join('')
-      + '</select>';
-  }
-  function _kindTabs(){
-    var opts = [['all','Todos'],['saving','Con oportunidad'],['single','Sin alternativa']];
-    return '<div class="cmp-kind">' + opts.map(function(o){
-      return '<button type="button" class="cmp-kind-btn' + (S.cmpKind===o[0]?' act':'') + '" onclick="cmpSetKind(\'' + o[0] + '\')">' + _e(o[1]) + '</button>';
-    }).join('') + '</div>';
-  }
-  function _catSelect(groups){
-    var cats = Array.from(new Set(groups.map(function(g){ return g.cat || 'Otros'; }))).sort();
-    return '<select class="cmp-input" onchange="cmpSetCat(this.value)">'
-      + '<option value="">Todas las categorías</option>'
-      + cats.map(function(c){ return '<option value="' + _a(c) + '"' + (S.cmpCat===c?' selected':'') + '>' + _e(c) + '</option>'; }).join('')
-      + '</select>';
-  }
-  function _supSelect(){
-    var sups = (typeof supList==='function') ? supList() : [];
-    return '<select class="cmp-input" onchange="cmpSetSup(this.value)">'
-      + '<option value="">Todos los proveedores</option>'
-      + sups.map(function(s){ return '<option value="' + _a(s.id) + '"' + (S.cmpSup===s.id?' selected':'') + '>' + _e(s.name || '') + '</option>'; }).join('')
-      + '</select>';
-  }
-
-  function _row(g){
-    var open = !!(S.cmpOpen && S.cmpOpen[g.key]);
-    var pctTxt = g.hasSaving ? ('−' + g.diffPct.toFixed(1) + '%') : '—';
-    var pctCls = g.hasSaving ? 'cmp-pct-pos' : 'cmp-pct-mut';
-    var priceMin = g.minPrice!=null
-      ? (fmt(g.minPrice) + '<span class="cmp-unit"> / ' + _e(g.famBase||'') + '</span>')
-      : '<span class="cmp-mut">—</span>';
-    var priceMax = (g.maxPrice!=null && g.maxPrice!==g.minPrice)
-      ? (fmt(g.maxPrice) + '<span class="cmp-unit"> / ' + _e(g.famBase||'') + '</span>')
-      : '<span class="cmp-mut">—</span>';
-    var diffAbs  = g.hasSaving ? fmt(g.diffAbs) : '<span class="cmp-mut">—</span>';
-    var bestCell = g.compCount>=1 && g.bestSup
-      ? _e(g.bestSup)
-      : (g.totalCount===1 ? _e(g.offers[0].supName || '') : '<span class="cmp-mut">Sin comparables</span>');
-    var altText  = g.totalCount + (g.totalCount!==g.compCount ? ' (' + g.compCount + ' comp.)' : '');
-
-    // El key va como data-attribute (escape HTML puro) y se lee vía
-    // dataset dentro del handler, para evitar cualquier vector XSS al
-    // interpolarlo dentro de un `onclick="cmpToggle('...')"`.
-    var head =
-      '<tr class="cmp-row' + (open?' cmp-open':'') + '" data-cmp-key="' + _a(g.key) + '" onclick="cmpToggle(this.dataset.cmpKey)">' +
-        '<td class="cmp-td cmp-td-name"><div class="cmp-name-w">' + _catDot(g.cat) + '<span class="cmp-name">' + _e(g.name) + '</span></div></td>' +
-        '<td class="cmp-td cmp-td-cat">' + _e(g.cat || 'Otros') + '</td>' +
-        '<td class="cmp-td cmp-td-num cmp-td-best">' + priceMin + '</td>' +
-        '<td class="cmp-td cmp-td-sup">' + bestCell + '</td>' +
-        '<td class="cmp-td cmp-td-num cmp-th-hide-md">' + priceMax + '</td>' +
-        '<td class="cmp-td cmp-td-num cmp-th-hide-md">' + diffAbs + '</td>' +
-        '<td class="cmp-td cmp-td-num"><span class="' + pctCls + '">' + pctTxt + '</span></td>' +
-        '<td class="cmp-td cmp-td-alt cmp-th-hide-sm">' + altText + '</td>' +
-        '<td class="cmp-td cmp-td-tog"><span class="cmp-caret">' + (open?'▾':'▸') + '</span></td>' +
-      '</tr>';
-
-    if(!open) return head;
-
-    // Detalle: todas las ofertas ordenadas por precio base (no comparables al final).
-    var offers = g.offers.slice().sort(function(a,b){
-      var av = a.comparable ? a.basePrice : Infinity;
-      var bv = b.comparable ? b.basePrice : Infinity;
-      return av-bv;
-    });
-    var detailRows = offers.map(function(o){
-      var isBest = o.comparable && g.minPrice!=null && Math.abs(o.basePrice - g.minPrice) < 1e-6;
-      var normCell, diffCell, tag;
-      if(o.comparable){
-        normCell = fmt(o.basePrice) + '<span class="cmp-unit"> / ' + _e(o.baseUnit) + '</span>'
-                 + (o.viaPesoGr ? ' <span class="cmp-mut" title="Calculado a partir del peso por unidad">(peso)</span>' : '');
-        var d = g.minPrice!=null ? (o.basePrice - g.minPrice) : 0;
-        diffCell = isBest ? '<span class="cmp-best-tag">Mejor</span>' : ('+' + fmt(d));
-        tag = '';
-      } else {
-        normCell = '<span class="cmp-mut">No comparable</span>';
-        diffCell = '<span class="cmp-mut">—</span>';
-        tag = o.reason==='sin_precio'       ? 'Sin precio'
-            : o.reason==='sin_unidad'       ? 'Sin unidad'
-            : o.reason==='familia_distinta' ? 'Familia distinta'
-            : o.reason==='sin_conversion'   ? 'Sin conversión definida'
-            : 'No comparable';
-      }
-      return '<tr class="cmp-drow' + (isBest?' cmp-drow-best':'') + '">' +
-        '<td class="cmp-dtd">' + _e(o.supName || '') + '</td>' +
-        '<td class="cmp-dtd cmp-td-num">' + fmt(o.rawPrice) + '<span class="cmp-unit"> / ' + _e(o.rawUnit || '') + '</span></td>' +
-        '<td class="cmp-dtd cmp-td-num">' + normCell + '</td>' +
-        '<td class="cmp-dtd cmp-td-num">' + diffCell + '</td>' +
-        '<td class="cmp-dtd">' + (tag ? '<span class="cmp-warn-tag">' + _e(tag) + '</span>' : '') + '</td>' +
-      '</tr>';
-    }).join('');
-
-    var note = '';
-    if(g.compCount<2 && g.totalCount>=2){
-      note = '<div class="cmp-detail-note">Este producto tiene varias ofertas pero no son comparables entre sí. Añade una conversión al producto (por ejemplo "1 Caja = X KG") o define el peso por unidad para poder normalizar los precios.</div>';
-    } else if(g.totalCount===1){
-      note = '<div class="cmp-detail-note">Producto disponible en un solo proveedor. Sin alternativa para comparar.</div>';
-    }
-
-    var detail =
-      '<tr class="cmp-detail-tr"><td colspan="9" class="cmp-detail-td">' +
-        note +
-        '<div class="cmp-detail-tbl-w"><table class="cmp-detail-tbl">' +
-          '<thead><tr>' +
-            '<th>Proveedor</th>' +
-            '<th class="cmp-td-num">Precio original</th>' +
-            '<th class="cmp-td-num">Precio normalizado</th>' +
-            '<th class="cmp-td-num">Δ vs mejor</th>' +
-            '<th>Estado</th>' +
-          '</tr></thead>' +
-          '<tbody>' + detailRows + '</tbody>' +
-        '</table></div>' +
-      '</td></tr>';
-
-    return head + detail;
-  }
-
-  /* ────────── vCompare(): entry point ────────── */
-  function vCompare(){
-    _initState();
-    var sups = (typeof supList==='function') ? supList() : [];
-
-    if(!sups.length){
-      return _headerHtml() + _kpiHtml(null) +
-        '<div class="cmp-empty"><div class="cmp-empty-t">Sin proveedores</div><div class="cmp-empty-s">Añade proveedores desde el módulo Proveedores para comenzar a comparar precios.</div></div>';
-    }
-    if(sups.length===1){
-      return _headerHtml() + _kpiHtml(null) +
-        '<div class="cmp-empty"><div class="cmp-empty-t">Un único proveedor</div><div class="cmp-empty-s">Necesitas al menos dos proveedores registrados para poder comparar sus precios.</div></div>';
-    }
-
-    var groups = buildGroups();
-    if(!groups.length){
-      return _headerHtml() + _kpiHtml(null) +
-        '<div class="cmp-empty"><div class="cmp-empty-t">Sin productos</div><div class="cmp-empty-s">Los proveedores no tienen productos cargados. Añade productos y precios en el módulo Proveedores.</div></div>';
-    }
-
-    var kpis     = calcKpis(groups);
-    var filtered = filterSort(groups);
-
-    var head    = _headerHtml();
-    var kpiHtml = _kpiHtml(kpis);
-    var filters = _filtersHtml(groups);
-
-    var tableBody = filtered.length
-      ? filtered.map(_row).join('')
-      : '<tr><td class="cmp-td cmp-empty-cell" colspan="9">Ningún producto coincide con los filtros aplicados.</td></tr>';
-
-    var table =
-      '<div class="cmp-panel">' +
-        '<div class="cmp-table-w">' +
-          '<table class="cmp-table">' +
-            '<thead><tr>' +
-              '<th class="cmp-th cmp-th-name">Producto</th>' +
-              '<th class="cmp-th cmp-th-cat">Categoría</th>' +
-              '<th class="cmp-th cmp-th-num">Mejor precio</th>' +
-              '<th class="cmp-th cmp-th-sup">Mejor proveedor</th>' +
-              '<th class="cmp-th cmp-th-num cmp-th-hide-md">Precio más alto</th>' +
-              '<th class="cmp-th cmp-th-num cmp-th-hide-md">Δ €</th>' +
-              '<th class="cmp-th cmp-th-num">Δ %</th>' +
-              '<th class="cmp-th cmp-th-alt cmp-th-hide-sm">Ofertas</th>' +
-              '<th class="cmp-th cmp-th-tog"></th>' +
-            '</tr></thead>' +
-            '<tbody>' + tableBody + '</tbody>' +
-          '</table>' +
-        '</div>' +
-      '</div>';
-
-    var count =
-      '<div class="cmp-count">' +
-        _e(filtered.length + ' producto' + (filtered.length===1?'':'s') + ' de ' + groups.length + ' analizado' + (groups.length===1?'':'s')) +
-      '</div>';
-
-    return head + kpiHtml + filters + count + table;
-  }
-
-  /* ────────── Trozos HTML fijos ────────── */
-  function _headerHtml(){
-    return '<div class="cmp-head">' +
-      '<div class="cmp-head-t">Comparar precios</div>' +
-      '<div class="cmp-head-s">Detecta el mejor proveedor y las principales oportunidades de ahorro</div>' +
-    '</div>';
-  }
-  function _kpiHtml(k){
-    if(!k){
-      return '<div class="cmp-kpi-grid">' +
-        _kpi('Productos comparables',   '<span class="cmp-mut">—</span>') +
-        _kpi('Ahorro potencial',        '<span class="cmp-mut">—</span>', 'Suma Δ por unidad base') +
-        _kpi('Proveedores analizados', '<span class="cmp-mut">—</span>') +
-        _kpi('Oportunidades detectadas','<span class="cmp-mut">—</span>') +
-      '</div>';
-    }
-    var ahorroVal = k.ahorro>0 ? fmt(k.ahorro) : '<span class="cmp-mut">—</span>';
-    return '<div class="cmp-kpi-grid">' +
-      _kpi('Productos comparables',    String(k.comparables)) +
-      _kpi('Ahorro potencial',         ahorroVal, 'Suma Δ (peor − mejor) por unidad base') +
-      _kpi('Proveedores analizados',   String(k.supsCount)) +
-      _kpi('Oportunidades detectadas', String(k.opor)) +
-    '</div>';
-  }
-  function _filtersHtml(groups){
-    var val = _a(S.cmpSearch || '');
-    return '<div class="cmp-filters">' +
-      '<input class="cmp-input cmp-search" type="text" placeholder="Buscar producto..." value="' + val + '" oninput="cmpSetSearch(this.value)" />' +
-      _catSelect(groups) +
-      _supSelect() +
-      _kindTabs() +
-      '<div class="cmp-sort"><label class="cmp-sort-l">Ordenar</label>' + _sortSelect() + '</div>' +
-    '</div>';
-  }
-
-  /* ────────── Handlers globales ────────── */
-  function _rerender(){
-    if(typeof renderAdminContent==='function') renderAdminContent();
-  }
-  window.cmpSetSearch = function(v){
-    S.cmpSearch = v;
-    _rerender();
-    var el = document.querySelector('.cmp-search');
-    if(el){ try{ el.focus(); el.setSelectionRange(v.length, v.length); }catch(e){} }
-  };
-  window.cmpSetCat  = function(v){ S.cmpCat  = v || '';       _rerender(); };
-  window.cmpSetSup  = function(v){ S.cmpSup  = v || '';       _rerender(); };
-  window.cmpSetKind = function(v){ S.cmpKind = v || 'all';    _rerender(); };
-  window.cmpSetSort = function(v){ S.cmpSort = v || 'saving'; _rerender(); };
-  window.cmpToggle  = function(k){
-    if(!S.cmpOpen) S.cmpOpen = {};
-    if(S.cmpOpen[k]) delete S.cmpOpen[k]; else S.cmpOpen[k] = true;
-    _rerender();
-  };
-
-  /* ────────── Exponer vCompare ────────── */
-  window.vCompare = vCompare;
-
+  });
+  return Object.values(map).map(function(group){
+    var byFamily={};
+    group.offers.filter(function(o){return o.ok;}).forEach(function(o){(byFamily[o.baseUnit]||(byFamily[o.baseUnit]=[])).push(o);});
+    var families=Object.keys(byFamily).sort(function(a,b){return byFamily[b].length-byFamily[a].length;});
+    group.baseUnit=families[0]||'';
+    group.comparable=(byFamily[group.baseUnit]||[]).slice().sort(function(a,b){return a.normPrice-b.normPrice;});
+    group.comparable.forEach(function(o){o.inFamily=true;});
+    group.offers.forEach(function(o){if(o.ok&&!o.inFamily)o.reason='Unidad base distinta';});
+    group.best=group.comparable[0]||null; group.worst=group.comparable[group.comparable.length-1]||null;
+    group.min=group.best?group.best.normPrice:null; group.max=group.worst?group.worst.normPrice:null;
+    group.diff=group.min!=null&&group.max!=null?group.max-group.min:0;
+    group.pct=group.min>0?group.diff/group.min*100:0;
+    group.hasSaving=group.comparable.length>=2&&group.diff>0.0001;
+    group.single=group.offers.length===1;
+    return group;
+  });
+}
+function cmpFiltered(groups){
+  var q=cmpName(S.cmpSearch), cat=S.cmpCat||'', sid=S.cmpSup||'', kind=S.cmpKind||'all';
+  var rows=groups.filter(function(g){
+    if(q&&cmpName(g.name).indexOf(q)<0) return false;
+    if(cat&&(g.category||'Otros')!==cat) return false;
+    if(sid&&!g.offers.some(function(o){return o.supId===sid;})) return false;
+    if(kind==='saving'&&!g.hasSaving) return false;
+    if(kind==='single'&&!g.single) return false;
+    return true;
+  });
+  rows.sort(function(a,b){
+    if(S.cmpSort==='name') return a.name.localeCompare(b.name,'es');
+    if(S.cmpSort==='price') return (a.min==null?Infinity:a.min)-(b.min==null?Infinity:b.min);
+    if(S.cmpSort==='pct') return b.pct-a.pct;
+    return b.diff-a.diff;
+  });
+  return rows;
+}
+function cmpKpi(label,value,hint){return '<article class="cmp26-kpi"><small>'+escHtml(label)+'</small><strong>'+value+'</strong>'+(hint?'<span>'+escHtml(hint)+'</span>':'')+'</article>';}
+function cmpDetail(group){
+  var offers=group.offers.slice().sort(function(a,b){
+    if(a.inFamily!==b.inFamily) return a.inFamily?-1:1;
+    return (a.normPrice||Infinity)-(b.normPrice||Infinity);
+  });
+  var rows=offers.map(function(o){
+    var best=group.best===o;
+    var normalized=o.inFamily?fmt(o.normPrice)+' / '+escHtml(o.baseUnit):'—';
+    var delta=o.inFamily&&group.min!=null?fmt(o.normPrice-group.min):'—';
+    var state=best?'<span class="cmp26-state best">Mejor opción</span>':o.inFamily?'<span class="cmp26-state">Comparable</span>':'<span class="cmp26-state warn">'+escHtml(o.reason||'No comparable')+'</span>';
+    return '<tr class="'+(best?'is-best':'')+'"><td><b>'+escHtml(o.supName)+'</b></td><td class="num">'+(Number.isFinite(o.rawPrice)?fmt(o.rawPrice):'—')+' / '+escHtml(o.rawUnit)+'</td><td class="num">'+normalized+'</td><td class="num">'+delta+'</td><td>'+state+'</td></tr>';
+  }).join('');
+  var note=group.comparable.length<2?'<p class="cmp26-note">No hay dos ofertas normalizadas en la misma unidad base. NOVENTIA no declara un ganador cuando faltan conversiones fiables.</p>':'';
+  return '<div class="cmp26-detail">'+note+'<table><thead><tr><th>Proveedor</th><th class="num">Precio original</th><th class="num">Precio normalizado</th><th class="num">Δ vs mejor</th><th>Estado</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function cmpRow(group){
+  var open=!!S.cmpOpen[group.key], best=group.best;
+  return '<article class="cmp26-row">'+
+    '<button class="cmp26-summary" onclick="cmpToggle(\''+escAttr(group.key)+'\')">'+
+      '<span class="cmp26-product"><b>'+escHtml(group.name)+'</b><small>'+escHtml(group.category||'Otros')+'</small></span>'+
+      '<span class="cmp26-best">'+(best?'<b>'+fmt(group.min)+' / '+escHtml(group.baseUnit)+'</b><small>'+escHtml(best.supName)+'</small>':'<b>—</b><small>Sin precio comparable</small>')+'</span>'+
+      '<span class="cmp26-num">'+(group.max!=null?fmt(group.max):'—')+'</span>'+
+      '<span class="cmp26-num '+(group.hasSaving?'saving':'')+'">'+(group.hasSaving?fmt(group.diff):'—')+'</span>'+
+      '<span class="cmp26-num '+(group.hasSaving?'saving':'')+'">'+(group.hasSaving?group.pct.toFixed(1)+'%':'—')+'</span>'+
+      '<span class="cmp26-offers">'+group.comparable.length+' / '+group.offers.length+'</span>'+
+      '<span class="cmp26-toggle">'+(open?'−':'+')+'</span>'+
+    '</button>'+(open?cmpDetail(group):'')+'</article>';
+}
+function vCompare(){
+  initCmpState();
+  var suppliers=typeof supList==='function'?supList():[];
+  if(!suppliers.length) return '<div class="cmp26-empty"><b>Sin proveedores</b><span>Añade proveedores para empezar a comparar.</span></div>';
+  var groups=cmpBuildGroups(), rows=cmpFiltered(groups);
+  var comparable=groups.filter(function(g){return g.comparable.length>=2;}), opportunities=comparable.filter(function(g){return g.hasSaving;});
+  var saving=opportunities.reduce(function(sum,g){return sum+g.diff;},0);
+  var cats=Array.from(new Set(groups.map(function(g){return g.category||'Otros';}))).sort();
+  var filters='<div class="cmp26-filters">'+
+    '<input class="cmp26-search" value="'+escAttr(S.cmpSearch)+'" oninput="cmpSearch(this.value)" placeholder="Buscar producto">'+
+    '<select onchange="cmpCat(this.value)"><option value="">Todas las categorías</option>'+cats.map(function(c){return '<option value="'+escAttr(c)+'" '+(S.cmpCat===c?'selected':'')+'>'+escHtml(c)+'</option>';}).join('')+'</select>'+
+    '<select onchange="cmpSup(this.value)"><option value="">Todos los proveedores</option>'+suppliers.map(function(s){return '<option value="'+escAttr(s.id)+'" '+(S.cmpSup===s.id?'selected':'')+'>'+escHtml(s.name)+'</option>';}).join('')+'</select>'+
+    '<div class="cmp26-tabs">'+[['all','Todos'],['saving','Con ahorro'],['single','Sin alternativa']].map(function(x){return '<button class="'+(S.cmpKind===x[0]?'act':'')+'" onclick="cmpKind(\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+'</div>'+
+    '<select onchange="cmpSort(this.value)"><option value="saving" '+(S.cmpSort==='saving'?'selected':'')+'>Mayor ahorro</option><option value="pct" '+(S.cmpSort==='pct'?'selected':'')+'>Mayor diferencia %</option><option value="price" '+(S.cmpSort==='price'?'selected':'')+'>Menor precio</option><option value="name" '+(S.cmpSort==='name'?'selected':'')+'>Nombre</option></select></div>';
+  return '<div class="cmp26-page"><header class="cmp26-head"><span>Análisis de compras</span><h1>Comparar precios</h1><p>Detecta el mejor proveedor y las principales oportunidades de ahorro por unidad comparable.</p></header>'+
+    '<section class="cmp26-kpis">'+cmpKpi('Productos comparables',String(comparable.length))+cmpKpi('Diferencia acumulada',saving>0?fmt(saving):'—','Suma de diferencias por unidad base')+cmpKpi('Proveedores analizados',String(suppliers.length))+cmpKpi('Oportunidades',String(opportunities.length))+'</section>'+filters+
+    '<div class="cmp26-caption">'+rows.length+' productos mostrados · '+groups.length+' productos analizados</div>'+
+    '<section class="cmp26-list"><div class="cmp26-columns"><span>Producto</span><span>Mejor opción</span><span>Precio mayor</span><span>Δ €</span><span>Δ %</span><span>Comp./total</span><span></span></div>'+ (rows.map(cmpRow).join('')||'<div class="cmp26-empty"><b>Sin resultados</b><span>Prueba con otros filtros.</span></div>')+'</section></div>';
+}
+function rerenderCmp(){if(typeof renderAdminContent==='function') renderAdminContent();}
+window.cmpSearch=function(v){S.cmpSearch=v;rerenderCmp();var e=document.querySelector('.cmp26-search');if(e){e.focus();try{e.setSelectionRange(v.length,v.length);}catch(_){}}};
+window.cmpCat=function(v){S.cmpCat=v;rerenderCmp();};
+window.cmpSup=function(v){S.cmpSup=v;rerenderCmp();};
+window.cmpKind=function(v){S.cmpKind=v;rerenderCmp();};
+window.cmpSort=function(v){S.cmpSort=v;rerenderCmp();};
+window.cmpToggle=function(k){S.cmpOpen[k]?delete S.cmpOpen[k]:S.cmpOpen[k]=true;rerenderCmp();};
+window.cmpNormalizeProductName=cmpName;
+window.vCompare=vCompare;
 })();

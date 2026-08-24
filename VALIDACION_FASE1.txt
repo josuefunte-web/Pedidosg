@@ -1,0 +1,7 @@
+VALIDACION OK
+- 27-comparativa.js: sintaxis valida
+- vCompare: una implementacion en el archivo nuevo
+- ruta admin compare: comprobada
+- cache unificada: 20260824-noventia-fase1-cmp1
+- normalizacion conservadora: sin conversiones inventadas
+- estados vacios y datos incompletos: contemplados
