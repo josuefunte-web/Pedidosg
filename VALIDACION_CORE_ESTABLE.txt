@@ -1,0 +1,9 @@
+VALIDACION CORE ESTABLE OK
+- JS validado: 50 archivos
+- Referencias index: 52 comprobadas
+- Cache unificada: 20260824-noventia-core-estable1
+- Dashboard formal: vDashboard + adminTab dashboard
+- Consolidado: eliminado de menu y ruta
+- Duplicados .js.js: no incluidos
+- Overlay 47-noventia-ui6.js: no incluido
+- Reglas Firebase: JSON valido y orders compatibilizado
