@@ -21,6 +21,7 @@ function initFirebaseListeners(){
   _listenInventory();
   _listenAuthUsers();
   _listenFoodCost();
+  if(typeof initVacationListeners==='function') initVacationListeners();
 }
 
 // Estado local del cliente para detectar pedidos nuevos vs cambios de estado
