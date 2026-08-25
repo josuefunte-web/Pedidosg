@@ -1,1 +1,127 @@
-/* NOVENTIA UI final placeholder: estilos principales en styles.css */
+/* NOVENTIA UI — ajustes aprobados
+   1) Sidebar compacto de 168 px
+   2) Sidebar con el color corporativo del símbolo NOVENTIA
+   3) Editor de escandallos integrado en página, nunca como ventana flotante
+*/
+:root{
+  --noventia-accent:#a51d35;
+  --noventia-accent-dark:#861629;
+  --noventia-sidebar-width:168px;
+}
+
+/* Sidebar más estrecho y corporativo */
+.adm-layout{grid-template-columns:var(--noventia-sidebar-width) minmax(0,1fr)!important}
+.sidebar{
+  width:var(--noventia-sidebar-width)!important;
+  background:var(--noventia-accent)!important;
+  border-right:0!important;
+  box-shadow:none!important;
+  padding:8px 6px!important;
+}
+.sb-mini-stats{
+  gap:5px!important;
+  padding:4px 0 9px!important;
+  background:transparent!important;
+  border-bottom:1px solid rgba(255,255,255,.22)!important;
+}
+.sb-ms{
+  padding:7px 3px!important;
+  border-radius:7px!important;
+  background:rgba(255,255,255,.09)!important;
+}
+.sb-msv{font-size:14px!important;color:#fff!important}
+.sb-msl{font-size:8px!important;color:rgba(255,255,255,.72)!important;letter-spacing:.35px!important}
+.sb-section{
+  padding:13px 8px 4px!important;
+  color:rgba(255,255,255,.62)!important;
+  font-size:8px!important;
+  letter-spacing:1px!important;
+}
+.sg-direct{
+  min-height:31px!important;
+  margin:1px 0!important;
+  padding:7px 9px!important;
+  border-radius:7px!important;
+  color:rgba(255,255,255,.9)!important;
+  background:transparent!important;
+  font-size:11px!important;
+  font-weight:600!important;
+  opacity:1!important;
+  box-shadow:none!important;
+  border:0!important;
+}
+.sg-direct:hover{background:rgba(17,24,39,.14)!important;color:#fff!important;transform:none!important}
+.sg-direct.act{
+  background:rgba(17,24,39,.24)!important;
+  color:#fff!important;
+  box-shadow:inset 3px 0 0 #fff!important;
+  padding-left:9px!important;
+}
+.sb-badge{background:#fff!important;color:var(--noventia-accent)!important}
+
+/* El editor de escandallos pasa a ser una vista integrada
+   SOLO cuando body tiene .noventia-esc-editor-open (lo pone el JS
+   cuando el modal está visible de verdad). Si no, se comporta como
+   un modal normal para no tapar el dashboard. */
+body.noventia-esc-editor-open #esc-modal-ov{
+  position:static!important;
+  inset:auto!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:0!important;
+  padding:0!important;
+  background:transparent!important;
+  backdrop-filter:none!important;
+  z-index:auto!important;
+  align-items:stretch!important;
+  justify-content:stretch!important;
+  display:block!important;
+}
+body.noventia-esc-editor-open #esc-modal-ov .esc-modal-box{
+  width:100%!important;
+  max-width:none!important;
+  max-height:none!important;
+  overflow:visible!important;
+  margin:0!important;
+  border:1px solid var(--brd)!important;
+  border-radius:12px!important;
+  background:var(--card)!important;
+  box-shadow:var(--sh)!important;
+}
+body.noventia-esc-editor-open #esc-modal-ov .esc-modal-hd{
+  position:sticky!important;
+  top:0!important;
+  z-index:12!important;
+  background:var(--card)!important;
+  padding:18px 20px!important;
+}
+body.noventia-esc-editor-open #esc-modal-ov .esc-modal-body{
+  display:grid!important;
+  grid-template-columns:minmax(300px,.85fr) minmax(480px,1.55fr)!important;
+  min-height:540px!important;
+}
+body.noventia-esc-editor-open #esc-modal-ov .esc-left,
+body.noventia-esc-editor-open #esc-modal-ov .esc-right{padding:22px!important}
+body.noventia-esc-editor-open #esc-modal-ov .esc-modal-ft{
+  position:sticky!important;
+  bottom:0!important;
+  z-index:12!important;
+  background:var(--card)!important;
+  padding:14px 20px!important;
+  box-shadow:0 -5px 18px rgba(15,23,42,.06)!important;
+}
+body.noventia-esc-editor-open .adm-content{overflow-y:auto!important}
+body.noventia-esc-editor-open .sidebar{position:relative!important}
+
+@media(max-width:900px){
+  body.noventia-esc-editor-open #esc-modal-ov .esc-modal-body{grid-template-columns:1fr!important}
+  body.noventia-esc-editor-open #esc-modal-ov .esc-left{border-right:0!important;border-bottom:1px solid var(--brd)!important}
+}
+@media(max-width:700px){
+  .sidebar{width:252px!important;padding:8px!important}
+  body.noventia-esc-editor-open #esc-modal-ov .esc-modal-box{border-radius:9px!important}
+  body.noventia-esc-editor-open #esc-modal-ov .esc-left,
+  body.noventia-esc-editor-open #esc-modal-ov .esc-right{padding:15px!important}
+  body.noventia-esc-editor-open #esc-modal-ov .esc-modal-hd,
+  body.noventia-esc-editor-open #esc-modal-ov .esc-modal-ft{padding:13px 15px!important}
+}

@@ -37,7 +37,6 @@ function renderAdminContent(){
   else if(S.adminTab==='escandallos') content=vEscandallos();
   else if(S.adminTab==='sup-history') content=vSupHistory();
   else if(S.adminTab==='inventario') content=vInventario();
-  else if(S.adminTab==='vacaciones') content=vVacaciones();
   tc.innerHTML=content;
   if(S.adminTab==='escandallos') initEscandallos();
   if(S.adminTab==='budgets') setTimeout(renderBudgetTrendChart,100);
