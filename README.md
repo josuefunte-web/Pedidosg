@@ -1,11 +1,3 @@
-# NOVENTIA — Fase 1
+# NOVENTIA app completa
 
-Primera entrega del plan: sistema visual base cálido y reconstrucción completa de Comparar precios.
-
-## Sustituir
-- `index.html`
-- `version.json`
-- `css/styles.css`
-- `js/27-comparativa.js`
-
-Se incluye una copia del comparador anterior con extensión `.backup`.
+Sube el contenido de este ZIP al repositorio. Conserva `.git` y `wrangler.toml` si existen.

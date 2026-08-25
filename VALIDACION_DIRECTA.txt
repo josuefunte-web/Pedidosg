@@ -1,9 +1,0 @@
-VALIDACION DIRECTA OK
-- direct supplier: OK
-- direct inventory: OK
-- direct visibility: OK
-- no overlay: OK
-- no consolidated route: OK
-- JS validados: 51
-- referencias: 50
-- cache: 20260823-noventia-enterprise-direct1

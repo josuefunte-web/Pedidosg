@@ -1,0 +1,8 @@
+VALIDACION OK - HOME + CALENDARIO
+- Dashboard/Inicio: vDashboard, menú y rutas comprobadas.
+- Calendario/Vacaciones: vVacaciones, menú/rutas/listeners comprobados.
+- Comparador: conservado con módulo cmpfix.
+- Cache: versión unificada.
+- Referencias index: comprobadas.
+- JS: node --check correcto en todos los archivos.
+- Firebase rules: staff/vacations presentes.

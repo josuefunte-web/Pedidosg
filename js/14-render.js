@@ -20,9 +20,9 @@ function renderAdminContent(){
   if(S.adminTab==='inventario'  && S.invEditId) return; // formulario inline abierto
   const _sv=window.scrollY;
   let content='';
-  if(S.adminTab==='pending')       content=vPending();
+  if(S.adminTab==='dashboard') content=vDashboard();
+  else if(S.adminTab==='pending')       content=vPending();
   else if(S.adminTab==='approved') content=vApproved();
-  else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='received') content=vReceived();
   else if(S.adminTab==='budgets')  content=vBudgets();
   else if(S.adminTab==='foodcost') content=vFoodCost();
