@@ -21,6 +21,7 @@ function logout(){
   render();
 }
 function goOrder(){
+  if(S.session) S.session={...S.session,isAdminOrder:false};
   S.view='order';S.cart={};S.cartUnits={};S._cartProds={};
   // Camareros/cocineros no ven la pestaña "Hacer pedido" — arrancan en "Mis pedidos"
   S.orderTab = can('canCreateOrders') ? 'new' : 'history';
@@ -39,6 +40,8 @@ function goAdmin(){
     return;
   }
   S.view='admin';
+  S.adminTab='dashboard';
+  if(S.session) S.session={...S.session,isAdminOrder:false};
   S.adminOrderPicker=false;
   showHdr(true);
   render();

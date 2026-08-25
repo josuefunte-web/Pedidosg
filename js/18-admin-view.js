@@ -30,10 +30,11 @@ function vAdmin(){
   const _canAssignSup = can('canAssignSuppliers'); // admin2+ → visibilidad de proveedores por local
   const sidebar=`<div class="sidebar${S.sidebarOpen?' sb-open':''}">
     <div class="sb-mini-stats" id="sb-stats">${buildSbStats(pend,appr)}</div>
+    <div class="sb-section">Inicio</div>
+    ${sbItem('dashboard','Inicio')}
     <div class="sb-section">Pedidos</div>
     ${sbItem('pending','Pendientes','sb-pend-badge')}
     ${sbItem('approved','Aprobados')}
-    ${sbItem('consolidated','Consolidado')}
     ${sbItem('received','Recibidos')}
     <div class="sb-section">Análisis</div>
     ${sbItem('budgets','Presupuestos')}
@@ -57,9 +58,9 @@ function vAdmin(){
   </div>`;
 
   let content='';
-  if(S.adminTab==='pending')        content=vPending();
+  if(S.adminTab==='dashboard') content=vDashboard();
+  else if(S.adminTab==='pending')        content=vPending();
   else if(S.adminTab==='approved')  content=vApproved();
-  else if(S.adminTab==='consolidated') content=vConsolidated();
   else if(S.adminTab==='received')  content=vReceived();
   else if(S.adminTab==='budgets')   content=vBudgets();
   else if(S.adminTab==='foodcost')  content=vFoodCost();
@@ -106,6 +107,46 @@ function vAdmin(){
       <div id="tc">${content}</div>
     </div>
   </div>${adminOrderModal}`;
+}
+
+function vDashboard(){
+  const valid=orders.filter(o=>o.status!=='rejected');
+  const pend=orders.filter(o=>o.status==='pending');
+  const appr=orders.filter(o=>o.status==='approved');
+  const rec=orders.filter(o=>o.status==='received');
+  const today=new Date().toISOString().slice(0,10);
+  const todayOrders=valid.filter(o=>(o.createdAt||'').startsWith(today));
+  const month=new Date().toISOString().slice(0,7);
+  const monthSpend=valid.filter(o=>(o.createdAt||'').startsWith(month)).reduce((n,o)=>n+total(o),0);
+  const pendingTotal=pend.reduce((n,o)=>n+total(o),0);
+  const recent=valid.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,8);
+  const recentRows=recent.map(o=>{
+    const sup=suppliers[o.supId]||{name:o.supId||'Proveedor'};
+    const status={pending:'Pendiente',approved:'Aprobado',received:'Recibido'}[o.status]||o.status;
+    const tab=o.status==='pending'?'pending':(o.status==='approved'?'approved':'received');
+    return `<button class="db-row" onclick="setTabSb('${tab}')">
+      <span><b>${escHtml(o.restaurant||'Sin local')}</b><small>${escHtml(sup.name||'')}</small></span>
+      <span>${fmtD(o.createdAt)}</span><span class="db-status ${o.status}">${status}</span><strong>${fmt(total(o))}</strong>
+    </button>`;
+  }).join('');
+  const alerts=[];
+  if(pend.length) alerts.push(`<button onclick="setTabSb('pending')"><b>${pend.length} pedidos pendientes</b><span>${fmt(pendingTotal)} por revisar</span></button>`);
+  const urgent=pend.filter(o=>o.urgent);
+  if(urgent.length) alerts.push(`<button onclick="setTabSb('pending')"><b>${urgent.length} pedidos urgentes</b><span>Revisión prioritaria</span></button>`);
+  if(!alerts.length) alerts.push(`<div class="db-clear"><b>Todo al día</b><span>No hay pedidos pendientes.</span></div>`);
+  return `<div class="db-page">
+    <header class="db-head"><span>Panel de compras</span><h1>Resumen general</h1><p>Actividad y pedidos del grupo.</p></header>
+    <section class="db-kpis">
+      <button onclick="setTabSb('pending')"><small>Pendientes</small><strong>${pend.length}</strong><span>${fmt(pendingTotal)}</span></button>
+      <button onclick="setTabSb('approved')"><small>Aprobados</small><strong>${appr.length}</strong><span>Por enviar o recibir</span></button>
+      <button onclick="setTabSb('received')"><small>Recibidos</small><strong>${rec.length}</strong><span>Histórico confirmado</span></button>
+      <article><small>Gasto del mes</small><strong>${fmt(monthSpend)}</strong><span>${todayOrders.length} pedidos hoy</span></article>
+    </section>
+    <section class="db-grid">
+      <div class="db-panel"><header><h2>Actividad reciente</h2><button onclick="setTabSb('approved')">Ver pedidos</button></header>${recentRows||'<div class="db-empty">Todavía no hay actividad.</div>'}</div>
+      <aside class="db-panel"><header><h2>Atención</h2></header><div class="db-alerts">${alerts.join('')}</div><button class="db-new" onclick="S.adminOrderPicker=true;render()">Hacer pedido</button></aside>
+    </section>
+  </div>`;
 }
 
 function orderCard(o,showActions){

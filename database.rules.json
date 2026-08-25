@@ -2,7 +2,6 @@
   "rules": {
     ".read": false,
     ".write": false,
-
     "authUsers": {
       ".read": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true",
       "$uid": {
@@ -10,21 +9,23 @@
         ".validate": "newData.hasChildren(['uid','email','status'])"
       }
     },
-
     "globalCfg": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' && root.child('authUsers').child(auth.uid).child('blocked').val() !== true"
     },
-
     "orders": {
       ".read": "auth != null",
-      ".indexOn": ["restaurant","supId","status","createdAt"],
+      ".indexOn": [
+        "restaurant",
+        "supId",
+        "status",
+        "createdAt"
+      ],
       "$orderId": {
-        ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && ((!data.exists() && newData.child('restaurant').val() === root.child('authUsers').child(auth.uid).child('restaurant').val() && ((root.child('authUsers').child(auth.uid).child('role').val() === 'jefe_cocina' || root.child('authUsers').child(auth.uid).child('role').val() === 'encargado') || (root.child('authUsers').child(auth.uid).child('role').val() === 'admin3' && (newData.child('status').val() !== 'approved' || newData.child('total').val() <= (root.child('globalCfg').child('admin3ApprovalLimit').val() != null ? root.child('globalCfg').child('admin3ApprovalLimit').val() : 100))) || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin1')) || (data.exists() && newData.child('status').val() === 'approved' && root.child('authUsers').child(auth.uid).child('role').val() === 'admin3' && newData.child('total').val() === data.child('total').val() && data.child('total').val() <= (root.child('globalCfg').child('admin3ApprovalLimit').val() != null ? root.child('globalCfg').child('admin3ApprovalLimit').val() : 100)) || (data.exists() && (root.child('authUsers').child(auth.uid).child('role').val() === 'admin2' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin1')) || (data.exists() && data.child('restaurant').val() === root.child('authUsers').child(auth.uid).child('restaurant').val() && newData.child('status').val() !== 'approved'))",
+        ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (!data.exists() && (((newData.child('restaurant').val() === root.child('authUsers').child(auth.uid).child('restaurant').val()) && (root.child('authUsers').child(auth.uid).child('role').val() === 'jefe_cocina' || root.child('authUsers').child(auth.uid).child('role').val() === 'encargado' || (!root.child('authUsers').child(auth.uid).child('role').exists() && root.child('authUsers').child(auth.uid).child('status').val() === 'approved' && root.child('authUsers').child(auth.uid).child('isAdmin').val() !== true))) || root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2' || (root.child('authUsers').child(auth.uid).child('role').val() === 'admin3' && newData.child('restaurant').val() === root.child('authUsers').child(auth.uid).child('restaurant').val() && (newData.child('status').val() !== 'approved' || newData.child('total').val() <= (root.child('globalCfg').child('admin3ApprovalLimit').val() != null ? root.child('globalCfg').child('admin3ApprovalLimit').val() : 100)))) || (data.exists() && newData.child('status').val() === 'approved' && root.child('authUsers').child(auth.uid).child('role').val() === 'admin3' && newData.child('total').val() === data.child('total').val() && data.child('total').val() <= (root.child('globalCfg').child('admin3ApprovalLimit').val() != null ? root.child('globalCfg').child('admin3ApprovalLimit').val() : 100)) || (data.exists() && (root.child('authUsers').child(auth.uid).child('role').val() === 'admin2' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin1')) || (data.exists() && data.child('restaurant').val() === root.child('authUsers').child(auth.uid).child('restaurant').val() && newData.child('status').val() !== 'approved'))",
         ".validate": "newData.hasChildren(['id','restaurant','supId','items','status','createdAt','total'])"
       }
     },
-
     "orderComments": {
       ".read": "auth != null",
       "$orderId": {
@@ -34,58 +35,76 @@
         }
       }
     },
-
     "suppliers": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2')"
     },
-
     "albaranes": {
       ".read": "auth != null",
-      ".indexOn": ["restaurant","supId","createdAt"],
+      ".indexOn": [
+        "restaurant",
+        "supId",
+        "createdAt"
+      ],
       "$albId": {
         ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2' || newData.child('restaurant').val() === root.child('authUsers').child(auth.uid).child('restaurant').val() || (data.exists() && data.child('restaurant').val() === root.child('authUsers').child(auth.uid).child('restaurant').val()))"
       }
     },
-
-    "budgets":       { ".read": "auth != null", ".write": "auth != null && root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' && root.child('authUsers').child(auth.uid).child('blocked').val() !== true" },
-    "revenue":       { ".read": "auth != null", ".write": "auth != null && root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' && root.child('authUsers').child(auth.uid).child('blocked').val() !== true" },
-    "extraExpenses": { ".read": "auth != null", ".write": "auth != null && root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' && root.child('authUsers').child(auth.uid).child('blocked').val() !== true" },
-
+    "budgets": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' && root.child('authUsers').child(auth.uid).child('blocked').val() !== true"
+    },
+    "revenue": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' && root.child('authUsers').child(auth.uid).child('blocked').val() !== true"
+    },
+    "extraExpenses": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' && root.child('authUsers').child(auth.uid).child('blocked').val() !== true"
+    },
     "priceHistory": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2')",
-      ".indexOn": ["changedAt","supId"]
+      ".indexOn": [
+        "changedAt",
+        "supId"
+      ]
     },
-
     "foodcost": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2')"
     },
-
     "escandallos": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2')",
-      ".indexOn": ["categoria","nombre"]
+      ".indexOn": [
+        "categoria",
+        "nombre"
+      ]
     },
     "menus": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2')",
-      ".indexOn": ["restaurante","nombre"]
+      ".indexOn": [
+        "restaurante",
+        "nombre"
+      ]
     },
     "recetas": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2')",
-      ".indexOn": ["partida","tipo","nombre"]
+      ".indexOn": [
+        "partida",
+        "tipo",
+        "nombre"
+      ]
     },
-
     "templates": {
       "$uid": {
         ".read": "auth != null && (auth.uid === $uid || root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2')",
         ".write": "auth != null && auth.uid === $uid && root.child('authUsers').child(auth.uid).child('blocked').val() !== true"
       }
     },
-
     "inventory": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'jefe_cocina' || root.child('authUsers').child(auth.uid).child('role').val() === 'encargado' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin3' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin1')"
@@ -94,16 +113,18 @@
       ".read": "auth != null",
       ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'jefe_cocina' || root.child('authUsers').child(auth.uid).child('role').val() === 'encargado' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin3' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin1')"
     },
-
     "auditLog": {
       ".read": "auth != null && root.child('authUsers').child(auth.uid).child('role').val() === 'admin1'",
-      ".indexOn": ["ts","action","uid"],
+      ".indexOn": [
+        "ts",
+        "action",
+        "uid"
+      ],
       "$logId": {
         ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid",
         ".validate": "newData.hasChildren(['uid','action','ts'])"
       }
     },
-
     "errorLogs": {
       ".read": "auth != null && root.child('authUsers').child(auth.uid).child('role').val() === 'admin1'",
       ".write": "auth != null"

@@ -1,6 +1,6 @@
 /* ═══════════════ STATE ═══════════════ */
 let S={
-  view:'login', adminTab:'pending',
+  view:'login', adminTab:'dashboard',
   session:null,
   supId:Object.keys(DEFAULT_SUPS)[0],
   cart:{},
