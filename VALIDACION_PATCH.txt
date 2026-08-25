@@ -1,0 +1,4 @@
+VALIDACION OK
+Version: 20260825-home-calendario-fix2
+Incluye fix de Inicio/Dashboard y Calendario.
+JS validado con node --check.

@@ -1,0 +1,24 @@
+/* NOVENTIA — Fix Inicio + Calendario */
+(function(){'use strict';
+function esc(v){return typeof escHtml==='function'?escHtml(v):String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+function money(n){return typeof fmt==='function'?fmt(n):((+n||0).toFixed(2)+' €')}
+function sumOrder(o){return typeof total==='function'?total(o):(o.items||[]).reduce((s,it)=>s+(+it.qty||0)*(+it.price||0),0)}
+function fdate(d){return typeof fmtD==='function'?fmtD(d):String(d||'')}
+window.vDashboard=function(){
+  const all=Array.isArray(window.orders)?orders:[], valid=all.filter(o=>o.status!=='rejected'), pend=all.filter(o=>o.status==='pending'), appr=all.filter(o=>o.status==='approved'), rec=all.filter(o=>o.status==='received');
+  const month=new Date().toISOString().slice(0,7), monthSpend=valid.filter(o=>(o.createdAt||'').startsWith(month)).reduce((n,o)=>n+sumOrder(o),0), pendingTotal=pend.reduce((n,o)=>n+sumOrder(o),0);
+  const rows=valid.slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).slice(0,8).map(o=>{const sup=(window.suppliers||{})[o.supId]||{name:o.supId||'Proveedor'},st={pending:'Pendiente',approved:'Aprobado',received:'Recibido'}[o.status]||o.status,tab=o.status==='pending'?'pending':(o.status==='approved'?'approved':'received');return `<button class="db-row" onclick="setTabSb('${tab}')"><span><b>${esc(o.restaurant||'Sin local')}</b><small>${esc(sup.name||'')}</small></span><span>${fdate(o.createdAt)}</span><span class="db-status ${o.status}">${st}</span><strong>${money(sumOrder(o))}</strong></button>`}).join('');
+  const alerts=pend.length?`<button onclick="setTabSb('pending')"><b>${pend.length} pedidos pendientes</b><span>${money(pendingTotal)} por revisar</span></button>`:`<div class="db-clear"><b>Todo al día</b><span>No hay pedidos pendientes.</span></div>`;
+  return `<div class="db-page"><header class="db-head"><span>Panel de compras</span><h1>Inicio</h1><p>Resumen general de actividad, pedidos y gasto.</p></header><section class="db-kpis"><button onclick="setTabSb('pending')"><small>Pendientes</small><strong>${pend.length}</strong><span>${money(pendingTotal)}</span></button><button onclick="setTabSb('approved')"><small>Aprobados</small><strong>${appr.length}</strong><span>Por enviar o recibir</span></button><button onclick="setTabSb('received')"><small>Recibidos</small><strong>${rec.length}</strong><span>Histórico confirmado</span></button><article><small>Gasto del mes</small><strong>${money(monthSpend)}</strong><span>${valid.length} pedidos activos</span></article></section><section class="db-grid"><div class="db-panel"><header><h2>Actividad reciente</h2><button onclick="setTabSb('approved')">Ver pedidos</button></header>${rows||'<div class="db-empty">Todavía no hay actividad.</div>'}</div><aside class="db-panel"><header><h2>Atención</h2></header><div class="db-alerts">${alerts}</div><button class="db-new" onclick="S.adminOrderPicker=true;render()">Hacer pedido</button></aside></section></div>`;
+};
+function patchRender(){
+  if(window.__homeCalPatched)return; window.__homeCalPatched=true;
+  if(window.S && !S.adminTab) S.adminTab='dashboard';
+  if(typeof window.goAdmin==='function'){const old=window.goAdmin;window.goAdmin=function(){old.apply(this,arguments);if(window.S){S.adminTab='dashboard';S.sidebarOpen=false;}if(typeof render==='function')render()}}
+  if(typeof window.renderAdminContent==='function'){const old=window.renderAdminContent;window.renderAdminContent=function(){if(window.S&&(S.adminTab==='dashboard'||S.adminTab==='vacaciones')){const tc=document.getElementById('tc');if(tc){tc.innerHTML=S.adminTab==='dashboard'?vDashboard():vVacaciones();return}}return old.apply(this,arguments)}}
+  if(typeof window.render==='function'){const oldR=window.render;window.render=function(){const r=oldR.apply(this,arguments);if(window.S&&S.view==='admin'&&(S.adminTab==='dashboard'||S.adminTab==='vacaciones'))setTimeout(()=>{try{renderAdminContent()}catch(e){}},0);return r}}
+  if(typeof window.vAdmin==='function'){const oldV=window.vAdmin;window.vAdmin=function(){let html=oldV.apply(this,arguments);if(html.indexOf("setTabSb('dashboard')")<0){html=html.replace(/(Pedidos|<div class="sb-section">Pedidos<\/div>)/,`<div class="sg-direct${S.adminTab==='dashboard'?' act':''}" onclick="setTabSb('dashboard')">Inicio</div>$1`)}if(html.indexOf("setTabSb('vacaciones')")<0){html=html.replace(/(Proveedores|Configuración|Hacer pedido)/,`<div class="sg-direct${S.adminTab==='vacaciones'?' act':''}" onclick="setTabSb('vacaciones')">Calendario</div>$1`)}return html}}
+  try{if(typeof initVacationListeners==='function')initVacationListeners()}catch(e){}
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',patchRender);else patchRender();
+})();
