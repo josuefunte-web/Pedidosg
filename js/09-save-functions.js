@@ -25,9 +25,14 @@ function flushPendingOrders(){
   let denied=0;
   Promise.all(q.map(o=>fbDb.ref('orders/'+o.id).set(o)
     .then(()=>{ _unqueueOrder(o.id); })
-    .catch(err=>{ if(err&&err.code==='PERMISSION_DENIED') denied++; /* si no, sigue en cola, se reintentará */ })
+    .catch(err=>{
+      // PERMISSION_DENIED nunca se arreglará solo reintentando: se descarta
+      // de la cola para no quedar atascado para siempre reintentando en vano.
+      if(err&&err.code==='PERMISSION_DENIED'){ denied++; _unqueueOrder(o.id); }
+      /* otros errores (red, etc.) siguen en cola, se reintentarán */
+    })
   )).then(()=>{
-    if(denied>0) toast(denied+' pedido(s) no autorizados: tu restaurante asignado no coincide. Avisa al administrador.','#dc2626',9000);
+    if(denied>0) toast(denied+' pedido(s) descartados por falta de autorización: tu restaurante asignado no coincide. Avisa al administrador y vuelve a crearlos.','#dc2626',9000);
   });
 }
 function saveOrder(o){
@@ -39,8 +44,14 @@ function saveOrder(o){
     fbDb.ref('orders/'+o.id).set(o)
       .then(()=>{ _unqueueOrder(o.id); })
       .catch(err=>{
-        if(err&&err.code==='PERMISSION_DENIED') toast('No autorizado: tu restaurante asignado no coincide con el del pedido. Avisa al administrador.','#dc2626',9000);
-        else toast('Sin conexión: el pedido se enviará al recuperar la conexión','#d97706',5000);
+        if(err&&err.code==='PERMISSION_DENIED'){
+          // No tiene sentido seguir reintentando algo que siempre va a fallar
+          // igual: se descarta de la cola en vez de quedar atascado.
+          _unqueueOrder(o.id);
+          toast('No autorizado: tu restaurante asignado no coincide con el del pedido. Avisa al administrador.','#dc2626',9000);
+        } else {
+          toast('Sin conexión: el pedido se enviará al recuperar la conexión','#d97706',5000);
+        }
       });
   } else {
     orders.unshift(o);
