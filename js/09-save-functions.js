@@ -22,10 +22,12 @@ function flushPendingOrders(){
   if(!fbDb) return;
   const q=_getPendingOrders();
   if(!q.length) return;
-  q.forEach(o=>{
-    fbDb.ref('orders/'+o.id).set(o)
-      .then(()=>{ _unqueueOrder(o.id); })
-      .catch(()=>{ /* sigue en cola, se reintentará */ });
+  let denied=0;
+  Promise.all(q.map(o=>fbDb.ref('orders/'+o.id).set(o)
+    .then(()=>{ _unqueueOrder(o.id); })
+    .catch(err=>{ if(err&&err.code==='PERMISSION_DENIED') denied++; /* si no, sigue en cola, se reintentará */ })
+  )).then(()=>{
+    if(denied>0) toast(denied+' pedido(s) no autorizados: tu restaurante asignado no coincide. Avisa al administrador.','#dc2626',9000);
   });
 }
 function saveOrder(o){
@@ -36,7 +38,10 @@ function saveOrder(o){
     _queueOrder(o);
     fbDb.ref('orders/'+o.id).set(o)
       .then(()=>{ _unqueueOrder(o.id); })
-      .catch(()=>{ toast('Sin conexión: el pedido se enviará al recuperar la conexión','#d97706',5000); });
+      .catch(err=>{
+        if(err&&err.code==='PERMISSION_DENIED') toast('No autorizado: tu restaurante asignado no coincide con el del pedido. Avisa al administrador.','#dc2626',9000);
+        else toast('Sin conexión: el pedido se enviará al recuperar la conexión','#d97706',5000);
+      });
   } else {
     orders.unshift(o);
     _queueOrder(o);
