@@ -95,7 +95,7 @@ function msgSupplier(o){
   const noteLine=o.notes?`\n\n *Nota:* ${o.notes}`:'';
   const urgLine=o.urgent?'\n *PEDIDO URGENTE*':'';
   const delLine=o.deliveryDate?`\n *Entrega solicitada:* ${o.deliveryDate}`:'';
-  return ` *PEDIDO O\'CARRO* — Ref. ${ref}\n ${new Date(o.createdAt).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})}\n${restLine}${urgLine}${delLine}\n\n*Productos:*\n${lines}${totalLine}${noteLine}\n\n_${cfg.adminName} — Jefe de Compras_`;
+  return ` *PEDIDO* — Ref. ${ref}\n ${new Date(o.createdAt).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})}\n${restLine}${urgLine}${delLine}\n\n*Productos:*\n${lines}${totalLine}${noteLine}\n\n_${cfg.adminName} — Jefe de Compras_`;
 }
 function msgLocal(o, supName){
   const lines=(o.items||[]).map(it=>`• ${it.name} (${it.unit}): ${it.qty}`).join('\n');
