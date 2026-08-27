@@ -450,6 +450,49 @@ function cleanProdName(name){
     .replace(/\s+\d+u\s*$/i,'')                    // "12u"
     .trim();
 }
+function _normCode(s){ return String(s||'').trim().toLowerCase(); }
+function _normProdName(s){ return String(s||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/[^\w\sáéíóúñ]/gi,''); }
+// Fusiona filas de tarifa importadas (Excel/CSV o PDF) en sup.products.
+// Empareja por código normalizado y, si no hay código, por nombre normalizado,
+// para no duplicar artículos al reimportar el mismo fichero con distinta
+// capitalización/espacios o sin columna de código.
+function _mergeImportedRows(sup, rows){
+  const byCode={}, byName={};
+  sup.products.forEach(p=>{
+    if(p.code) byCode[_normCode(p.code)]=p;
+    byName[_normProdName(p.name)]=p;
+  });
+  let added=0, updated=0, skipped=0;
+  rows.forEach(row=>{
+    try{
+      const name = cleanProdName(String(row.name||'').trim());
+      if(!name) { skipped++; return; }
+      const unit = String(row.unit||'UN').trim() || 'UN';
+      const price = parseFloat(String(row.price??'0').toString().replace(',','.'));
+      const code = String(row.code||'').trim();
+      const priceVal = isNaN(price) ? 0 : price;
+
+      let existing = code ? byCode[_normCode(code)] : null;
+      if(!existing) existing = byName[_normProdName(name)];
+
+      if(existing){
+        existing.name=name; existing.unit=unit; existing.price=priceVal;
+        if(code) existing.code=code;
+        // Re-indexar por si cambió el código o el nombre
+        if(code) byCode[_normCode(code)]=existing;
+        byName[_normProdName(name)]=existing;
+        updated++;
+      } else {
+        const np={ id: code?'imp_'+code:'imp_'+uid(), name, unit, price:priceVal, ...(code?{code}:{}) };
+        sup.products.push(np);
+        if(code) byCode[_normCode(code)]=np;
+        byName[_normProdName(name)]=np;
+        added++;
+      }
+    } catch(rowErr){ console.error('Fila de importación ignorada:',rowErr,row); skipped++; }
+  });
+  return {added, updated, skipped};
+}
 function cleanSupProdNames(sid){
   const sup=suppliers[sid]; if(!sup||!sup.products) return;
   let changed=0;
@@ -494,22 +537,20 @@ async function importSupTarifa(sid, input){
       if(!nameKey){ setStatus('No se encontró columna de nombre. Comprueba los encabezados del archivo.','#dc2626'); return; }
 
       setStatus(' Procesando productos...');
-      const sup = suppliers[sid]; if(!sup.products) sup.products=[];
-      let added=0, updated=0;
+      const sup = suppliers[sid];
+      if(!sup){ setStatus('El proveedor ya no existe. Recarga la página e inténtalo de nuevo.','#dc2626'); return; }
+      if(!sup.products) sup.products=[];
 
-      rows.forEach(r=>{
-        const name = cleanProdName(String(r[nameKey]||'').trim()); if(!name) return;
-        const unit = unitKey ? String(r[unitKey]||'UN').trim() : 'UN';
-        const price = parseFloat(String(r[priceKey]||'0').replace(',','.'))||0;
-        const code  = codeKey ? String(r[codeKey]||'').trim() : '';
-        const id    = code ? 'imp_'+code : 'imp_'+uid();
-        const idx   = code ? sup.products.findIndex(p=>p.code===code||p.id==='imp_'+code) : -1;
-        if(idx>=0){ sup.products[idx]={...sup.products[idx], name, unit, price, ...(code?{code}:{})}; updated++; }
-        else { sup.products.push({id, name, unit, price, ...(code?{code}:{})}); added++; }
-      });
+      const mapped = rows.map(r=>({
+        name: r[nameKey],
+        unit: unitKey ? r[unitKey] : 'UN',
+        price: r[priceKey],
+        code: codeKey ? r[codeKey] : ''
+      }));
+      const {added, updated, skipped} = _mergeImportedRows(sup, mapped);
 
       saveSups(sid);
-      setStatus(`Tarifa importada: <strong>${added} nuevos</strong> + ${updated} actualizados (${added+updated} total)`, '#16a34a');
+      setStatus(`Tarifa importada: <strong>${added} nuevos</strong> + ${updated} actualizados${skipped?` (${skipped} filas ignoradas)`:''} (${added+updated} total)`, '#16a34a');
       toast(`${added+updated} productos importados en ${sup.name}`, '#16a34a', 4000);
       // Refrescar lista de productos sin cerrar el panel
       const listEl = document.getElementById('sdp-list-'+sid);
@@ -543,21 +584,13 @@ async function importSupTarifa(sid, input){
       const match = text.match(/\[[\s\S]*\]/);
       if(!match){ setStatus('Gemini no encontró productos. Prueba con un Excel o un PDF más claro.','#d97706'); return; }
       const parsed = JSON.parse(match[0]);
-      if(!parsed.length){ setStatus('No se encontraron productos en el PDF.','#d97706'); return; }
-      const sup = suppliers[sid]; if(!sup.products) sup.products=[];
-      let added=0, updated=0;
-      parsed.forEach(p=>{
-        const name=cleanProdName(String(p.name||'').trim()); if(!name) return;
-        const code=String(p.code||'').trim();
-        const unit=String(p.unit||'UN').trim();
-        const price=parseFloat(p.price)||0;
-        const id=code?'imp_'+code:'imp_'+uid();
-        const idx=code?sup.products.findIndex(x=>x.code===code||x.id==='imp_'+code):-1;
-        if(idx>=0){ sup.products[idx]={...sup.products[idx],name,unit,price,...(code?{code}:{})}; updated++; }
-        else { sup.products.push({id,name,unit,price,...(code?{code}:{})}); added++; }
-      });
+      if(!Array.isArray(parsed) || !parsed.length){ setStatus('No se encontraron productos en el PDF.','#d97706'); return; }
+      const sup = suppliers[sid];
+      if(!sup){ setStatus('El proveedor ya no existe. Recarga la página e inténtalo de nuevo.','#dc2626'); return; }
+      if(!sup.products) sup.products=[];
+      const {added, updated, skipped} = _mergeImportedRows(sup, parsed);
       saveSups(sid);
-      setStatus(`PDF procesado: <strong>${added} nuevos</strong> + ${updated} actualizados (${added+updated} total)`, '#16a34a');
+      setStatus(`PDF procesado: <strong>${added} nuevos</strong> + ${updated} actualizados${skipped?` (${skipped} filas ignoradas)`:''} (${added+updated} total)`, '#16a34a');
       toast(`${added+updated} productos importados en ${sup.name}`, '#16a34a', 4000);
     } catch(e){ setStatus('Error al procesar el PDF: '+e.message,'#dc2626'); console.error(e); }
     return;
