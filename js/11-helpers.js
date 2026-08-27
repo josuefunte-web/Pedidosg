@@ -80,13 +80,22 @@ function supPhoneFor(sup,restaurant){
 }
 
 function msgSupplier(o){
-  const lines=(o.items||[]).map(it=>`• ${it.name} (${it.unit}): ${it.qty}`).join('\n');
+  const lines=(o.items||[]).map(it=>{
+    const qty=parseFloat(it.qty)||0;
+    const price=parseFloat(it.price)||0;
+    const codeTag=it.code?` (${it.code})`:'';
+    const priceLine=price>0?`\n   ${qty} ${it.unit} × ${fmt(price)} = ${fmt(qty*price)}`:`\n   ${qty} ${it.unit}`;
+    return `• ${it.name}${codeTag}${priceLine}`;
+  }).join('\n');
+  const ref=(o.id||'').slice(-6).toUpperCase();
+  const totalAmt=total(o);
+  const totalLine=totalAmt>0?`\n\n*TOTAL: ${fmt(totalAmt)}*`:'';
   const isConsolidated=o.restaurant&&o.restaurant.includes('Consolidado');
   const restLine=isConsolidated?` ${o.restaurant}`:`━━━━━━━━━━━━━━━━━━\n*LOCAL: ${(o.restaurant||'').toUpperCase()}*\n━━━━━━━━━━━━━━━━━━`;
   const noteLine=o.notes?`\n\n *Nota:* ${o.notes}`:'';
   const urgLine=o.urgent?'\n *PEDIDO URGENTE*':'';
   const delLine=o.deliveryDate?`\n *Entrega solicitada:* ${o.deliveryDate}`:'';
-  return ` *PEDIDO O\'CARRO*\n ${new Date(o.createdAt).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})}\n${restLine}${urgLine}${delLine}\n\n*Productos:*\n${lines}${noteLine}\n\n_${cfg.adminName} — Jefe de Compras_`;
+  return ` *PEDIDO O\'CARRO* — Ref. ${ref}\n ${new Date(o.createdAt).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})}\n${restLine}${urgLine}${delLine}\n\n*Productos:*\n${lines}${totalLine}${noteLine}\n\n_${cfg.adminName} — Jefe de Compras_`;
 }
 function msgLocal(o, supName){
   const lines=(o.items||[]).map(it=>`• ${it.name} (${it.unit}): ${it.qty}`).join('\n');
