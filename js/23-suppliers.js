@@ -5,6 +5,12 @@
    funciones satélite (saveSup2, delSup, etc.) NO se han tocado.
    ═══════════════════════════════════════════════════════════════ */
 function vSuppliers(){
+  // Si hay un proveedor abierto, mostramos su ficha completa a página entera
+  // en vez de la lista — antes se desplegaba inline dentro de la fila de la
+  // tabla y con tantas secciones (teléfonos, productos, importación...) quedaba
+  // todo amontonado y era difícil de encontrar nada.
+  if(S.openSupId && suppliers[S.openSupId]) return vSupplierPage(suppliers[S.openSupId]);
+
   const curMonth = new Date().toISOString().slice(0,7);
   const curYear  = new Date().toISOString().slice(0,4);
   const sups     = supList();
@@ -87,7 +93,6 @@ function vSuppliers(){
   } else {
     const rows = shownSups.map(function(sup){
       if(!sup.products) sup.products = [];
-      const open = S.openSupId===sup.id;
       const supOrders = orders.filter(function(o){ return o.supId===sup.id && o.status!=='rejected'; });
       const mesActual = supOrders.filter(function(o){ return (o.createdAt||'').startsWith(curMonth); }).reduce(function(s,o){ return s+total(o); }, 0);
       const anoActual = supOrders.filter(function(o){ return (o.createdAt||'').startsWith(curYear);  }).reduce(function(s,o){ return s+total(o); }, 0);
@@ -97,24 +102,19 @@ function vSuppliers(){
         : (nLocalPhones ? '<span class="sup-mut">'+nLocalPhones+' por local</span>' : '<span class="sup-mut">Sin teléfono</span>');
       const orderCount = supOrders.length;
 
-      const head =
-        '<tr class="sup-row' + (open?' sup-open':'') + '" data-sup-id="' + _a(sup.id) + '" onclick="supToggle(this.dataset.supId)">' +
+      return (
+        '<tr class="sup-row" data-sup-id="' + _a(sup.id) + '" onclick="supToggle(this.dataset.supId)">' +
           '<td class="sup-td sup-td-name"><div class="sup-name">' + _e(sup.name || '') + '</div><div class="sup-sub">' + orderCount + ' pedido' + (orderCount===1?'':'s') + '</div></td>' +
           '<td class="sup-td sup-td-num">' + sup.products.length + '</td>' +
           '<td class="sup-td sup-td-contact sup-hide-md">' + contact + '</td>' +
           '<td class="sup-td sup-td-num">' + fmt(mesActual) + '</td>' +
           '<td class="sup-td sup-td-num sup-hide-md">' + fmt(anoActual) + '</td>' +
           '<td class="sup-td sup-td-acts">' +
-            '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();supToggle(\'' + _a(sup.id) + '\')">' + (open?'Cerrar':'Editar') + '</button>' +
+            '<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();supToggle(\'' + _a(sup.id) + '\')">Ver ficha</button>' +
             '<button class="btn btn-no btn-sm" onclick="event.stopPropagation();delSup(\'' + _a(sup.id) + '\')" title="Eliminar proveedor">Borrar</button>' +
           '</td>' +
-        '</tr>';
-
-      const detail = open
-        ? '<tr class="sup-detail-tr"><td colspan="6" class="sup-detail-td">' + supDetailForm(sup) + '</td></tr>'
-        : '';
-
-      return head + detail;
+        '</tr>'
+      );
     }).join('');
 
     listHtml =
@@ -149,6 +149,13 @@ window.supSetSearch = function(v){
 window.supToggle = function(sid){
   S.openSupId = (S.openSupId===sid) ? null : sid;
   render();
+  window.scrollTo(0,0);
+};
+// Volver de la ficha de proveedor a la lista.
+window.supBack = function(){
+  S.openSupId = null;
+  render();
+  window.scrollTo(0,0);
 };
 
 // Banner NOVENTIA para conversiones pendientes de validar
@@ -214,11 +221,7 @@ function supPhonesByLocalEditor(sup){
       <input type="tel" id="sup-lp-${sup.id}-${rid}" value="${_a(phone)}" placeholder="${sup.phone?'usa el de defecto':'34612345678'}" style="width:170px;padding:5px 9px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt)" onchange="setSupPhoneForLocal('${_a(sup.id)}','${_a(r).replace(/'/g,"\\'")}',this.value)"/>
     </div>`;
   }).join('');
-  return `<details style="margin-top:14px">
-    <summary style="cursor:pointer;font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;padding:6px 0">Teléfono por local (el comercial varía según zona)</summary>
-    <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Rellena solo los locales cuyo comercial sea distinto del teléfono por defecto. Déjalo vacío para usar el de defecto.</div>
-    <div style="background:var(--srf);border:1.5px solid var(--brd);border-radius:10px;padding:4px 12px">${rows}</div>
-  </details>`;
+  return `<div style="background:var(--srf);border:1.5px solid var(--brd);border-radius:10px;padding:4px 12px">${rows}</div>`;
 }
 function setSupPhoneForLocal(sid,restaurant,val){
   const sup=suppliers[sid]; if(!sup) return;
@@ -241,6 +244,30 @@ function supForm(sup){
     <button class="btn btn-pri btn-sm" onclick="saveSup2('${id}')">${!sup?'✓ Crear proveedor':'✓ Guardar'}</button>
     <button class="btn btn-ghost btn-sm" onclick="S.editSupId=null;render()">Cancelar</button>
   </div>`;
+}
+// Página completa de un proveedor: cabecera con volver + KPIs propios,
+// seguida de las secciones de supDetailForm ya envueltas en tarjetas.
+function vSupplierPage(sup){
+  if(!sup.products) sup.products=[];
+  const curMonth = new Date().toISOString().slice(0,7);
+  const curYear  = new Date().toISOString().slice(0,4);
+  const supOrders = orders.filter(function(o){ return o.supId===sup.id && o.status!=='rejected'; });
+  const mesActual = supOrders.filter(function(o){ return (o.createdAt||'').startsWith(curMonth); }).reduce(function(s,o){ return s+total(o); }, 0);
+  const anoActual  = supOrders.filter(function(o){ return (o.createdAt||'').startsWith(curYear);  }).reduce(function(s,o){ return s+total(o); }, 0);
+
+  const head =
+    '<div class="sup-head">' +
+      '<div class="sup-head-l">' +
+        '<button class="btn btn-ghost btn-sm" onclick="supBack()">← Proveedores</button>' +
+        '<div class="sup-head-t" style="margin-top:10px">' + (sup.emoji?_e(sup.emoji)+' ':'') + _e(sup.name||'') + '</div>' +
+        '<div class="sup-head-s">' + sup.products.length + ' productos · ' + supOrders.length + ' pedido' + (supOrders.length===1?'':'s') + ' · ' + fmt(mesActual) + ' este mes · ' + fmt(anoActual) + ' este año</div>' +
+      '</div>' +
+      '<div class="sup-head-r">' +
+        '<button class="btn btn-no btn-sm" onclick="delSup(\'' + _a(sup.id) + '\')">Eliminar proveedor</button>' +
+      '</div>' +
+    '</div>';
+
+  return head + supDetailForm(sup);
 }
 function supDetailForm(sup){
   const _U=['KG','L','UN','Caja','Bote','Bolsa','g'];
@@ -286,61 +313,86 @@ function supDetailForm(sup){
       ${rows}
     </details>`;
   }).join('');
-  return `<div class="sh">Información del proveedor</div>
-  <div class="two-col">
-    <div class="fg"><label>Nombre</label><input type="text" id="sf-name-${sid}" value="${sup.name}" placeholder="Bencar"/></div>
-    <div class="fg"><label>Emoji</label><input type="text" id="sf-emoji-${sid}" value="${sup.emoji}" maxlength="4"/></div>
-    <div class="fg" style="grid-column:1/-1"><label>WhatsApp por defecto (sin + ni espacios)</label><input type="tel" id="sf-phone-${sid}" value="${sup.phone||''}" placeholder="34612345678"/><div style="font-size:12px;color:var(--mut);margin-top:4px">Se usa para los locales que no tengan un comercial distinto abajo.</div></div>
-    <div class="fg"><label>Orden (posición en la lista)</label><input type="number" id="sf-orden-${sid}" value="${sup.orden??''}" min="1" step="1" placeholder="1, 2, 3..."/></div>
-  </div>
-  <button class="btn btn-pri btn-sm" onclick="saveSup2('${sid}')">✓ Guardar cambios</button>
-  ${supPhonesByLocalEditor(sup)}
-  ${sup.products.length?`<div style="margin-top:18px;background:var(--srf);border:1.5px solid var(--brd);border-radius:10px;padding:12px 14px">
-    <div style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Clasificar todo el proveedor</div>
+  const infoCard = `<div class="card">
+    <div class="card-t">Información del proveedor</div>
+    <div class="two-col">
+      <div class="fg"><label>Nombre</label><input type="text" id="sf-name-${sid}" value="${sup.name}" placeholder="Bencar"/></div>
+      <div class="fg"><label>Emoji</label><input type="text" id="sf-emoji-${sid}" value="${sup.emoji}" maxlength="4"/></div>
+      <div class="fg" style="grid-column:1/-1"><label>WhatsApp por defecto (sin + ni espacios)</label><input type="tel" id="sf-phone-${sid}" value="${sup.phone||''}" placeholder="34612345678"/><div style="font-size:12px;color:var(--mut);margin-top:4px">Se usa para los locales que no tengan un comercial distinto en "Teléfono por local" abajo.</div></div>
+      <div class="fg"><label>Orden (posición en la lista)</label><input type="number" id="sf-orden-${sid}" value="${sup.orden??''}" min="1" step="1" placeholder="1, 2, 3..."/></div>
+    </div>
+    <button class="btn btn-pri btn-sm" onclick="saveSup2('${sid}')">✓ Guardar cambios</button>
+  </div>`;
+
+  const phoneCard = `<div class="card">
+    <div class="card-t">Teléfono por local</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:10px">El comercial de este proveedor puede variar según la zona. Rellena solo los locales cuyo comercial sea distinto del teléfono por defecto — el resto usará ese.</div>
+    ${supPhonesByLocalEditor(sup)}
+  </div>`;
+
+  const bulkCatCard = sup.products.length ? `<div class="card">
+    <div class="card-t">Clasificar todo el proveedor</div>
     <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Pon la misma categoría a los ${sup.products.length} productos de golpe (p.ej. si este proveedor solo trae carne). Luego puedes cambiar los productos sueltos uno a uno.</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <select id="sup-bulk-cat-${sid}" style="padding:6px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;font-weight:600;background:var(--card);color:var(--txt)">${prodCatOpts('')}</select>
       <button class="btn btn-ok btn-sm" onclick="clasificarProveedorTodo('${sid}')">Aplicar a todos</button>
     </div>
-  </div>`:''}
-  <div class="sh" style="margin-top:20px">Productos (${sup.products.length}) por categoría</div>
-  ${sup.products.length>6?`<input type="text" placeholder="Buscar producto..." oninput="filterSupProds(this.value,'sdp-list-${sid}')" style="width:100%;padding:8px 12px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;margin-bottom:10px;background:#fff;color:var(--txt);outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>`:``}
-  ${!sup.products.length?`<div style="color:var(--mut);font-size:13px;text-align:center;margin:8px 0 12px">Sin productos aún — añade el primero abajo</div>`:''}
-  <div id="sdp-list-${sid}">${prodsHtml}</div>
-  <div class="sh" style="margin-top:16px">Añadir nuevo producto</div>
-  <div style="display:grid;grid-template-columns:2fr 1fr 1fr 80px;gap:8px;margin-bottom:8px">
-    <div class="fg" style="margin:0"><label>Nombre</label><input type="text" id="pf-name-${sid}" placeholder="Entrecot..."/></div>
-    <div class="fg" style="margin:0"><label>Categoría</label><select id="pf-cat-${sid}">${prodCatOpts('')}</select></div>
-    <div class="fg" style="margin:0"><label>Unidad</label><select id="pf-unit-${sid}"><option>KG</option><option>g</option><option>UN</option><option>L</option><option>Caja</option><option>Bote</option></select></div>
-    <div class="fg" style="margin:0"><label>Precio €</label><input type="number" id="pf-price-${sid}" placeholder="12.50" step="0.01" min="0"/></div>
-  </div>
-  <button class="btn btn-ok btn-sm" onclick="addProd('${sid}')">+ Añadir producto</button>
-  <div class="sh" style="margin-top:20px">Limpiar nombres de productos</div>
-  <div style="font-size:13px;color:var(--mut);margin-bottom:8px">Elimina sufijos de formato (75cl, x6, CAJ, BOT…) de todos los nombres ya importados.</div>
-  <button class="btn btn-ghost btn-sm" onclick="cleanSupProdNames('${sid}')">Limpiar nombres de este proveedor</button>
-  <div id="sup-clean-status-${sid}" style="font-size:13px;margin-top:6px;color:var(--mut)"></div>
-  <div class="sh" style="margin-top:20px">Importar tarifa desde archivo</div>
-  <div style="font-size:13px;color:var(--mut);margin-bottom:10px">Sube un Excel (.xlsx/.csv) o PDF con la tarifa del proveedor y se importarán todos los productos automáticamente.</div>
-  <div class="file-input-wrap" style="max-width:360px">
-    <div class="file-input-btn" style="padding:12px">Subir Excel o PDF de tarifa</div>
-    <input type="file" accept=".xlsx,.xls,.csv,application/pdf,.pdf" onchange="importSupTarifa('${sid}',this)"/>
-  </div>
-  <div id="sup-import-status-${sid}" style="font-size:13px;margin-top:8px;color:var(--mut)"></div>
-  <div class="sh" style="margin-top:20px">Visibilidad por local</div>
-  <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Desmarca los locales que <strong>no</strong> deben ver este proveedor</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
-    ${cfg.users.map(u=>{const dis=(sup.disabledFor||[]).includes(u.id);return`<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;background:${dis?'var(--srf)':'transparent'};border:1px solid ${dis?'var(--brd)':'transparent'}"><input type="checkbox" ${!dis?'checked':''} onchange="toggleSupVisibility('${sup.id}','${u.id}',this.checked)"/><span style="font-size:13px;${dis?'color:var(--mut)':''}">${dis?'':''} ${u.restaurant}</span></label>`;}).join('')}
-  </div>
-  <div class="sh" style="margin-top:20px">Horario de pedidos</div>
-  <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Marca los días de la semana en que este proveedor acepta pedidos y la hora límite. Los locales verán un aviso en "Nuevo pedido" cuando toque pedir.</div>
-  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-    ${[['1','L'],['2','M'],['3','X'],['4','J'],['5','V'],['6','S'],['0','D']].map(([k,lbl])=>{const on=(sup.orderDays||[]).includes(k);return `<button type="button" onclick="toggleSupOrderDay('${sup.id}','${k}')" style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;background:${on?'var(--pri)':'var(--srf)'};color:${on?'#fff':'var(--txt)'};border:1.5px solid ${on?'var(--pri)':'var(--brd)'};padding:0">${lbl}</button>`;}).join('')}
-  </div>
-  <div style="display:flex;align-items:center;gap:8px">
-    <label style="font-size:13px;color:var(--mut)">Hora límite:</label>
-    <input type="time" value="${sup.orderCutoffTime||''}" onchange="setSupOrderCutoff('${sup.id}',this.value)" style="padding:6px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:14px;background:var(--card);color:var(--txt)"/>
-    ${sup.orderCutoffTime?`<button class="btn btn-ghost btn-xs" onclick="setSupOrderCutoff('${sup.id}','')">Quitar</button>`:''}
+  </div>` : '';
+
+  const productsCard = `<div class="card">
+    <div class="card-t">Productos (${sup.products.length}) por categoría</div>
+    ${sup.products.length>6?`<input type="text" placeholder="Buscar producto..." oninput="filterSupProds(this.value,'sdp-list-${sid}')" style="width:100%;padding:8px 12px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;margin-bottom:10px;background:#fff;color:var(--txt);outline:none;transition:border-color .15s" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>`:``}
+    ${!sup.products.length?`<div style="color:var(--mut);font-size:13px;text-align:center;margin:8px 0 12px">Sin productos aún — añade el primero abajo</div>`:''}
+    <div id="sdp-list-${sid}">${prodsHtml}</div>
+    <div class="sh" style="margin-top:16px">Añadir nuevo producto</div>
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 80px;gap:8px;margin-bottom:8px">
+      <div class="fg" style="margin:0"><label>Nombre</label><input type="text" id="pf-name-${sid}" placeholder="Entrecot..."/></div>
+      <div class="fg" style="margin:0"><label>Categoría</label><select id="pf-cat-${sid}">${prodCatOpts('')}</select></div>
+      <div class="fg" style="margin:0"><label>Unidad</label><select id="pf-unit-${sid}"><option>KG</option><option>g</option><option>UN</option><option>L</option><option>Caja</option><option>Bote</option></select></div>
+      <div class="fg" style="margin:0"><label>Precio €</label><input type="number" id="pf-price-${sid}" placeholder="12.50" step="0.01" min="0"/></div>
+    </div>
+    <button class="btn btn-ok btn-sm" onclick="addProd('${sid}')">+ Añadir producto</button>
   </div>`;
+
+  const cleanCard = `<div class="card">
+    <div class="card-t">Limpiar nombres de productos</div>
+    <div style="font-size:13px;color:var(--mut);margin-bottom:8px">Elimina sufijos de formato (75cl, x6, CAJ, BOT…) de todos los nombres ya importados.</div>
+    <button class="btn btn-ghost btn-sm" onclick="cleanSupProdNames('${sid}')">Limpiar nombres de este proveedor</button>
+    <div id="sup-clean-status-${sid}" style="font-size:13px;margin-top:6px;color:var(--mut)"></div>
+  </div>`;
+
+  const importCard = `<div class="card">
+    <div class="card-t">Importar tarifa desde archivo</div>
+    <div style="font-size:13px;color:var(--mut);margin-bottom:10px">Sube un Excel (.xlsx/.csv) o PDF con la tarifa del proveedor y se importarán todos los productos automáticamente.</div>
+    <div class="file-input-wrap" style="max-width:360px">
+      <div class="file-input-btn" style="padding:12px">Subir Excel o PDF de tarifa</div>
+      <input type="file" accept=".xlsx,.xls,.csv,application/pdf,.pdf" onchange="importSupTarifa('${sid}',this)"/>
+    </div>
+    <div id="sup-import-status-${sid}" style="font-size:13px;margin-top:8px;color:var(--mut)"></div>
+  </div>`;
+
+  const visibilityCard = `<div class="card">
+    <div class="card-t">Visibilidad por local</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Desmarca los locales que <strong>no</strong> deben ver este proveedor</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
+      ${cfg.users.map(u=>{const dis=(sup.disabledFor||[]).includes(u.id);return`<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;cursor:pointer;background:${dis?'var(--srf)':'transparent'};border:1px solid ${dis?'var(--brd)':'transparent'}"><input type="checkbox" ${!dis?'checked':''} onchange="toggleSupVisibility('${sup.id}','${u.id}',this.checked)"/><span style="font-size:13px;${dis?'color:var(--mut)':''}">${dis?'':''} ${u.restaurant}</span></label>`;}).join('')}
+    </div>
+  </div>`;
+
+  const scheduleCard = `<div class="card">
+    <div class="card-t">Horario de pedidos</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Marca los días de la semana en que este proveedor acepta pedidos y la hora límite. Los locales verán un aviso en "Nuevo pedido" cuando toque pedir.</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+      ${[['1','L'],['2','M'],['3','X'],['4','J'],['5','V'],['6','S'],['0','D']].map(([k,lbl])=>{const on=(sup.orderDays||[]).includes(k);return `<button type="button" onclick="toggleSupOrderDay('${sup.id}','${k}')" style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px;background:${on?'var(--pri)':'var(--srf)'};color:${on?'#fff':'var(--txt)'};border:1.5px solid ${on?'var(--pri)':'var(--brd)'};padding:0">${lbl}</button>`;}).join('')}
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <label style="font-size:13px;color:var(--mut)">Hora límite:</label>
+      <input type="time" value="${sup.orderCutoffTime||''}" onchange="setSupOrderCutoff('${sup.id}',this.value)" style="padding:6px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:14px;background:var(--card);color:var(--txt)"/>
+      ${sup.orderCutoffTime?`<button class="btn btn-ghost btn-xs" onclick="setSupOrderCutoff('${sup.id}','')">Quitar</button>`:''}
+    </div>
+  </div>`;
+
+  return infoCard + phoneCard + bulkCatCard + productsCard + cleanCard + importCard + visibilityCard + scheduleCard;
 }
 // Toggle si el proveedor sirve un día concreto de la semana. Guarda los días
 // como strings '0'-'6' compatibles con Date.getDay() (0=Domingo, 1=Lunes,...).
@@ -376,7 +428,7 @@ function saveSup2(id){
   if(id==='new'){const nid='s'+uid();suppliers[nid]={id:nid,name,emoji,phone,...(orden!==undefined?{orden}:{}),products:[]};saveSups(nid);S.editSupId=null;S.openSupId=nid;_rerender();toast('Proveedor creado — ya puedes añadir productos','#16a34a');}
   else{if(!suppliers[id])return;suppliers[id].name=name;suppliers[id].emoji=emoji;suppliers[id].phone=phone;if(orden!==undefined)suppliers[id].orden=orden;else delete suppliers[id].orden;saveSups(id);_rerender();toast('Proveedor guardado','#16a34a');}
 }
-function delSup(id){ if(!confirm('¿Eliminar proveedor?'))return;delete suppliers[id];if(fbDb) fbDb.ref('suppliers/'+id).remove();localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));render(); }
+function delSup(id){ if(!confirm('¿Eliminar proveedor?'))return;delete suppliers[id];if(S.openSupId===id) S.openSupId=null;if(fbDb) fbDb.ref('suppliers/'+id).remove();localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));render(); }
 
 function strToColor(str){
   // Genera un color oscuro consistente por nombre de restaurante
