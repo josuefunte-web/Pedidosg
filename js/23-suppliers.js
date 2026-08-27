@@ -289,7 +289,7 @@ function supDetailForm(sup){
       const alerSel=ALERGENOS.map(a=>`<label style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--mut);cursor:pointer;margin:1px 3px 1px 0;padding:1px 5px;border-radius:4px;background:${(p.alergenos||[]).includes(a.id)?'#fff3cd':'var(--srf)'};border:1px solid ${(p.alergenos||[]).includes(a.id)?'#ffc107':'var(--brd)'}"><input type="checkbox" ${(p.alergenos||[]).includes(a.id)?'checked':''} onchange="toggleProdAlergeno('${sid}','${p.id}','${a.id}',this.checked)" style="width:11px;height:11px;accent-color:#d97706"> ${a.label}</label>`).join('');
       return `<div class="prod-row" style="flex-direction:column;align-items:flex-start;gap:8px">
         <div class="prod-info" style="width:100%">
-          <div class="prod-name-t">${p.name}</div>
+          <input type="text" class="prod-name-t" value="${_a(p.name)}" title="Nombre del producto" style="width:100%;max-width:420px;padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:14px;font-weight:600;background:var(--card);color:var(--txt);box-sizing:border-box" onchange="editProdName('${sid}','${p.id}',this.value)"/>
           <div style="display:flex;gap:5px;align-items:center;margin-top:5px;flex-wrap:wrap">
             ${catSel}
             <select style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" onchange="editProdUnit('${sid}','${p.id}',this.value)">${unitOpts}</select>
@@ -517,7 +517,7 @@ async function importSupTarifa(sid, input){
         const _U=['KG','L','UN','Caja','Bote','Bolsa','g'];
         listEl.innerHTML = (sup.products||[]).map(p=>{
           const unitOpts=_U.map(u=>`<option${(p.unit||'KG')===u?' selected':''}>${u}</option>`).join('');
-          return `<div class="prod-row"><div class="prod-info" style="flex:1"><div class="prod-name-t">${p.name}</div><div style="display:flex;gap:5px;align-items:center;margin-top:5px;flex-wrap:wrap"><select style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" onchange="editProdUnit('${sid}','${p.id}',this.value)">${unitOpts}</select><input type="number" value="${parseFloat(p.price||0).toFixed(2)}" step="0.01" min="0" title="Precio €" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sid}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">€</span><input type="number" value="${p.pesoGr||''}" step="1" min="0" placeholder="gr" title="Peso en gramos" style="width:66px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdGr('${sid}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">gr</span></div></div><button class="btn btn-no btn-xs" style="align-self:center" onclick="delProd('${sid}','${p.id}')">✕</button></div>`;
+          return `<div class="prod-row"><div class="prod-info" style="flex:1"><input type="text" class="prod-name-t" value="${_a(p.name)}" title="Nombre del producto" style="width:100%;max-width:420px;padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:14px;font-weight:600;background:var(--card);color:var(--txt);box-sizing:border-box" onchange="editProdName('${sid}','${p.id}',this.value)"/><div style="display:flex;gap:5px;align-items:center;margin-top:5px;flex-wrap:wrap"><select style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" onchange="editProdUnit('${sid}','${p.id}',this.value)">${unitOpts}</select><input type="number" value="${parseFloat(p.price||0).toFixed(2)}" step="0.01" min="0" title="Precio €" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sid}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">€</span><input type="number" value="${p.pesoGr||''}" step="1" min="0" placeholder="gr" title="Peso en gramos" style="width:66px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdGr('${sid}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">gr</span></div></div><button class="btn btn-no btn-xs" style="align-self:center" onclick="delProd('${sid}','${p.id}')">✕</button></div>`;
         }).join('');
       }
     } catch(e){ setStatus('Error al leer el Excel: '+e.message,'#dc2626'); console.error(e); }
@@ -572,6 +572,13 @@ function toggleSupVisibility(sid,uid,visible){
   else{if(!suppliers[sid].disabledFor.includes(uid))suppliers[sid].disabledFor.push(uid);}
   saveSups(sid);
   toast(visible?'Proveedor activado para este local':'Proveedor desactivado para este local','#16a34a');
+}
+function editProdName(sid,pid,val){
+  const name=(val||'').trim();
+  if(!suppliers[sid]){return;}
+  if(!name){toast('El nombre no puede quedar vacío','#dc2626');renderAdminContent();return;}
+  const prod=suppliers[sid].products.find(p=>p.id===pid);
+  if(prod){prod.name=name;saveSups(sid);toast('Nombre actualizado','#16a34a');}
 }
 function editProdUnit(sid,pid,val){
   if(!suppliers[sid])return;
@@ -787,7 +794,8 @@ function filterSupProds(term,containerId){
     const rows=det.querySelectorAll('.prod-row');
     let anyMatch=false;
     rows.forEach(r=>{
-      const name=(r.querySelector('.prod-name-t')?.textContent||'').toLowerCase();
+      const nameEl=r.querySelector('.prod-name-t');
+      const name=(nameEl?(nameEl.value??nameEl.textContent):'' ).toLowerCase();
       const match=!q||name.includes(q);
       r.style.display=match?'':'none';
       if(match) anyMatch=true;
