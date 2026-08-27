@@ -91,7 +91,10 @@ function vSuppliers(){
       const supOrders = orders.filter(function(o){ return o.supId===sup.id && o.status!=='rejected'; });
       const mesActual = supOrders.filter(function(o){ return (o.createdAt||'').startsWith(curMonth); }).reduce(function(s,o){ return s+total(o); }, 0);
       const anoActual = supOrders.filter(function(o){ return (o.createdAt||'').startsWith(curYear);  }).reduce(function(s,o){ return s+total(o); }, 0);
-      const contact   = sup.phone ? _e(sup.phone) : '<span class="sup-mut">Sin teléfono</span>';
+      const nLocalPhones = Object.keys(sup.phonesByLocal||{}).length;
+      const contact   = sup.phone
+        ? _e(sup.phone) + (nLocalPhones?' <span class="sup-mut">(+'+nLocalPhones+' por local)</span>':'')
+        : (nLocalPhones ? '<span class="sup-mut">'+nLocalPhones+' por local</span>' : '<span class="sup-mut">Sin teléfono</span>');
       const orderCount = supOrders.length;
 
       const head =
@@ -198,6 +201,34 @@ function rejectPendingConv(sid,pid,unit){
   toast('Conversión eliminada','#d97706');
   renderAdminContent();
 }
+// El comercial de un proveedor suele cambiar según la zona: permite fijar un
+// WhatsApp distinto por local, que se usa en vez del teléfono por defecto al
+// enviar el pedido de ese local a este proveedor (ver supPhoneFor en 11-helpers.js).
+function supPhonesByLocalEditor(sup){
+  const rests=cfg.users.map(u=>u.restaurant).filter(Boolean);
+  const rows=rests.map(r=>{
+    const phone=(sup.phonesByLocal||{})[r]||'';
+    const rid=r.replace(/[^a-zA-Z0-9]/g,'_');
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--brd)">
+      <span style="flex:1;font-size:13px">${_e(r)}</span>
+      <input type="tel" id="sup-lp-${sup.id}-${rid}" value="${_a(phone)}" placeholder="${sup.phone?'usa el de defecto':'34612345678'}" style="width:170px;padding:5px 9px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt)" onchange="setSupPhoneForLocal('${_a(sup.id)}','${_a(r).replace(/'/g,"\\'")}',this.value)"/>
+    </div>`;
+  }).join('');
+  return `<details style="margin-top:14px">
+    <summary style="cursor:pointer;font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;padding:6px 0">Teléfono por local (el comercial varía según zona)</summary>
+    <div style="font-size:12px;color:var(--mut);margin:6px 0 8px">Rellena solo los locales cuyo comercial sea distinto del teléfono por defecto. Déjalo vacío para usar el de defecto.</div>
+    <div style="background:var(--srf);border:1.5px solid var(--brd);border-radius:10px;padding:4px 12px">${rows}</div>
+  </details>`;
+}
+function setSupPhoneForLocal(sid,restaurant,val){
+  const sup=suppliers[sid]; if(!sup) return;
+  const phone=(val||'').replace(/\D/g,'');
+  if(!sup.phonesByLocal) sup.phonesByLocal={};
+  if(phone) sup.phonesByLocal[restaurant]=phone;
+  else delete sup.phonesByLocal[restaurant];
+  saveSups(sid);
+  toast(phone?'Teléfono guardado':'Teléfono eliminado — usará el de defecto','#16a34a');
+}
 function supForm(sup){
   const id=sup?sup.id:'new';
   return `<div class="two-col">
@@ -250,19 +281,20 @@ function supDetailForm(sup){
       </div>`;
     }).join('');
     const _cc=catColor(cat);
-    return `<div style="margin-bottom:12px">
-      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:6px 0 4px;border-bottom:2px solid ${_cc}40;margin-bottom:6px;display:flex;align-items:center;gap:6px;color:${_cc}">${catDot(cat)} ${cat} <span style="font-weight:400;opacity:.6;color:var(--mut)">(${byCat[cat].length})</span></div>
+    return `<details class="sup-cat-details" style="margin-bottom:10px">
+      <summary style="cursor:pointer;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:6px 0 4px;border-bottom:2px solid ${_cc}40;margin-bottom:6px;display:flex;align-items:center;gap:6px;color:${_cc}">${catDot(cat)} ${cat} <span style="font-weight:400;opacity:.6;color:var(--mut)">(${byCat[cat].length})</span></summary>
       ${rows}
-    </div>`;
+    </details>`;
   }).join('');
   return `<div class="sh">Información del proveedor</div>
   <div class="two-col">
     <div class="fg"><label>Nombre</label><input type="text" id="sf-name-${sid}" value="${sup.name}" placeholder="Bencar"/></div>
     <div class="fg"><label>Emoji</label><input type="text" id="sf-emoji-${sid}" value="${sup.emoji}" maxlength="4"/></div>
-    <div class="fg" style="grid-column:1/-1"><label>WhatsApp (sin + ni espacios)</label><input type="tel" id="sf-phone-${sid}" value="${sup.phone||''}" placeholder="34612345678"/></div>
+    <div class="fg" style="grid-column:1/-1"><label>WhatsApp por defecto (sin + ni espacios)</label><input type="tel" id="sf-phone-${sid}" value="${sup.phone||''}" placeholder="34612345678"/><div style="font-size:12px;color:var(--mut);margin-top:4px">Se usa para los locales que no tengan un comercial distinto abajo.</div></div>
     <div class="fg"><label>Orden (posición en la lista)</label><input type="number" id="sf-orden-${sid}" value="${sup.orden??''}" min="1" step="1" placeholder="1, 2, 3..."/></div>
   </div>
   <button class="btn btn-pri btn-sm" onclick="saveSup2('${sid}')">✓ Guardar cambios</button>
+  ${supPhonesByLocalEditor(sup)}
   ${sup.products.length?`<div style="margin-top:18px;background:var(--srf);border:1.5px solid var(--brd);border-radius:10px;padding:12px 14px">
     <div style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Clasificar todo el proveedor</div>
     <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Pon la misma categoría a los ${sup.products.length} productos de golpe (p.ej. si este proveedor solo trae carne). Luego puedes cambiar los productos sueltos uno a uno.</div>
@@ -698,11 +730,19 @@ function toggleProdAlergeno(sid,pid,aId,checked){
 function filterSupProds(term,containerId){
   const container=document.getElementById(containerId);
   if(!container)return;
-  const rows=container.querySelectorAll('.prod-row');
   const q=term.toLowerCase().trim();
-  rows.forEach(r=>{
-    const name=(r.querySelector('.prod-name-t')?.textContent||'').toLowerCase();
-    r.style.display=(!q||name.includes(q))?'':'none';
+  container.querySelectorAll('details.sup-cat-details').forEach(det=>{
+    const rows=det.querySelectorAll('.prod-row');
+    let anyMatch=false;
+    rows.forEach(r=>{
+      const name=(r.querySelector('.prod-name-t')?.textContent||'').toLowerCase();
+      const match=!q||name.includes(q);
+      r.style.display=match?'':'none';
+      if(match) anyMatch=true;
+    });
+    // Con búsqueda activa, abre solo las categorías con resultados; sin
+    // búsqueda, vuelve a colapsar todo para no saturar la pantalla.
+    det.open=q?anyMatch:false;
   });
 }
 function delProd(sid,pid){ if(!suppliers[sid])return;const _sy=window.scrollY;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups(sid);renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy)); }

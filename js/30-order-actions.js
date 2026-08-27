@@ -246,7 +246,7 @@ function submitOrder(){
   if(autoOrders.length){
     // Auto-approved: one WA per supplier
     autoOrders.forEach(o=>{
-      const sup=suppliers[o.supId];if(sup?.phone)showWA(sup.phone,msgSupplier(o),`Pedido aprobado — envíalo a ${sup.name}`);
+      const sup=suppliers[o.supId];const _ph=supPhoneFor(sup,o.restaurant);if(_ph)showWA(_ph,msgSupplier(o),`Pedido aprobado — envíalo a ${sup.name}`);
     });
     // Notificación push también para auto-aprobados
     const totalAuto=autoOrders.reduce((s,o)=>s+total(o),0);
@@ -289,7 +289,8 @@ function approve(id){
   const sup=o?suppliers[o.supId]:null;
   const localPhone=o?(cfg.localPhones?.[o.restaurant]||''):'';
   const nextWA=localPhone?{phone:localPhone,msg:msgLocal(o,sup?.name||o.supId),desc:`Avisa a ${o.restaurant} que el pedido fue enviado`}:null;
-  if(o&&sup?.phone){ markSentToSupplier(id); showWA(sup.phone,msgSupplier({...o,status:'approved'}),`Pedido aprobado — envía a ${sup.name}`,nextWA); }
+  const supPhone=o?supPhoneFor(sup,o.restaurant):'';
+  if(o&&supPhone){ markSentToSupplier(id); showWA(supPhone,msgSupplier({...o,status:'approved'}),`Pedido aprobado — envía a ${sup.name}`,nextWA); }
   else if(nextWA) showWA(nextWA.phone,nextWA.msg,nextWA.desc);
 }
 function rejectWithReason(id){
@@ -354,7 +355,8 @@ function approveWithEdits(id){
   const sup=oOrig?suppliers[oOrig.supId]:null;
   const localPhone2=oOrig?(cfg.localPhones?.[oOrig.restaurant]||''):'';
   const nextWA2=localPhone2?{phone:localPhone2,msg:msgLocal({...oOrig,items},sup?.name||oOrig.supId),desc:`Avisa a ${oOrig.restaurant} que el pedido fue enviado`}:null;
-  if(oOrig&&sup?.phone) showWA(sup.phone,msgSupplier({...oOrig,status:'approved',items,modifiedByAdmin:true}),`Pedido aprobado — envía a ${sup.name}`,nextWA2);
+  const supPhone2=oOrig?supPhoneFor(sup,oOrig.restaurant):'';
+  if(oOrig&&supPhone2) showWA(supPhone2,msgSupplier({...oOrig,status:'approved',items,modifiedByAdmin:true}),`Pedido aprobado — envía a ${sup.name}`,nextWA2);
   else if(nextWA2) showWA(nextWA2.phone,nextWA2.msg,nextWA2.desc);
 }
 

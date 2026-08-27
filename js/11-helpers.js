@@ -70,6 +70,14 @@ function toast(msg,col='#222',dur=3500){
   clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',dur);
 }
 function waURL(phone,text){ return `https://wa.me/${phone.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`; }
+// El comercial de un proveedor puede variar según la zona/local que pide.
+// Si el proveedor tiene un teléfono específico para ese local (phonesByLocal),
+// se usa ese; si no, cae al teléfono general del proveedor.
+function supPhoneFor(sup,restaurant){
+  if(!sup) return '';
+  const byLocal=sup.phonesByLocal&&restaurant?sup.phonesByLocal[restaurant]:null;
+  return byLocal||sup.phone||'';
+}
 
 function msgSupplier(o){
   const lines=(o.items||[]).map(it=>`• ${it.name} (${it.unit}): ${it.qty}`).join('\n');
