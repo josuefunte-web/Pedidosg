@@ -1,12 +1,16 @@
-/* ═══════════════ FIREBASE CONFIG ═══════════════ */
+/* ═══════════════ FIREBASE CONFIG (RAMA DE PRUEBAS / CLON) ═══════════════
+   Esta rama usa un proyecto de Firebase SEPARADO del de producción para
+   que las pruebas no toquen los datos ni los usuarios reales.
+   Sustituye los valores de abajo por los del proyecto de pruebas que
+   crees en https://console.firebase.google.com (ver guía en el chat). */
 const FB_CONFIG = {
-  apiKey: "AIzaSyCJIF3BsWdWnB59idnxCRlYbWixTp1sGb8",
-  authDomain: "pedidos-835a1.firebaseapp.com",
-  databaseURL: "https://pedidos-835a1-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "pedidos-835a1",
-  storageBucket: "pedidos-835a1.firebasestorage.app",
-  messagingSenderId: "236536249236",
-  appId: "1:236536249236:web:6a2cad24995a1bc57cad81"
+  apiKey: "REEMPLAZA_CON_TU_TEST_API_KEY",
+  authDomain: "REEMPLAZA.firebaseapp.com",
+  databaseURL: "https://REEMPLAZA-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "REEMPLAZA",
+  storageBucket: "REEMPLAZA.firebasestorage.app",
+  messagingSenderId: "REEMPLAZA",
+  appId: "REEMPLAZA"
 };
 let fbApp, fbDb, fbAuth;
 let authUsers = {};

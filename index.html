@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#1a1a2e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Noventia">
+<meta name="apple-mobile-web-app-title" content="Noventia TEST">
 <!-- GitHub Pages no permite configurar cabeceras HTTP de caché por archivo, así que
      reforzamos aquí con meta tags que algunos navegadores sí respetan para el
      documento HTML principal (los .js/.css ya se controlan con parámetro de versión en su URL). -->
@@ -19,7 +19,7 @@
      con la URL de tu Cloudflare Worker cuando lo tengas desplegado. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://apis.google.com; connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.firebasedatabase.app wss://*.firebasedatabase.app https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com https://*.workers.dev https://api.ntfy.sh https://ntfy.sh; worker-src 'self' blob:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';">
 <link rel="manifest" id="pwa-manifest">
-<title>Noventia — Procurement & Cost Control</title>
+<title>[TEST] Noventia — Procurement & Cost Control</title>
 <!-- Chequeo activo de versión al arrancar: pide version.json al servidor
      (sin caché) y, si la versión que trae no coincide con la que este
      index.html tiene grabada, recarga forzando URL nueva. Segunda capa de
@@ -53,6 +53,10 @@
 <link rel="stylesheet" href="css/noventia-ui-final.css?v=20260826-112933">
 </head>
 <body>
+
+<div style="position:fixed;top:0;left:0;right:0;z-index:99999;background:#c0392b;color:#fff;text-align:center;font:700 12px/1.8 system-ui,sans-serif;letter-spacing:.05em;padding:2px 0;">
+  ⚠️ ENTORNO DE PRUEBAS — datos ficticios, no afecta a producción ⚠️
+</div>
 
 <div class="toast" id="toast"></div>
 
