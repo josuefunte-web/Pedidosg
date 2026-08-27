@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Noventia">
+<!-- GitHub Pages no permite configurar cabeceras HTTP de caché por archivo, así que
+     reforzamos aquí con meta tags que algunos navegadores sí respetan para el
+     documento HTML principal (los .js/.css ya se controlan con parámetro de versión en su URL). -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<!-- Content-Security-Policy: defensa en profundidad frente a XSS.
+     Permitimos scripts inline (la app usa muchos onclick=""), pero
+     bloqueamos scripts de dominios NO listados. Actualiza connect-src
+     con la URL de tu Cloudflare Worker cuando lo tengas desplegado. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://*.firebaseio.com https://*.firebasedatabase.app https://*.googleapis.com https://*.gstatic.com https://apis.google.com; connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.firebasedatabase.app wss://*.firebasedatabase.app https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://apis.google.com https://*.workers.dev https://api.ntfy.sh https://ntfy.sh; worker-src 'self' blob:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self';">
+<link rel="manifest" id="pwa-manifest">
+<title>🧪 STAGING — Noventia</title>
+<!-- Chequeo activo de versión al arrancar: pide version.json al servidor
+     (sin caché) y, si la versión que trae no coincide con la que este
+     index.html tiene grabada, recarga forzando URL nueva. Segunda capa de
+     defensa aparte del service worker network-first — cubre el caso de
+     navegadores que aún sirven un index.html viejo desde su propia caché. -->
+<script>
+(function(){
+  window.APP_VERSION='20260826-112933';
+  try{
+    fetch('version.json?t='+Date.now(),{cache:'no-store'})
+      .then(function(r){return r.ok?r.json():null;})
+      .then(function(v){
+        if(v && v.v && v.v!==window.APP_VERSION){
+          console.log('[VersionCheck] Nueva versión detectada:',v.v,'actual:',window.APP_VERSION);
+          location.replace(location.pathname+'?_r='+Date.now());
+        }
+      })
+      .catch(function(){});
+  }catch(e){}
+})();
+</script>
+<!-- Firebase -->
+<script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-app-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/firebase@9.23.0/firebase-auth-compat.js"></script>
+<!-- Charts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<!-- Excel export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="css/styles.css?v=20260826-112933">
+<link rel="stylesheet" href="css/noventia-ui-final.css?v=20260826-112933">
+</head>
+<body>
+
+<style>.hdr{top:28px!important}</style>
+<div style="position:fixed;top:0;left:0;right:0;z-index:99999;background:#facc15;color:#1a1a2e;font-weight:800;font-size:13px;text-align:center;padding:6px 8px;letter-spacing:.02em;box-shadow:0 2px 6px rgba(0,0,0,.2)">
+  🧪 ENTORNO DE PRUEBAS — no son datos reales
+</div>
+<div style="height:28px"></div>
+
+<div class="toast" id="toast"></div>
+
+<!-- WA MODAL -->
+<div class="overlay" id="wa-ov" style="display:none" onclick="if(event.target===this)closeWA()">
+  <div class="wa-modal">
+    <h3> Enviar por WhatsApp</h3>
+    <p id="wa-desc">Pulsa para abrir WhatsApp con el mensaje listo.</p>
+    <div class="wa-msg" id="wa-msg-preview"></div>
+    <div class="wa-modal-btns">
+      <a id="wa-link-btn" href="#" target="_blank" class="btn btn-wa" onclick="closeWA()">
+        <svg class="wa-ic" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Abrir WhatsApp
+      </a>
+      <button class="btn btn-ghost" onclick="copyWAMsg()"> Copiar</button>
+      <button class="btn btn-ghost" onclick="closeWA()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECV MODAL -->
+<div id="recv-ov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:12px" onclick="if(event.target===this)closeRecvModal()">
+  <div id="recv-modal" style="background:var(--card);border-radius:14px;padding:20px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto">
+    <div style="font-weight:700;font-size:16px;margin-bottom:14px"> Confirmar entrega</div>
+    <div id="recv-items"></div>
+    <textarea id="recv-general-note" placeholder="Nota general (opcional)..." rows="2" style="width:100%;padding:8px;border:1px solid var(--brd);border-radius:8px;font-size:13px;background:var(--bg);color:var(--txt);resize:none;box-sizing:border-box;margin-top:10px"></textarea>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-ok btn-sm" onclick="confirmReceived()" style="flex:1">Confirmar entrega</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeRecvModal()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="hdr" id="hdr" style="display:none">
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="hbtn-menu" id="btn-menu" onclick="S.sidebarOpen=!S.sidebarOpen;render()">≡</button>
+    <div class="brand" onclick="handleLogo()"><span class="brand-mark">N</span><span class="brand-name">NOVENTIA</span><span class="fb-dot" id="fb-dot"></span></div>
+  </div>
+  <div class="hdr-r">
+    <span class="ses-info" id="ses-info"></span>
+    <button class="hbtn" id="btn-np" style="display:none" onclick="goOrder()">Nuevo pedido</button>
+    <button class="hbtn" id="btn-alb-r" style="display:none" onclick="goAlbaran()">Albarán</button>
+    <button class="hbtn act" id="btn-adm" style="display:none" onclick="goAdmin()"> Admin</button>
+    <button class="hbtn" id="btn-refresh" onclick="refreshData()" title="Actualizar datos desde Firebase" style="font-size:16px;padding:6px 10px">Actualizar</button>
+    <button class="hbtn" id="btn-dark" onclick="toggleDarkMode()" title="Modo oscuro" style="font-size:16px;padding:6px 10px">Tema</button>
+    <button class="hbtn" onclick="logout()">Salir</button>
+  </div>
+</header>
+
+<div id="app"></div>
+<!-- Aviso de pedidos pendientes de enviar (sin conexión) -->
+<div id="pending-orders-badge" onclick="flushPendingOrders()" title="Toca para reintentar el envío" style="display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:9000;background:#d97706;color:#fff;font-weight:700;font-size:13px;padding:9px 16px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.25);align-items:center;gap:8px;cursor:pointer"></div>
+
+<script src="js/01-core-errors.js?v=20260826-112933"></script>
+<script src="js/02-firebase-config.js?v=20260826-112933"></script>
+<script src="js/03-default-data.js?v=20260826-112933"></script>
+<script src="js/03a-permissions.js?v=20260826-112933"></script>
+<script src="js/04-storage-config.js?v=20260826-112933"></script>
+<script src="js/05-firebase-data.js?v=20260826-112933"></script>
+<script src="js/06-firebase-listeners.js?v=20260826-112933"></script>
+<script src="js/07-auth.js?v=20260826-112933"></script>
+<script src="js/08-admin-solicitudes.js?v=20260826-112933"></script>
+<script src="js/09-save-functions.js?v=20260826-112933"></script>
+<script src="js/10-state.js?v=20260826-112933"></script>
+<script src="js/11-helpers.js?v=20260826-112933"></script>
+<script src="js/13-navigation.js?v=20260826-112933"></script>
+<script src="js/14-render.js?v=20260826-112933"></script>
+<script src="js/15-login.js?v=20260826-112933"></script>
+<script src="js/16-order-view.js?v=20260826-112933"></script>
+<script src="js/17-local-gastos.js?v=20260826-112933"></script>
+<script src="js/18-admin-view.js?v=20260826-112933"></script>
+<script src="js/19-albaranes.js?v=20260826-112933"></script>
+<script src="js/20-new-albaran.js?v=20260826-112933"></script>
+<script src="js/21-iva-albaran.js?v=20260826-112933"></script>
+<script src="js/22-recortador.js?v=20260826-112933"></script>
+<script src="js/23-suppliers.js?v=20260826-112933"></script>
+<script src="js/24-plantillas.js?v=20260826-112933"></script>
+<script src="js/25-pedidos-recurrentes.js?v=20260826-112933"></script>
+<script src="js/26-presupuestos.js?v=20260826-112933"></script>
+<script src="js/27-comparativa.js?v=20260826-112933"></script>
+<script src="js/28-settings.js?v=20260826-112933"></script>
+<script src="js/29-push-notifications.js?v=20260826-112933"></script>
+<script src="js/30-order-actions.js?v=20260826-112933"></script>
+<script src="js/31-escandallos.js?v=20260826-112933"></script>
+<script src="js/32a-escandallos-detalle-render.js?v=20260826-112933"></script>
+<script src="js/32b-escandallos-detalle-secciones.js?v=20260826-112933"></script>
+<script src="js/32c-escandallos-detalle-ingredientes.js?v=20260826-112933"></script>
+<script src="js/32d-escandallos-detalle-export.js?v=20260826-112933"></script>
+<script src="js/33-menus.js?v=20260826-112933"></script>
+<script src="js/34-auto-clasificacion-escandallos.js?v=20260826-112933"></script>
+<script src="js/35-auto-clasificacion-productos.js?v=20260826-112933"></script>
+<script src="js/36-escandallos-local.js?v=20260826-112933"></script>
+<script src="js/37-recetas.js?v=20260826-112933"></script>
+<script src="js/38-budget-chart.js?v=20260826-112933"></script>
+<script src="js/39-catalogo-productos.js?v=20260826-112933"></script>
+<script src="js/40-historial-proveedor.js?v=20260826-112933"></script>
+<script src="js/41-nuevos-proveedores.js?v=20260826-112933"></script>
+<script src="js/42-admin-account-setup.js?v=20260826-112933"></script>
+<script src="js/43-init.js?v=20260826-112933"></script>
+<script src="js/44-inventario.js?v=20260826-112933"></script>
+<script src="js/45-foodcost.js?v=20260826-112933"></script>
+<script src="js/46-sup-visibility.js?v=20260826-112933"></script>
+<script src="js/noventia-ui-final.js?v=20260826-112933"></script>
+</body>
+</html>
