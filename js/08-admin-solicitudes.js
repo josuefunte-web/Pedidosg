@@ -92,7 +92,25 @@ function vSolicitudes(){
     </div>`).join('')}`:'';
 
   const pendingBadge=pending.length?`<span style="background:var(--acc);color:#fff;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:800;margin-left:6px">${pending.length}</span>`:'';
-  return `<div class="sh">Solicitudes de acceso${pendingBadge}</div>${pendHtml}${apprHtml}${rejHtml}`;
+  return `<div class="sh">Solicitudes de acceso${pendingBadge}</div>${pendHtml}${apprHtml}${rejHtml}${localPhonesEditor()}`;
+}
+
+// Teléfono de WhatsApp por local — se usa para avisar automáticamente al
+// local cuando su pedido es aprobado y enviado al proveedor.
+function localPhonesEditor(){
+  const rests=cfg.users.map(u=>u.restaurant).filter(Boolean);
+  const rows=rests.map(r=>{
+    const phone=(cfg.localPhones||{})[r]||'';
+    const rid=r.replace(/[^a-zA-Z0-9]/g,'_');
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--brd)">
+      <span style="flex:1;font-size:13px;font-weight:600">${r}</span>
+      <input type="tel" id="lp-phone-${rid}" value="${phone}" placeholder="34612345678" style="width:170px;padding:6px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt)" onchange="setLocalPhone('${r.replace(/'/g,"\\'")}',this.value)"/>
+      ${phone?'<span style="color:#16a34a;font-size:11px;font-weight:600">✓</span>':'<span style="color:var(--mut);font-size:11px">sin número</span>'}
+    </div>`;
+  }).join('');
+  return `<div class="sh" style="margin-top:24px">Teléfono de WhatsApp por local</div>
+  <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Se usa para avisar automáticamente al local por WhatsApp cuando su pedido se aprueba y se envía al proveedor.</div>
+  <div style="background:var(--srf);border:1.5px solid var(--brd);border-radius:10px;padding:4px 14px">${rows}</div>`;
 }
 
 function approveRegistration(uid){

@@ -152,6 +152,7 @@ function _listenGlobalCfg(){
     if(val.adminPhone !== undefined) cfg.adminPhone = val.adminPhone;
     if(val.admin3ApprovalLimit !== undefined) cfg.admin3ApprovalLimit = val.admin3ApprovalLimit;
     if(val.mistralProxyUrl !== undefined) cfg.mistralProxyUrl = val.mistralProxyUrl;
+    if(val.localPhones !== undefined) cfg.localPhones = val.localPhones;
     localStorage.setItem('oc_cfg', JSON.stringify(cfg));
     if(val.appVersion !== undefined) _handleAppVersionChange(val.appVersion);
   });

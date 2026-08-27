@@ -287,8 +287,7 @@ function approve(id){
   if(!fbDb && o){ Object.assign(o, patch); render(); }
   toast('Pedido aprobado','#16a34a');
   const sup=o?suppliers[o.supId]:null;
-  const localUser=o?cfg.users.find(u=>u.restaurant===o.restaurant):null;
-  const localPhone=localUser?.phone||'';
+  const localPhone=o?(cfg.localPhones?.[o.restaurant]||''):'';
   const nextWA=localPhone?{phone:localPhone,msg:msgLocal(o,sup?.name||o.supId),desc:`Avisa a ${o.restaurant} que el pedido fue enviado`}:null;
   if(o&&sup?.phone){ markSentToSupplier(id); showWA(sup.phone,msgSupplier({...o,status:'approved'}),`Pedido aprobado — envía a ${sup.name}`,nextWA); }
   else if(nextWA) showWA(nextWA.phone,nextWA.msg,nextWA.desc);
@@ -353,8 +352,7 @@ function approveWithEdits(id){
   S.editOrderId=null;S.editItems=[];
   toast('Pedido modificado y aprobado','#16a34a');
   const sup=oOrig?suppliers[oOrig.supId]:null;
-  const localUser2=oOrig?cfg.users.find(u=>u.restaurant===oOrig.restaurant):null;
-  const localPhone2=localUser2?.phone||'';
+  const localPhone2=oOrig?(cfg.localPhones?.[oOrig.restaurant]||''):'';
   const nextWA2=localPhone2?{phone:localPhone2,msg:msgLocal({...oOrig,items},sup?.name||oOrig.supId),desc:`Avisa a ${oOrig.restaurant} que el pedido fue enviado`}:null;
   if(oOrig&&sup?.phone) showWA(sup.phone,msgSupplier({...oOrig,status:'approved',items,modifiedByAdmin:true}),`Pedido aprobado — envía a ${sup.name}`,nextWA2);
   else if(nextWA2) showWA(nextWA2.phone,nextWA2.msg,nextWA2.desc);
