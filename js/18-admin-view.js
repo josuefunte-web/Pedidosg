@@ -219,7 +219,7 @@ function orderCard(o,showActions){
     const sentBadge=o.sentToSupplier?`<span class="badge" style="background:#dcfce7;color:#166534;font-weight:700">Enviado ${o.sentAt?fmtD(o.sentAt):''}</span>`:'';
     acts=`<div class="oc-acts" style="align-items:center">
       ${sentBadge}
-      <button class="btn ${o.sentToSupplier?'btn-ghost':'btn-wa'} btn-sm" onclick="markSentToSupplier('${o.id}');showWA('${_a(supPhoneFor(sup,o.restaurant))}',msgSupplier(orders.find(x=>x.id==='${o.id}')),'Envía el pedido aprobado al proveedor')">${WA_SVG} ${o.sentToSupplier?'Reenviar':sup.name}</button>
+      <button class="btn ${o.sentToSupplier?'btn-ghost':'btn-wa'} btn-sm" onclick="markSentToSupplier('${o.id}');showWA('${_a(supPhoneFor(sup,o.restaurant))}',msgSupplier(orders.find(x=>x.id==='${o.id}')),'Envía el pedido aprobado al proveedor',null,orders.find(x=>x.id==='${o.id}'))">${WA_SVG} ${o.sentToSupplier?'Reenviar':sup.name}</button>
     </div>`;
   }
   const totLabel=isEditing?`<div class="ptot" id="edit-tot">Total: ${fmt(tot)}</div>`:`<div class="ptot">Total: ${fmt(tot)}</div>`;
@@ -343,7 +343,7 @@ function vConsolidated(){
     const co={supId:sid,restaurant:`Consolidado`,items:arr,createdAt:new Date().toISOString()};
     const rows=arr.map(it=>`<div class="pr"><span class="pn">${it.name} <small style="color:var(--mut)">(${[...new Set(it.rests)].length}r)</small></span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
     return `<div class="cc"><div class="cc-hd"><div class="cc-name">${sup.emoji} ${sup.name}</div>
-      <button class="btn btn-wa btn-sm" onclick="markSupplierOrdersSent('${sid}');showWA('${_a(sup.phone||'')}',msgSupplier(${JSON.stringify(co).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}), 'Pedido consolidado')">${WA_SVG} Enviar</button>
+      <button class="btn btn-wa btn-sm" onclick="markSupplierOrdersSent('${sid}');showWA('${_a(sup.phone||'')}',msgSupplier(${JSON.stringify(co).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}), 'Pedido consolidado',null,${JSON.stringify(co).replace(/\\/g,'\\\\').replace(/'/g,"\\'")})">${WA_SVG} Enviar</button>
     </div><div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div></div>`;
   }).join('');
 }

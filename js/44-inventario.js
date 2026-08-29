@@ -239,27 +239,56 @@ function openInvForm(rest, existingId){
   S.invEditId=existingId||null;
   if(existingId&&existingId!=='new'){
     const it=(inventory[restKey(rest)]||{})[existingId]||{};
+    // Si la categoría coincide con un proveedor real, preseleccionamos su id
+    // en el desplegable; si no, cae en "otro" con el texto libre que tuviera.
+    const matchSup=supList().find(s=>it.category===((s.emoji?s.emoji+' ':'')+s.name)||it.category===s.name);
     S.invForm={
       name:it.name||'',
       unit:it.unit||'',
       qtys:invItemQtys(it), // Multi-unit map — legacy items entran aquí normalizados
       minStock:it.minStock??'',
       category:it.category||'',
-      price:it.price??''
+      price:it.price??'',
+      supId:matchSup?matchSup.id:(it.category?'otro':''),
+      supOther:matchSup?'':(it.category||'')
     };
   } else {
-    S.invForm={name:'',unit:'',qtys:{},minStock:'',category:'',price:''};
+    S.invForm={name:'',unit:'',qtys:{},minStock:'',category:'',price:'',supId:'',supOther:''};
   }
   render();
   setTimeout(()=>document.getElementById('inv-form-name')?.focus(),80);
 }
 
+// Desplegable de proveedor para el alta manual de inventario. Si se elige
+// "Proveedor no registrado" aparece un campo de texto libre — al guardar,
+// ese producto se manda a la cola de revisión (pendingReview) para que un
+// admin lo vincule a un proveedor real más tarde.
+function _renderInvSupplierField(){
+  const sups=supList();
+  const cur=S.invForm.supId||'';
+  return `<div>
+    <label style="font-size:12px;color:var(--mut)">Proveedor</label>
+    <select id="inv-form-sup" class="inp" onchange="S.invForm.supId=this.value;render()">
+      <option value="">— Selecciona —</option>
+      ${sups.map(s=>`<option value="${s.id}" ${cur===s.id?'selected':''}>${s.emoji?s.emoji+' ':''}${s.name}</option>`).join('')}
+      <option value="otro" ${cur==='otro'?'selected':''}>Proveedor no registrado…</option>
+    </select>
+    ${cur==='otro'?`<input id="inv-form-sup-other" class="inp" style="margin-top:6px" value="${(S.invForm.supOther||'').replace(/"/g,'&quot;')}" placeholder="Nombre del proveedor (se revisará antes de darlo de alta)"/>`:''}
+  </div>`;
+}
+
 function submitInvForm(rest){
   const name=(document.getElementById('inv-form-name')?.value||'').trim();
   const minStock=parseFloat(document.getElementById('inv-form-min')?.value)||0;
-  const category=(document.getElementById('inv-form-cat')?.value||'').trim();
   const price=parseFloat(document.getElementById('inv-form-price')?.value)||0;
+  const supId=document.getElementById('inv-form-sup')?.value||'';
+  const supOther=(document.getElementById('inv-form-sup-other')?.value||'').trim();
   if(!name){ toast('Introduce un nombre','#dc2626'); return; }
+  if(!supId){ toast('Selecciona el proveedor del producto','#dc2626'); return; }
+  if(supId==='otro' && !supOther){ toast('Escribe el nombre del proveedor no registrado','#dc2626'); return; }
+  const needsReview = supId==='otro';
+  const sup = needsReview?null:suppliers[supId];
+  const category = needsReview ? supOther : ((sup?.emoji?sup.emoji+' ':'')+(sup?.name||''));
   // Recolectar cantidades de todas las unidades del formulario multi-unit
   const qtys={};
   document.querySelectorAll('[data-inv-qty-unit]').forEach(el=>{
@@ -279,9 +308,19 @@ function submitInvForm(rest){
     unit:primaryUnit,
     qty:primaryQty, // Legacy — usado por código antiguo que aún lo lee
     qtys, // Fuente de verdad para multi-unit
-    minStock,category,price,
+    minStock,category,price,needsReview,
     ...(isNew?{manual:true}:{})
   });
+  if(needsReview && fbDb){
+    const rid='pr_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+    fbDb.ref('pendingReview/'+rid).set({
+      id:rid, type:'inventario', supName:supOther, name, price,
+      unit:primaryUnit, restaurant:rest, invItemId:id,
+      note:'Alta manual de inventario con proveedor no registrado',
+      createdAt:new Date().toISOString(), createdBy:S.session?.name||rest
+    });
+    toast('Producto guardado — enviado a revisión para vincular el proveedor','#d97706',4500);
+  }
   if(!S.invEditId&&id){
     // Registrar movimiento por cada unidad no cero
     Object.entries(qtys).forEach(([u,q])=>{
@@ -297,8 +336,8 @@ function submitInvForm(rest){
     });
   }
   S.invEditId=null;
-  S.invForm={name:'',unit:'',qtys:{},minStock:'',category:'',price:''};
-  toast('Producto guardado','#7c3aed');
+  S.invForm={name:'',unit:'',qtys:{},minStock:'',category:'',price:'',supId:'',supOther:''};
+  if(!needsReview) toast('Producto guardado','#7c3aed');
   const _sv=window.scrollY;
   if(S.view==='admin') renderAdminContent();
   else { render(); requestAnimationFrame(()=>window.scrollTo(0,_sv)); }
@@ -306,7 +345,7 @@ function submitInvForm(rest){
 
 function cancelInvForm(){
   S.invEditId=null;
-  S.invForm={name:'',unit:'',qtys:{},minStock:'',category:'',price:''};
+  S.invForm={name:'',unit:'',qtys:{},minStock:'',category:'',price:'',supId:'',supOther:''};
   const _sv=window.scrollY;
   if(S.view==='admin') renderAdminContent();
   else { render(); requestAnimationFrame(()=>window.scrollTo(0,_sv)); }
@@ -326,6 +365,93 @@ function _renderInvQtysForm(){
     </div>
     <div style="font-size:11px;color:var(--mut);margin-top:6px">Deja vacío o en 0 las unidades que no tengas. Ejemplo: 1 Caja + 3 UN + 0.3 KG</div>
   </div>`;
+}
+
+// ── Cola de revisión (productos/albaranes con proveedor o código sin
+// reconocer, venidos de inventario manual o de la importación de Excel) ───
+function _renderPendingReviewCard(){
+  const list=Object.values(pendingReview||{});
+  if(!list.length) return '';
+  const rowFor=p=>{
+    if(p.type==='excel-albaran-proveedor'){
+      return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--brd)">
+        <div style="flex:1;min-width:200px"><strong>${p.name}</strong> <span style="color:var(--mut);font-size:12px">— ${p.restaurant||''}</span><div style="font-size:12px;color:#92400e">Proveedor del Excel sin registrar: "${p.supName}" — ${p.note||''}</div></div>
+        <button class="btn btn-ghost btn-xs" onclick="dismissPendingReview('${p.id}')">Descartar</button>
+      </div>`;
+    }
+    if(p.type==='excel-albaran'){
+      return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--brd)">
+        <div style="flex:1;min-width:160px"><strong>${p.name||'(sin nombre)'}</strong> <span style="color:var(--mut);font-size:12px">— ${fmt(p.price||0)} · ${p.restaurant||''}</span><div style="font-size:12px;color:#92400e">Proveedor: ${p.supName} · ${p.note||''}</div></div>
+        <input id="pr-code-${p.id}" value="${(p.code||'').replace(/"/g,'&quot;')}" placeholder="Código proveedor" style="width:120px;padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)"/>
+        <button class="btn btn-ok btn-xs" onclick="resolvePendingReview('${p.id}')">Crear/actualizar producto</button>
+        <button class="btn btn-ghost btn-xs" onclick="dismissPendingReview('${p.id}')">Descartar</button>
+      </div>`;
+    }
+    // type 'inventario': proveedor no registrado, hay que vincularlo a uno real
+    return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--brd)">
+      <div style="flex:1;min-width:160px"><strong>${p.name}</strong> <span style="color:var(--mut);font-size:12px">— ${fmt(p.price||0)}/${p.unit||'ud'} · ${p.restaurant||''}</span><div style="font-size:12px;color:#92400e">Proveedor propuesto: "${p.supName}"</div></div>
+      <select id="pr-sup-${p.id}" style="padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)">
+        <option value="">Vincular a...</option>
+        ${supList().map(s=>`<option value="${s.id}">${s.emoji?s.emoji+' ':''}${s.name}</option>`).join('')}
+      </select>
+      <input id="pr-code-${p.id}" placeholder="Código proveedor" style="width:110px;padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)"/>
+      <button class="btn btn-ok btn-xs" onclick="resolvePendingReview('${p.id}')">Vincular</button>
+      <button class="btn btn-ghost btn-xs" onclick="dismissPendingReview('${p.id}')">Descartar</button>
+    </div>`;
+  };
+  return `<div class="card" style="margin-bottom:14px;border-color:#f59e0b">
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:#92400e">Cola de revisión (${list.length})</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Productos y proveedores sin reconocer, venidos de altas manuales o de importaciones de Excel.</div>
+    ${list.map(rowFor).join('')}
+  </div>`;
+}
+function resolvePendingReview(reviewId){
+  const p=(pendingReview||{})[reviewId];
+  if(!p){ toast('Esa revisión ya no existe','#dc2626'); return; }
+  const code=(document.getElementById('pr-code-'+reviewId)?.value||'').trim();
+  if(!code){ toast('El código de producto del proveedor es obligatorio','#dc2626'); return; }
+
+  if(p.type==='excel-albaran'){
+    const sup=findSupplierByName_(p.supName);
+    if(!sup){ toast('El proveedor "'+p.supName+'" ya no existe','#dc2626'); return; }
+    if(!Array.isArray(sup.products)) sup.products=Object.values(sup.products||{});
+    const existing=sup.products.find(pp=>pp.code===code);
+    if(existing){ existing.name=p.name||existing.name; existing.price=parseFloat(p.price)||existing.price; }
+    else sup.products.push({id:'p'+uid(),name:p.name||'Producto',unit:'UN',price:parseFloat(p.price)||0,category:'Otros',code});
+    saveSups(sup.id);
+    if(fbDb) fbDb.ref('pendingReview/'+reviewId).remove();
+    toast('Producto '+(existing?'actualizado':'creado')+' en '+sup.name,'#16a34a');
+    renderAdminContent();
+    return;
+  }
+
+  // type 'inventario'
+  const supId=document.getElementById('pr-sup-'+reviewId)?.value||'';
+  if(!supId){ toast('Elige a qué proveedor vincularlo','#dc2626'); return; }
+  const sup=suppliers[supId];
+  if(!sup){ toast('Proveedor no encontrado','#dc2626'); return; }
+  if(!Array.isArray(sup.products)) sup.products=Object.values(sup.products||{});
+  if(sup.products.some(pp=>pp.code===code)){ toast('Ese código ya lo usa otro producto de este proveedor','#dc2626'); return; }
+  sup.products.push({id:'p'+uid(),name:p.name,unit:p.unit||'KG',price:parseFloat(p.price)||0,category:'Otros',code});
+  saveSups(supId);
+  if(fbDb && p.invItemId && p.restaurant){
+    const k=restKey(p.restaurant);
+    fbDb.ref('inventory/'+k+'/'+p.invItemId+'/category').set((sup.emoji?sup.emoji+' ':'')+sup.name);
+    fbDb.ref('inventory/'+k+'/'+p.invItemId+'/needsReview').remove();
+  }
+  if(fbDb) fbDb.ref('pendingReview/'+reviewId).remove();
+  toast('Producto vinculado a '+sup.name,'#16a34a');
+  renderAdminContent();
+}
+function findSupplierByName_(name){
+  const n=String(name||'').trim().toLowerCase();
+  return supList().find(s=>(s.name||'').trim().toLowerCase()===n)||null;
+}
+function dismissPendingReview(reviewId){
+  if(!confirm('¿Descartar esta revisión?')) return;
+  if(fbDb) fbDb.ref('pendingReview/'+reviewId).remove();
+  toast('Revisión descartada','#7c3aed');
+  renderAdminContent();
 }
 
 function ajusteRapido(rest, id, delta){
@@ -407,7 +533,7 @@ function vInventario(){
       <div><label style="font-size:12px;color:var(--mut)">Nombre</label><input id="inv-form-name" class="inp" value="${(S.invForm.name||'').replace(/"/g,'&quot;')}" placeholder="ej: Pechuga de pollo" /></div>
       <div><label style="font-size:12px;color:var(--mut)">Precio / unidad (€)</label><input id="inv-form-price" class="inp" type="number" min="0" step="0.01" value="${S.invForm.price??''}" placeholder="0.00" /></div>
       <div><label style="font-size:12px;color:var(--mut)">Stock mínimo</label><input id="inv-form-min" class="inp" type="number" min="0" step="0.01" value="${S.invForm.minStock??''}" placeholder="0 = sin alerta" /></div>
-      <div><label style="font-size:12px;color:var(--mut)">Categoría</label><input id="inv-form-cat" class="inp" value="${S.invForm.category||''}" placeholder="ej: Carnes, Lácteos…" /></div>
+      ${_renderInvSupplierField()}
       ${_renderInvQtysForm()}
     </div>
     <div style="display:flex;gap:8px">
@@ -415,6 +541,8 @@ function vInventario(){
       <button class="btn btn-ghost btn-sm" onclick="cancelInvForm()">Cancelar</button>
     </div>
   </div>`;
+
+  const pendingReviewCard=_renderPendingReviewCard();
 
   const movRows=(Object.values(inventoryMovements[restKey(rest)]||{})||[]).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,50).map(m=>{
     const ico=m.type==='entrada'?'':m.type==='salida'?'':'';
@@ -491,6 +619,7 @@ function vInventario(){
     ${hiddenChip}
     <div class="sup-tabs" style="margin-bottom:10px">${restTabs}</div>
     ${filteredCats.length>0?`<div class="sup-tabs" style="margin-bottom:14px;flex-wrap:wrap">${catTabs}</div>`:''}
+    ${pendingReviewCard}
     ${alertBanner}
     ${summaryHtml}
     ${isEditing?formHtml:''}
@@ -536,7 +665,7 @@ function vLocalInventario(rest){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <div><label style="font-size:12px;color:var(--mut)">Nombre</label><input id="inv-form-name" class="inp" value="${(S.invForm.name||'').replace(/"/g,'&quot;')}" placeholder="ej: Pechuga de pollo" /></div>
       <div><label style="font-size:12px;color:var(--mut)">Precio / unidad (€)</label><input id="inv-form-price" class="inp" type="number" min="0" step="0.01" value="${S.invForm.price??''}" placeholder="0.00" /></div>
-      <div style="grid-column:1/-1"><label style="font-size:12px;color:var(--mut)">Categoría</label><input id="inv-form-cat" class="inp" value="${S.invForm.category||''}" placeholder="ej: Carnes, Lácteos…" /></div>
+      <div style="grid-column:1/-1">${_renderInvSupplierField()}</div>
       <div><label style="font-size:12px;color:var(--mut)">Stock mínimo</label><input id="inv-form-min" class="inp" type="number" min="0" step="0.01" value="${S.invForm.minStock??''}" placeholder="0 = sin alerta" /></div>
       <div></div>
       ${_renderInvQtysForm()}

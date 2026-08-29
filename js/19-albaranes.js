@@ -84,6 +84,15 @@ function exportComprasExcel(){
 
 function vAlbaranes(){
   const btn=`<button class="btn btn-pri btn-sm" onclick="goAlbaranAdmin()" style="margin-bottom:14px">+ Nuevo albarán</button>`;
+  const importCard=`<div class="card" style="margin-bottom:14px">
+    <div class="card-t">Importar albaranes históricos desde Excel</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Sube un .xlsx/.csv con columnas: Local, Proveedor, Nº Albarán, Día, Código, Artículo, Cantidad, Importe. Se crean los albaranes agrupados y se actualiza el código/precio de cada artículo en su proveedor. Las líneas cuyo proveedor o código no se reconozcan van a la cola de revisión.</div>
+    <div class="file-input-wrap" style="max-width:360px">
+      <div class="file-input-btn" style="padding:12px">Subir Excel de albaranes</div>
+      <input type="file" accept=".xlsx,.xls,.csv" onchange="importAlbaranesExcel(this)"/>
+    </div>
+    <div id="alb-import-status" style="font-size:13px;margin-top:8px;color:var(--mut)"></div>
+  </div>`;
   const byRest={};
   orders.filter(o=>o.status==='approved'||o.status==='received').forEach(o=>{ if(!byRest[o.restaurant])byRest[o.restaurant]={ordered:0,received:0}; byRest[o.restaurant].ordered+=total(o); });
   albNotes.forEach(a=>{ if(!byRest[a.restaurant])byRest[a.restaurant]={ordered:0,received:0}; const calcT=(a.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0); byRest[a.restaurant].received+=(a.totalManual!=null?a.totalManual:calcT); });
@@ -95,7 +104,134 @@ function vAlbaranes(){
   }).join('');
   const table=tableRows?`<div class="card"><div class="card-t">Pedido vs Recibido por local</div><div style="overflow-x:auto"><table class="spend-table"><tr><th>Local</th><th>Pedido</th><th>Recibido</th><th>Diferencia</th></tr>${tableRows}</table></div></div>`:'';
   const notes=albNotes.length?albNotes.map(a=>albCard(a)).join(''):`<div class="empty"><div class="ei"></div><div class="et">Sin albaranes registrados</div></div>`;
-  return btn+table+`<div class="sh">Albaranes</div>`+notes;
+  return btn+importCard+table+`<div class="sh">Albaranes</div>`+notes;
+}
+
+// ── Importación masiva de albaranes históricos desde Excel ─────────────────
+// Columnas esperadas (nombres flexibles, se detectan por palabras clave):
+// Local, Proveedor, Nº Albarán, Día, Código, Artículo/Descripción, Cantidad, Importe.
+// Las filas se agrupan por (local, proveedor, nº albarán, día) en un albarán
+// cada una. Por cada línea se busca el producto por código en el catálogo del
+// proveedor: si existe se actualiza su precio (y nombre); si no existe, o si
+// el proveedor del Excel no coincide con ninguno registrado, la línea se manda
+// a la cola de revisión (pendingReview) en vez de crearse sola.
+async function importAlbaranesExcel(input){
+  const file=input.files&&input.files[0];
+  if(!file) return;
+  const setStatus=(msg,col)=>{ const el=document.getElementById('alb-import-status'); if(el){el.innerHTML=msg;el.style.color=col||'var(--mut)';} };
+  setStatus('Leyendo archivo...');
+  try{
+    if(!window.XLSX){
+      await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+    }
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array',cellDates:true});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+    if(!rows.length){ setStatus('El archivo está vacío o sin datos.','#dc2626'); return; }
+
+    const sample=rows[0];
+    const findKey=(...cands)=>{ for(const c of cands){ const k=Object.keys(sample).find(k=>k.toLowerCase().includes(c)); if(k) return k; } return null; };
+    const localKey  = findKey('local','restaurante','tienda');
+    const supKey    = findKey('proveedor','suministrador');
+    const albNumKey = findKey('albarán','albaran','nº alb','n° alb','num alb');
+    const dateKey   = findKey('día','dia','fecha');
+    const codeKey   = findKey('código','codigo','ref','referencia');
+    const nameKey   = findKey('artículo','articulo','descripci','desc','producto','nombre');
+    const qtyKey    = findKey('cantidad','qty','uds','unidades');
+    const importeKey= findKey('importe','total','monto');
+
+    if(!localKey||!supKey||!nameKey||!qtyKey||!importeKey){
+      setStatus('No se reconocen todas las columnas necesarias (Local, Proveedor, Artículo, Cantidad, Importe). Revisa los encabezados.','#dc2626');
+      return;
+    }
+    const parseDate=v=>{
+      if(v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+      const s=String(v||'').trim();
+      if(!s) return new Date().toISOString().slice(0,10);
+      const dm=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+      if(dm){ let [,d,m,y]=dm; if(y.length===2) y='20'+y; return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+      const d2=new Date(s); if(!isNaN(d2)) return d2.toISOString().slice(0,10);
+      return new Date().toISOString().slice(0,10);
+    };
+    const normRest=v=>{
+      const s=String(v||'').trim();
+      const match=(cfg.users||[]).flatMap(u=>u.restaurants||[u.restaurant]).find(r=>(r||'').toLowerCase()===s.toLowerCase());
+      return match||s;
+    };
+    const findSupplierByName=name=>{
+      const n=String(name||'').trim().toLowerCase();
+      if(!n) return null;
+      return supList().find(s=>(s.name||'').trim().toLowerCase()===n)||null;
+    };
+
+    // Agrupar filas por local+proveedor+nº albarán+día
+    const groups={};
+    rows.forEach(r=>{
+      const local=normRest(r[localKey]);
+      const supName=String(r[supKey]||'').trim();
+      const albNum=albNumKey?String(r[albNumKey]||'').trim():'';
+      const date=parseDate(dateKey?r[dateKey]:'');
+      const key=[local,supName,albNum,date].join('|');
+      if(!groups[key]) groups[key]={local,supName,albNum,date,rows:[]};
+      groups[key].rows.push(r);
+    });
+
+    let albCreated=0, prodUpdated=0, toReview=0, skippedGroups=0;
+    const batch={};
+    Object.values(groups).forEach(g=>{
+      const sup=findSupplierByName(g.supName);
+      if(!sup){
+        // Proveedor del Excel no registrado — se manda una única revisión
+        // por grupo en vez de crear un albarán huérfano.
+        const rid='pr_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+        fbDb && fbDb.ref('pendingReview/'+rid).set({
+          id:rid, type:'excel-albaran-proveedor', supName:g.supName,
+          name:`Albarán ${g.albNum||'s/n'} (${g.rows.length} líneas)`,
+          restaurant:g.local, note:'Proveedor del Excel no coincide con ninguno registrado — regístralo y vuelve a importar.',
+          createdAt:new Date().toISOString(), createdBy:S.session?.name||'Importación Excel'
+        });
+        skippedGroups++; toReview++;
+        return;
+      }
+      if(!Array.isArray(sup.products)) sup.products=Object.values(sup.products||{});
+      const items=g.rows.map(r=>{
+        const name=String(r[nameKey]||'').trim();
+        const code=codeKey?String(r[codeKey]||'').trim():'';
+        const qty=parseFloat(String(r[qtyKey]||'0').replace(',','.'))||0;
+        const importe=parseFloat(String(r[importeKey]||'0').replace(',','.'))||0;
+        const price=qty>0?importe/qty:0;
+        let needsReview=false;
+        if(code){
+          const prod=sup.products.find(p=>p.code===code);
+          if(prod){ prod.name=name||prod.name; prod.price=price; prodUpdated++; }
+          else { needsReview=true; }
+        } else { needsReview=true; }
+        if(needsReview){
+          const rid='pr_'+Date.now()+'_'+Math.random().toString(36).slice(2,6)+Math.random().toString(36).slice(2,4);
+          fbDb && fbDb.ref('pendingReview/'+rid).set({
+            id:rid, type:'excel-albaran', supName:sup.name, code, name, price,
+            restaurant:g.local, note:`Albarán ${g.albNum||'s/n'} del ${g.date}`,
+            createdAt:new Date().toISOString(), createdBy:S.session?.name||'Importación Excel'
+          });
+          toReview++;
+        }
+        return {name, code, unit:'UN', qty, price, ...(needsReview?{incident:'Pendiente de revisión'}:{})};
+      });
+      const albId='alb_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
+      batch[albId]={id:albId, restaurant:g.local, supId:sup.id, date:g.date, items, albNum:g.albNum||undefined, createdAt:new Date().toISOString(), source:'excel-import'};
+      albCreated++;
+      saveSups(sup.id);
+    });
+
+    if(fbDb){
+      const writes=Object.entries(batch).map(([id,a])=>fbDb.ref('albaranes/'+id).set(a));
+      await Promise.all(writes);
+    }
+    setStatus(`Importados ${albCreated} albarán(es), ${prodUpdated} producto(s) actualizados${toReview?`, ${toReview} línea(s)/grupo(s) enviados a revisión`:''}${skippedGroups?` (${skippedGroups} proveedor(es) sin registrar)`:''}.`,'#16a34a');
+    toast(`${albCreated} albaranes importados`,'#16a34a',4500);
+    input.value='';
+  }catch(e){ setStatus('Error al leer el Excel: '+e.message,'#dc2626'); console.error(e); }
 }
 
 function goAlbaranAdmin(){ S.view='albaran-new';S.albItems=[];S.albRestaurant='';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];S.albTotalManual=null;render(); }
