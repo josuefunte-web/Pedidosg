@@ -6,6 +6,7 @@ function render(){
   else if(S.view==='order')         app.innerHTML=vOrder();
   else if(S.view==='admin'){        app.innerHTML=vAdmin();
     if(S.adminTab==='escandallos') setTimeout(initEscandallos,50);
+    if(S.adminTab==='sup-visibility') setTimeout(initSupVisibility,50);
   }
   else if(S.view==='albaran-new') app.innerHTML=vAlbaranNew();
   try{ _updatePendingBadge(); }catch(e){}
@@ -40,6 +41,7 @@ function renderAdminContent(){
   else if(S.adminTab==='horarios') content=vHorariosAdmin();
   tc.innerHTML=content;
   if(S.adminTab==='escandallos') initEscandallos();
+  if(S.adminTab==='sup-visibility') initSupVisibility();
   if(S.adminTab==='budgets') setTimeout(renderBudgetTrendChart,100);
   // Update sidebar stats
   const pend=orders.filter(o=>o.status==='pending');
