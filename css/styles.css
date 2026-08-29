@@ -758,3 +758,32 @@ body.dark .inv-hidden-chip{background:rgba(49,95,168,.18);color:#93c5fd;border-c
 .db-page{max-width:1280px;margin:0 auto}.db-head{margin-bottom:18px}.db-head>span{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--mut);font-weight:700}.db-head h1{font-size:28px;margin:4px 0;color:var(--txt)}.db-head p{font-size:13px;color:var(--mut)}.db-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}.db-kpis>*{background:var(--card);border:1px solid var(--brd);border-radius:10px;padding:16px;text-align:left;box-shadow:var(--sh)}.db-kpis button{cursor:pointer}.db-kpis small,.db-kpis strong,.db-kpis span{display:block}.db-kpis small{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);font-weight:700}.db-kpis strong{font-size:25px;margin:5px 0;color:var(--txt)}.db-kpis span{font-size:10px;color:var(--mut)}.db-grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(260px,.8fr);gap:12px}.db-panel{background:var(--card);border:1px solid var(--brd);border-radius:10px;overflow:hidden}.db-panel>header{display:flex;justify-content:space-between;align-items:center;padding:13px 15px;border-bottom:1px solid var(--brd)}.db-panel h2{font-size:14px}.db-panel>header button{border:0;background:transparent;color:var(--acc);font-size:11px;cursor:pointer}.db-row{width:100%;display:grid;grid-template-columns:minmax(180px,1fr) 105px 90px 105px;gap:10px;align-items:center;padding:11px 15px;border:0;border-bottom:1px solid var(--brd);background:transparent;text-align:left;cursor:pointer;color:var(--txt)}.db-row:hover{background:var(--srf)}.db-row span:first-child b,.db-row span:first-child small{display:block}.db-row span:first-child b{font-size:12px}.db-row span:first-child small,.db-row>span{font-size:10px;color:var(--mut)}.db-row strong{text-align:right;font-size:12px}.db-status{display:inline-flex!important;width:max-content;padding:3px 6px;border-radius:5px}.db-status.pending{background:#fff7db;color:#8a5a00}.db-status.approved{background:#e9f5ee;color:#14653d}.db-status.received{background:#eaf2f8;color:#133a5a}.db-alerts{padding:10px}.db-alerts button,.db-clear{width:100%;padding:11px;border:1px solid var(--brd);border-radius:7px;background:var(--srf);text-align:left;margin-bottom:7px}.db-alerts b,.db-alerts span,.db-clear b,.db-clear span{display:block}.db-alerts b,.db-clear b{font-size:12px}.db-alerts span,.db-clear span{font-size:10px;color:var(--mut);margin-top:2px}.db-new{margin:0 10px 10px;width:calc(100% - 20px);padding:10px;border:0;border-radius:7px;background:var(--acc);color:#fff;font-weight:700;cursor:pointer}.db-empty{padding:38px;text-align:center;color:var(--mut);font-size:12px}
 @media(max-width:850px){.db-kpis{grid-template-columns:1fr 1fr}.db-grid{grid-template-columns:1fr}.db-row{grid-template-columns:minmax(0,1fr) 80px 90px}.db-row>span:nth-child(2){display:none}}
 @media(max-width:520px){.db-head h1{font-size:23px}.db-kpis{gap:7px}.db-kpis>*{padding:12px}.db-kpis strong{font-size:21px}.db-row{grid-template-columns:minmax(0,1fr) 80px}.db-row .db-status{display:none!important}}
+
+/* ═════════════════════════════════════════════════════════════════════
+   HORARIOS — calendario semanal (js/47-horarios-wishlist.js)
+   Prefijo .sch- para no colisionar con el resto de módulos.
+   ═════════════════════════════════════════════════════════════════════ */
+.sch-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.sch-legend{display:flex;flex-wrap:wrap;gap:10px 14px}
+.sch-legend-i{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--mut);font-weight:600}
+.sch-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.sch-grid-w{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px;margin:0 -2px}
+.sch-grid{display:grid;grid-template-columns:repeat(7,minmax(136px,1fr));gap:8px;min-width:1000px;padding:2px}
+.sch-day{background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:9px;display:flex;flex-direction:column;gap:6px;min-height:150px;box-shadow:var(--sh)}
+.sch-day.today{border-color:var(--pri);box-shadow:0 0 0 1px var(--pri)}
+.sch-day-hd{display:flex;justify-content:space-between;align-items:baseline;padding-bottom:7px;margin-bottom:1px;border-bottom:1px solid var(--brd)}
+.sch-day-name{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--txt)}
+.sch-day.today .sch-day-name{color:var(--pri)}
+.sch-day-count{font-size:10px;color:var(--mut);font-weight:700}
+.sch-chip{position:relative;border-radius:8px;padding:7px 8px;font-size:11.5px;background:var(--chip-bg,var(--srf));border-left:3px solid var(--chip-c,var(--pri))}
+.sch-chip-time{font-weight:800;font-variant-numeric:tabular-nums;color:var(--txt)}
+.sch-chip-person{font-weight:650;color:var(--txt);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sch-chip-note{font-size:10px;color:var(--mut);margin-top:2px;line-height:1.3}
+.sch-chip-acts{position:absolute;top:4px;right:4px;display:flex;gap:1px}
+.sch-chip-btn{background:var(--card);border:1px solid var(--brd);border-radius:5px;width:18px;height:18px;line-height:1;font-size:10px;cursor:pointer;color:var(--mut);padding:0}
+.sch-chip-btn:hover{color:var(--pri);border-color:var(--pri)}
+.sch-chip-btn.danger:hover{color:#dc2626;border-color:#dc2626}
+.sch-day-empty{font-size:11px;color:var(--mut);text-align:center;padding:10px 0;flex:1}
+.sch-day-add{border:1.5px dashed var(--brd);border-radius:8px;padding:5px;text-align:center;font-size:14px;font-weight:700;color:var(--mut);cursor:pointer;background:transparent;line-height:1}
+.sch-day-add:hover{border-color:var(--pri);color:var(--pri)}
+@media(max-width:640px){.sch-grid{grid-template-columns:repeat(7,132px)}}

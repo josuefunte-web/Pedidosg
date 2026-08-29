@@ -12,42 +12,56 @@
 const DIAS_SEMANA=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 
 // ── Horarios ──────────────────────────────────────────────────────────────
+// Calendario semanal: una columna por día (Lunes-Domingo), con los turnos
+// como tarjetas coloreadas por persona (mismo strToColor que usan los
+// pedidos para colorear el nombre del restaurante).
 function vHorarios(){
   const rest=S.session.restaurant;
   const canEdit=can('canEditSchedule');
   const rk=restKey(rest);
   const shifts=Object.values(schedules[rk]||{});
-  const byDay=DIAS_SEMANA.map((_,i)=>shifts.filter(s=>s.day===i).sort((a,b)=>(a.start||'').localeCompare(b.start||'')));
+  const todayIdx=(new Date().getDay()+6)%7; // getDay(): 0=Domingo..6=Sábado → 0=Lunes..6=Domingo
+  const people=[...new Set(shifts.map(s=>s.person).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  const legend=people.length?`<div class="sch-legend">${people.map(p=>`<span class="sch-legend-i"><span class="sch-legend-dot" style="background:${strToColor(p)}"></span>${_e(p)}</span>`).join('')}</div>`:'';
   const formHtml=(S.schEditId&&canEdit)?renderSchForm(rest):'';
-  const addBtn=canEdit?`<button class="btn btn-pri btn-sm" onclick="openSchForm('new')">+ Turno</button>`:'';
-  const rows=DIAS_SEMANA.map((d,i)=>{
-    const items=byDay[i];
-    return `<div style="margin-bottom:14px">
-      <div class="sh" style="margin-bottom:6px">${d}</div>
-      ${items.length?items.map(s=>`<div class="pr" style="align-items:center">
-        <span class="pn">${_e(s.person||'')}${s.note?` <small style="color:var(--mut)">(${_e(s.note)})</small>`:''}</span>
-        <span class="pq">${_e(s.start||'')}${s.start||s.end?'–':''}${_e(s.end||'')}</span>
-        ${canEdit?`<div style="display:flex;gap:4px">
-          <button class="btn btn-ghost btn-sm" onclick="openSchForm('${s.id}')" title="Editar">✎</button>
-          <button class="btn btn-no btn-sm" onclick="deleteSchShift('${s.id}')" title="Eliminar">✕</button>
-        </div>`:''}
-      </div>`).join(''):`<div style="font-size:12px;color:var(--mut);padding:4px 0">Sin turnos</div>`}
+  const dayCols=DIAS_SEMANA.map((d,i)=>{
+    const items=shifts.filter(s=>s.day===i).sort((a,b)=>(a.start||'').localeCompare(b.start||''));
+    const chips=items.map(s=>`<div class="sch-chip" style="--chip-c:${strToColor(s.person||'?')}">
+      <div class="sch-chip-time">${_e(s.start||'')}${s.start||s.end?'–':''}${_e(s.end||'')}</div>
+      <div class="sch-chip-person">${_e(s.person||'')}</div>
+      ${s.note?`<div class="sch-chip-note">${_e(s.note)}</div>`:''}
+      ${canEdit?`<div class="sch-chip-acts">
+        <button class="sch-chip-btn" onclick="openSchForm('${s.id}')" title="Editar">✎</button>
+        <button class="sch-chip-btn danger" onclick="deleteSchShift('${s.id}')" title="Eliminar">✕</button>
+      </div>`:''}
+    </div>`).join('');
+    return `<div class="sch-day${i===todayIdx?' today':''}">
+      <div class="sch-day-hd"><span class="sch-day-name">${d.slice(0,3)}</span><span class="sch-day-count">${items.length||''}</span></div>
+      ${items.length?chips:'<div class="sch-day-empty">Sin turnos</div>'}
+      ${canEdit?`<button class="sch-day-add" onclick="openSchForm('new',${i})" title="Añadir turno el ${d}">+</button>`:''}
     </div>`;
   }).join('');
   return `<div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div class="sh" style="margin:0">Horarios — ${_e(rest)}</div>${addBtn}
+    <div class="sch-toolbar">
+      <div class="sh" style="margin:0">Horarios — ${_e(rest)}</div>
+      ${canEdit?`<button class="btn btn-pri btn-sm" onclick="openSchForm('new')">+ Turno</button>`:''}
     </div>
+    ${legend}
     ${formHtml}
-    ${rows}
+    <div class="sch-grid-w"><div class="sch-grid">${dayCols}</div></div>
   </div>`;
 }
-function openSchForm(id){ S.schEditId=id; render(); }
-function closeSchForm(){ S.schEditId=null; render(); }
+function openSchForm(id,presetDay){
+  S.schEditId=id;
+  S.schPresetDay=(id==='new'&&presetDay!==undefined)?presetDay:null;
+  render();
+}
+function closeSchForm(){ S.schEditId=null; S.schPresetDay=null; render(); }
 function renderSchForm(rest){
   const rk=restKey(rest);
   const isNew=S.schEditId==='new';
-  const s=isNew?{day:0,person:'',start:'',end:'',note:''}:((schedules[rk]||{})[S.schEditId]||{day:0,person:'',start:'',end:'',note:''});
+  const defDay=S.schPresetDay!=null?S.schPresetDay:0;
+  const s=isNew?{day:defDay,person:'',start:'',end:'',note:''}:((schedules[rk]||{})[S.schEditId]||{day:defDay,person:'',start:'',end:'',note:''});
   return `<div style="background:var(--srf);border:1.5px solid var(--brd);border-radius:10px;padding:14px;margin-bottom:14px">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
       <div><label style="font-size:11px;color:var(--mut);display:block;margin-bottom:3px">Persona</label>
@@ -88,7 +102,7 @@ function saveSchShift(id){
     id:shiftId, restaurant:rest, day, person, start, end, note,
     updatedAt:Date.now(), updatedBy:S.session.uid
   }).then(()=>{
-    S.schEditId=null; toast('Turno guardado','#16a34a'); render();
+    S.schEditId=null; S.schPresetDay=null; toast('Turno guardado','#16a34a'); render();
     auditLog('schedule_save',{restaurant:rest,shiftId});
   }).catch(e=>toast('Error: '+e.message,'#dc2626'));
 }

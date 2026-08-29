@@ -37,6 +37,7 @@ let S={
   cmpOpen:{},          // {groupKey:true}
   // Horarios (js/47-horarios-wishlist.js)
   schEditId:null,      // null | 'new' | shiftId del turno en edición
+  schPresetDay:null,   // día (0-6) preseleccionado al pulsar "+" en una columna del calendario
   // Solicitudes de producto camarero→cocina (js/47-horarios-wishlist.js)
   wishDraft:[],        // items añadidos a la solicitud en curso, antes de enviar
 };
