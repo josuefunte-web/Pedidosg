@@ -371,7 +371,7 @@ function supDetailForm(sup){
     <div id="sdp-list-${sid}">${prodsHtml}</div>
     <div class="sh" style="margin-top:16px">Añadir nuevo producto</div>
     <div style="display:grid;grid-template-columns:100px 2fr 1fr 1fr 80px;gap:8px;margin-bottom:8px">
-      <div class="fg" style="margin:0"><label>Código</label><input type="text" id="pf-code-${sid}" placeholder="opcional"/></div>
+      <div class="fg" style="margin:0"><label>Código *</label><input type="text" id="pf-code-${sid}" placeholder="obligatorio"/></div>
       <div class="fg" style="margin:0"><label>Nombre</label><input type="text" id="pf-name-${sid}" placeholder="Entrecot..."/></div>
       <div class="fg" style="margin:0"><label>Categoría</label><select id="pf-cat-${sid}">${prodCatOpts('')}</select></div>
       <div class="fg" style="margin:0"><label>Unidad</label><select id="pf-unit-${sid}"><option>KG</option><option>g</option><option>UN</option><option>L</option><option>Caja</option><option>Bote</option></select></div>
@@ -607,12 +607,17 @@ function editProdCode(sid,pid,val){
   const code=(val||'').trim();
   const prod=suppliers[sid].products.find(p=>p.id===pid);
   if(!prod) return;
-  if(code && suppliers[sid].products.some(p=>p!==prod && p.code===code)){
+  if(!code){
+    toast('El código de producto es obligatorio, no se puede dejar vacío','#dc2626');
+    renderAdminContent();
+    return;
+  }
+  if(suppliers[sid].products.some(p=>p!==prod && p.code===code)){
     toast('Ese código ya lo usa otro producto de este proveedor','#dc2626');
     renderAdminContent();
     return;
   }
-  if(code) prod.code=code; else delete prod.code;
+  prod.code=code;
   saveSups(sid);
   toast('Código actualizado','#16a34a');
 }
@@ -651,9 +656,9 @@ function addProd(sid){
   const grRaw=document.getElementById('pf-gr-'+sid)?.value;
   const pesoGr=grRaw&&!isNaN(parseInt(grRaw))?parseInt(grRaw):undefined;
   if(!name||isNaN(price)||price<0){toast('Nombre y precio obligatorios','#dc2626');return;}
-  if(code && (suppliers[sid].products||[]).some(p=>p.code===code)){toast('Ese código ya lo usa otro producto de este proveedor','#dc2626');return;}
-  const prod={id:'p'+uid(),name,unit:unit||'KG',price,category};
-  if(code) prod.code=code;
+  if(!code){toast('El código de producto del proveedor es obligatorio','#dc2626');return;}
+  if((suppliers[sid].products||[]).some(p=>p.code===code)){toast('Ese código ya lo usa otro producto de este proveedor','#dc2626');return;}
+  const prod={id:'p'+uid(),name,unit:unit||'KG',price,category,code};
   if(pesoGr!==undefined) prod.pesoGr=pesoGr;
   if(!Array.isArray(suppliers[sid].products)) suppliers[sid].products=Object.values(suppliers[sid].products||{});
   suppliers[sid].products.push(prod);

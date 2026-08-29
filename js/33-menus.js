@@ -1,4 +1,10 @@
 /* ═══════════════ MENÚS ═══════════════ */
+const MEN_CURSOS=[
+  {key:'pri',label:'Primeros',cats:['Primeros'],cls:'c-pri'},
+  {key:'seg',label:'Segundos',cats:['Segundos','Carnes','Pescados'],cls:'c-seg'},
+  {key:'pos',label:'Postres',cats:['Postres'],cls:'c-pos'},
+  {key:'beb',label:'Bebidas',cats:['Bebidas'],cls:'c-otr'},
+];
 function menRender(){
   const grid=document.getElementById('men-grid');
   if(!grid) return;
@@ -54,6 +60,9 @@ function menRender(){
         <div class="men-stat"><div class="k">PVP</div><div class="v">${pvp>0?escFmt(pvp):'—'}</div></div>
         <div class="men-stat"><div class="k">Margen</div><div class="v">${margen!==null?escFmt(margen):'—'}</div></div>
         <div class="men-stat"><div class="k">% Margen</div><div class="v">${margenPct!==null?margenPct.toFixed(1)+'%':'—'}</div></div>
+      </div>
+      <div style="padding:0 14px 12px">
+        <button class="btn btn-ghost btn-sm" style="width:100%" onclick="event.stopPropagation();menGroupOpen('${id}')">👥 Calcular para un grupo</button>
       </div>
     </div>`;
   }).join('');
@@ -223,6 +232,96 @@ function menExportPDF(){
   const w=window.open('','_blank');
   if(w){w.document.write(html);w.document.close();}
   else toast('Activa los popups para exportar el PDF','#d97706',4000);
+}
+
+// ── Calculadora de menú de grupo ────────────────────────────────────────
+// Los menús de grupo tienen siempre la misma estructura: primeros a
+// compartir entre todos los comensales, y segundos/postres/bebidas que
+// cada comensal elige de una lista. Esta calculadora no se guarda en
+// Firebase — es una herramienta de apoyo para presupuestar en el momento.
+let _menGroupState=null; // {menuId, personas, sel:{pri:Set, seg:Set, pos:Set, beb:Set}}
+function menGroupOpen(menuId){
+  const m=_menAllData[menuId];
+  if(!m){ toast('Menú no encontrado','#dc2626'); return; }
+  _menGroupState={menuId, personas:2, sel:{pri:new Set(),seg:new Set(),pos:new Set(),beb:new Set()}};
+  menGroupRender();
+  document.getElementById('men-group-ov').style.display='flex';
+}
+function menGroupClose(){ document.getElementById('men-group-ov').style.display='none'; _menGroupState=null; }
+function menGroupSetPersonas(v){
+  const n=Math.max(1,parseInt(v)||1);
+  _menGroupState.personas=n;
+  menGroupRender();
+}
+function menGroupToggle(course,escId){
+  const set=_menGroupState.sel[course];
+  if(set.has(escId)) set.delete(escId); else set.add(escId);
+  menGroupRender();
+}
+function menGroupRender(){
+  const st=_menGroupState;
+  const body=document.getElementById('men-group-body');
+  if(!st||!body) return;
+  const m=_menAllData[st.menuId];
+  if(!m){ body.innerHTML='<p style="color:var(--mut)">Menú no encontrado.</p>'; return; }
+  const escs=(m.escandallos||[]).map(eid=>({id:eid,...(_escAllData[eid]||{})})).filter(e=>e.nombre);
+  const byCourse={};
+  MEN_CURSOS.forEach(c=>{ byCourse[c.key]=escs.filter(e=>c.cats.includes(e.categoria||'Otros')); });
+
+  const priCost=[...st.sel.pri].reduce((s,id)=>s+escCosteTotal(_escAllData[id]||{}),0);
+  const priPerPerson=st.personas>0?priCost/st.personas:0;
+  const avgOf=course=>{
+    const ids=[...st.sel[course]];
+    if(!ids.length) return 0;
+    return ids.reduce((s,id)=>s+escCosteTotal(_escAllData[id]||{}),0)/ids.length;
+  };
+  const segAvg=avgOf('seg'), posAvg=avgOf('pos'), bebAvg=avgOf('beb');
+  const perPerson=priPerPerson+segAvg+posAvg+bebAvg;
+  const totalGrupo=perPerson*st.personas;
+  const pvp=parseFloat(m.pvp)||0;
+
+  const courseBlock=(course,label,helpText,isShared)=>{
+    const items=byCourse[course];
+    if(!items.length) return `<div style="margin-bottom:14px"><div style="font-weight:700;font-size:13px;color:var(--pri);margin-bottom:4px">${label}</div><div style="font-size:12px;color:var(--mut)">Este menú no tiene platos en "${label}".</div></div>`;
+    const rows=items.map(e=>{
+      const sel=st.sel[course].has(e.id);
+      const coste=escCosteTotal(e);
+      return `<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;background:${sel?'var(--srf)':'transparent'}">
+        <input type="checkbox" ${sel?'checked':''} onchange="menGroupToggle('${course}','${e.id}')"/>
+        <span style="flex:1">${e.nombre}</span>
+        <span style="color:var(--mut);font-size:12px">${escFmt(coste)}</span>
+      </label>`;
+    }).join('');
+    return `<div style="margin-bottom:14px">
+      <div style="font-weight:700;font-size:13px;color:var(--pri);margin-bottom:2px">${label}</div>
+      <div style="font-size:11px;color:var(--mut);margin-bottom:6px">${helpText}</div>
+      ${rows}
+    </div>`;
+  };
+
+  body.innerHTML=`
+    <div class="fg" style="max-width:160px">
+      <label>Nº de comensales</label>
+      <input type="number" min="1" step="1" value="${st.personas}" oninput="menGroupSetPersonas(this.value)"/>
+    </div>
+    ${courseBlock('pri','Primeros (a compartir)','Marca los primeros que se pondrán en el centro de la mesa. Su coste total se reparte entre todos los comensales.')}
+    ${courseBlock('seg','Segundos (a elegir)','Marca las opciones disponibles. Se calcula el coste medio por comensal entre las opciones marcadas.')}
+    ${courseBlock('pos','Postres (a elegir)','Igual que los segundos: coste medio entre las opciones marcadas.')}
+    ${courseBlock('beb','Bebidas (a elegir)','Igual que los segundos: coste medio entre las opciones marcadas.')}
+    <div class="card" style="background:var(--srf);margin-top:6px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+        <div>Primeros ÷ ${st.personas}</div><div style="text-align:right">${escFmt(priPerPerson)}</div>
+        <div>Media de segundos</div><div style="text-align:right">${escFmt(segAvg)}</div>
+        <div>Media de postres</div><div style="text-align:right">${escFmt(posAvg)}</div>
+        <div>Media de bebidas</div><div style="text-align:right">${escFmt(bebAvg)}</div>
+        <div style="font-weight:800;border-top:1px solid var(--brd);padding-top:6px">Coste por persona</div>
+        <div style="font-weight:800;border-top:1px solid var(--brd);padding-top:6px;text-align:right">${escFmt(perPerson)}</div>
+        <div style="font-weight:800">Coste total del grupo</div>
+        <div style="font-weight:800;text-align:right">${escFmt(totalGrupo)}</div>
+        ${pvp>0?`<div style="grid-column:1/-1;font-size:12px;color:var(--mut);margin-top:4px">PVP del menú: ${escFmt(pvp)}/persona → ${escFmt(pvp*st.personas)} en total (food cost ${(perPerson/pvp*100).toFixed(1)}%)</div>`:''}
+      </div>
+    </div>
+  `;
 }
 
 function menDelete(){

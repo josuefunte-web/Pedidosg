@@ -84,6 +84,17 @@ function vEscandallos(){
     </div>
   </div>
 
+  <!-- MODAL CALCULADORA DE MENÚ DE GRUPO -->
+  <div class="overlay" id="men-group-ov" style="display:none" onclick="if(event.target===this)menGroupClose()">
+    <div class="esc-modal-box" style="max-width:640px">
+      <div class="esc-modal-hd">
+        <h3>👥 Menú para grupo</h3>
+        <button class="btn btn-ghost btn-sm" onclick="menGroupClose()">✕</button>
+      </div>
+      <div id="men-group-body" style="padding:0 24px 20px;overflow-y:auto"></div>
+    </div>
+  </div>
+
   <!-- EDITOR ESCANDALLO (panel inline) -->
   <div class="esc-edit-screen" id="esc-modal-ov" style="display:none">
     <div class="esc-modal-box">

@@ -105,9 +105,11 @@ function msgLocal(o, supName){
 
 let _waMsg='';
 let _waNext=null; // {phone, msg, desc} para encadenar un segundo WA
-function showWA(phone,msg,desc,next){
+let _waOrder=null; // pedido asociado al mensaje actual, si lo hay — permite adjuntar el PDF
+function showWA(phone,msg,desc,next,order){
   _waMsg=msg;
   _waNext=next||null;
+  _waOrder=order||null;
   document.getElementById('wa-desc').textContent=desc||'Pulsa para abrir WhatsApp.';
   document.getElementById('wa-msg-preview').textContent=msg;
   const btn=document.getElementById('wa-link-btn');
@@ -116,6 +118,8 @@ function showWA(phone,msg,desc,next){
   btn.style.opacity=p.length>7?'1':'.4';
   btn.style.pointerEvents=p.length>7?'auto':'none';
   if(p.length<=7) document.getElementById('wa-desc').textContent='Configura el número en Config.';
+  const pdfBtn=document.getElementById('wa-pdf-btn');
+  if(pdfBtn) pdfBtn.style.display=(_waOrder&&(_waOrder.items||[]).length)?'':'none';
   document.getElementById('wa-ov').style.display='flex';
 }
 function closeWA(){
@@ -123,6 +127,91 @@ function closeWA(){
   if(_waNext){const n=_waNext;_waNext=null;setTimeout(()=>showWA(n.phone,n.msg,n.desc),150);}
 }
 function copyWAMsg(){ navigator.clipboard.writeText(_waMsg).then(()=>toast('Copiado','#16a34a')); }
+
+// ── Pedido en PDF profesional ────────────────────────────────────────────
+// jsPDF se carga bajo demanda (igual que xlsx en la importación de tarifas)
+// para no penalizar el arranque de la app con una librería que solo hace
+// falta cuando se genera un pedido en PDF.
+function _ensureJsPDF(){
+  if(window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    s.onload=res; s.onerror=rej;
+    document.head.appendChild(s);
+  });
+}
+function buildOrderPdf(order){
+  const sup=suppliers[order.supId]||{};
+  const doc=new window.jspdf.jsPDF();
+  const pageW=doc.internal.pageSize.getWidth();
+  const ref=(order.id||'').slice(-6).toUpperCase();
+  let y=20;
+  doc.setFontSize(17); doc.setFont(undefined,'bold');
+  doc.text(cfg.adminName||'Pedido',14,y); y+=6;
+  doc.setFontSize(10); doc.setFont(undefined,'normal'); doc.setTextColor(110);
+  doc.text('Jefe de Compras',14,y); doc.setTextColor(0); y+=10;
+
+  doc.setFontSize(13); doc.setFont(undefined,'bold');
+  doc.text(`PEDIDO — Ref. ${ref}`,14,y); y+=7;
+  doc.setFontSize(10); doc.setFont(undefined,'normal');
+  doc.text(`Proveedor: ${sup.name||order.supId||'—'}`,14,y); y+=5.5;
+  doc.text(`Local: ${order.restaurant||'—'}`,14,y); y+=5.5;
+  doc.text(`Fecha: ${new Date(order.createdAt||Date.now()).toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})}`,14,y); y+=5.5;
+  if(order.deliveryDate){ doc.text(`Entrega solicitada: ${order.deliveryDate}`,14,y); y+=5.5; }
+  if(order.urgent){ doc.setTextColor(200,30,30); doc.setFont(undefined,'bold'); doc.text('PEDIDO URGENTE',14,y); doc.setTextColor(0); doc.setFont(undefined,'normal'); y+=5.5; }
+  y+=4;
+
+  doc.setDrawColor(200); doc.setLineWidth(0.4); doc.line(14,y,pageW-14,y); y+=7;
+  doc.setFont(undefined,'bold'); doc.setFontSize(9.5);
+  doc.text('Código',14,y); doc.text('Producto',42,y); doc.text('Cant.',128,y); doc.text('Precio',149,y); doc.text('Importe',172,y);
+  y+=2; doc.line(14,y,pageW-14,y); y+=6;
+  doc.setFont(undefined,'normal');
+
+  let total=0;
+  (order.items||[]).forEach(it=>{
+    if(y>275){ doc.addPage(); y=20; }
+    const qty=parseFloat(it.qty)||0, price=parseFloat(it.price)||0, lineTotal=qty*price;
+    total+=lineTotal;
+    doc.text(String(it.code||'—'),14,y);
+    doc.text(String(it.name||'').slice(0,42),42,y);
+    doc.text(`${qty} ${it.unit||''}`,128,y);
+    doc.text(price?fmt(price):'—',149,y);
+    doc.text(lineTotal?fmt(lineTotal):'—',172,y);
+    y+=6.5;
+  });
+
+  y+=3; doc.setDrawColor(0); doc.setLineWidth(0.5); doc.line(128,y,pageW-14,y); y+=8;
+  doc.setFont(undefined,'bold'); doc.setFontSize(12);
+  doc.text(`TOTAL: ${fmt(total)}`,149,y);
+
+  if(order.notes){
+    y+=12; doc.setFont(undefined,'normal'); doc.setFontSize(9.5); doc.setTextColor(90);
+    doc.text(`Nota: ${order.notes}`,14,y,{maxWidth:pageW-28});
+    doc.setTextColor(0);
+  }
+  return doc;
+}
+async function shareOrderPdf(order){
+  if(!order){ toast('No hay pedido para generar el PDF','#dc2626'); return; }
+  try{
+    toast('Generando PDF...','#7c3aed',2000);
+    await _ensureJsPDF();
+    const doc=buildOrderPdf(order);
+    const sup=suppliers[order.supId]||{};
+    const fname=`pedido_${(sup.name||'proveedor').replace(/[^a-z0-9]/gi,'_')}_${(order.id||'').slice(-6)}.pdf`;
+    const blob=doc.output('blob');
+    const file=new File([blob],fname,{type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:'Pedido',text:`Pedido para ${sup.name||''}`});
+    } else {
+      doc.save(fname);
+      toast('PDF descargado — adjúntalo a mano en WhatsApp','#7c3aed',5000);
+    }
+  }catch(e){
+    if(e.name!=='AbortError') toast('Error generando PDF: '+e.message,'#dc2626');
+  }
+}
 
 // ── "🔄 Actualizar datos" ─────────────────────────────────────────────────
 // Autoservicio para usuarios cuya app se ha quedado con datos viejos en
