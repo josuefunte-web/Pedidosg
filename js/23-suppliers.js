@@ -931,6 +931,9 @@ const _BULK_IGNORE_SHEETS=['Leyenda','Inventario','Resumen','Portada','Total','T
 window._bulkPreview=null;
 
 function _bulkNormName(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/[^\w\sáéíóúñ]/gi,''); }
+// Quita acentos (á→a, é→e...) para comparar encabezados sin depender de que
+// el usuario conserve las tildes exactas (ej. "Alérgenos" vs "Alergenos").
+function _foldAccents(s){ return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,''); }
 
 // Convierte un array de ids de ALERGENOS a texto legible "Gluten, Lácteos"
 function _alergenosToText(ids){
@@ -940,10 +943,10 @@ function _alergenosToText(ids){
 // Convierte texto "Gluten, Lácteos" o "gluten;lacteos" a array de ids válidos de ALERGENOS
 function _alergenosFromText(txt){
   if(!txt) return [];
-  const parts=String(txt).split(/[,;\/]/).map(s=>_bulkNormName(s)).filter(Boolean);
+  const parts=String(txt).split(/[,;\/]/).map(s=>_foldAccents(_bulkNormName(s))).filter(Boolean);
   const ids=new Set();
   parts.forEach(p=>{
-    const found=ALERGENOS.find(a=>_bulkNormName(a.label)===p || a.id===p || _bulkNormName(a.id)===p);
+    const found=ALERGENOS.find(a=>_foldAccents(_bulkNormName(a.label))===p || a.id===p || _foldAccents(_bulkNormName(a.id))===p);
     if(found) ids.add(found.id);
   });
   return [...ids];
@@ -1005,10 +1008,10 @@ async function importBulkTarifa(input){
       for(let i=0;i<Math.min(10,rows.length);i++){
         const r=rows[i]||[];
         for(let j=0;j<r.length;j++){
-          const v=(r[j]||'').toString().toLowerCase();
+          const v=_foldAccents((r[j]||'').toString().toLowerCase());
           if(v.includes('descripci')) colName=j;
           if(v.includes('precio')) colPrice=j;
-          if(v.includes('código')||v.includes('codigo')||v.includes('code')||v.includes('ref')) colCode=j;
+          if(v.includes('codigo')||v.includes('code')||v.includes('ref')) colCode=j;
           if(v.includes('alerg')) colAlerg=j;
         }
         if(colName>=0 && colPrice>=0){ headerIdx=i; break; }
