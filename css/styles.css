@@ -125,6 +125,64 @@ body.dark .perm-check:has(input:checked){background:#1a1a40}
 .three-col{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px}
 .prod-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--brd);border-radius:8px;margin-bottom:6px;background:var(--srf)}
 .prod-info{flex:1}.prod-name-t{font-size:13px;font-weight:600}
+
+/* ═════════════════════════════════════════════════════════════════════
+   TABLA DENSA DE PRODUCTOS POR PROVEEDOR — máxima info, mínimo alto de fila.
+   Cada producto = 1 <tr class="prod-row"> (dentro de .pt-table, no del
+   .prod-row flex genérico de arriba) + un <tr class="prod-detail-row">
+   plegado con alérgenos/conversiones, oculto hasta pulsar ▾.
+   ═════════════════════════════════════════════════════════════════════ */
+.pt-table-w{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.pt-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;min-width:720px}
+.pt-th{
+  background:var(--nv-panel-subtle,#f8fafc);color:var(--nv-muted,var(--mut));
+  text-transform:uppercase;letter-spacing:.4px;font-size:9.5px;font-weight:700;
+  padding:5px 6px;text-align:left;border-bottom:1px solid var(--nv-line,var(--brd));white-space:nowrap;
+}
+.pt-th-price,.pt-th-gr{text-align:right}
+.pt-th-code{width:74px}.pt-th-cat{width:150px}.pt-th-unit{width:64px}
+.pt-th-price{width:76px}.pt-th-gr{width:56px}.pt-th-badges{width:56px}.pt-th-acts{width:56px}
+
+.pt-table tr.prod-row{display:table-row;padding:0;margin:0;border:0;background:transparent}
+.pt-table tr.prod-row:hover{background:var(--srf)}
+.pt-td{padding:2px 4px;border-bottom:1px solid var(--nv-line,var(--brd));vertical-align:middle}
+.pt-td input,.pt-td select{
+  width:100%;box-sizing:border-box;padding:4px 5px;border:1px solid transparent;border-radius:5px;
+  font-size:12.5px;background:transparent;color:var(--txt);transition:border-color .12s,background .12s;
+}
+.pt-td input:hover,.pt-td select:hover{border-color:var(--brd)}
+.pt-td input:focus,.pt-td select:focus{border-color:var(--pri);background:var(--card);outline:none}
+.pt-td-code input{font-family:monospace;font-size:11.5px}
+.pt-td-name input{font-weight:600;min-width:160px}
+.pt-td-price input,.pt-td-gr input{text-align:right;font-variant-numeric:tabular-nums}
+.pt-td-badges{white-space:nowrap}
+.pt-badge{
+  display:inline-block;font-size:10px;font-weight:700;padding:1px 5px;border-radius:5px;margin-right:3px;
+  background:#fff3cd;color:#92400e;border:1px solid #ffe08a;
+}
+.pt-badge-cv{background:#eff6ff;color:#1e40af;border-color:#bfdbfe}
+.pt-td-acts{white-space:nowrap;text-align:right}
+.pt-exp-btn,.pt-del-btn{
+  border:1px solid var(--brd);background:var(--card);color:var(--mut);border-radius:5px;
+  width:22px;height:22px;line-height:1;font-size:12px;cursor:pointer;padding:0;margin-left:3px;
+}
+.pt-exp-btn:hover{color:var(--pri);border-color:var(--pri)}
+.pt-exp-btn.pt-exp-open{color:var(--pri);border-color:var(--pri)}
+.pt-del-btn:hover{color:#dc2626;border-color:#dc2626}
+.pt-table tr.prod-detail-row td.pt-detail-td{
+  padding:0;border-bottom:1px solid var(--nv-line,var(--brd));background:var(--nv-panel-subtle,#f8fafc);
+}
+.pt-detail-inner{display:flex;flex-wrap:wrap;gap:16px;padding:10px 12px}
+.pt-detail-sec{flex:1;min-width:220px}
+.pt-detail-lbl{font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+body.dark .pt-th{background:rgba(255,255,255,.03)}
+body.dark .pt-table tr.prod-row:hover{background:rgba(255,255,255,.04)}
+body.dark .pt-table tr.prod-detail-row td.pt-detail-td{background:rgba(255,255,255,.02)}
+body.dark .pt-badge{background:rgba(217,119,6,.18);color:#fbbf24;border-color:rgba(217,119,6,.35)}
+body.dark .pt-badge-cv{background:rgba(49,95,168,.18);color:#93c5fd;border-color:rgba(49,95,168,.35)}
+@media(max-width:640px){
+  .pt-th-cat{width:110px}
+}
 .banner{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:13px;color:#92400e;display:flex;gap:10px;align-items:flex-start;line-height:1.5}
 .banner.blue{background:#eff6ff;border-color:#bfdbfe;color:#1e40af}
 .banner.red{background:#fef2f2;border-color:#fecaca;color:#991b1b}
