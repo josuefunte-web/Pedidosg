@@ -46,6 +46,7 @@ function vAdmin(){
     ${_shopEdit?sbItem('productos','Productos'):''}
     ${_canReviewAlb?sbItem('albaranes','Albaranes'):''}
     ${sbItem('inventario','Inventario')}
+    ${sbItem('horarios','Horarios')}
     <div class="sb-section">Gestión</div>
     ${_canManageUsers?sbItem('solicitudes','Solicitudes','sb-sol-badge'):''}
     ${_shopEdit?sbItem('suppliers','Proveedores'):''}
@@ -75,6 +76,7 @@ function vAdmin(){
   else if(S.adminTab==='escandallos') content=vEscandallos();
   else if(S.adminTab==='sup-history') content=vSupHistory();
   else if(S.adminTab==='inventario') content=vInventario();
+  else if(S.adminTab==='horarios') content=vHorariosAdmin();
 
   const liveTag=fbConnected?`<span class="live-badge"><span class="pulse"></span>EN VIVO</span>`:'';
 

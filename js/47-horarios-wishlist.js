@@ -15,8 +15,9 @@ const DIAS_SEMANA=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','D
 // Calendario semanal: una columna por día (Lunes-Domingo), con los turnos
 // como tarjetas coloreadas por persona (mismo strToColor que usan los
 // pedidos para colorear el nombre del restaurante).
-function vHorarios(){
-  const rest=S.session.restaurant;
+function vHorarios(restOverride){
+  const rest=restOverride||S.session.restaurant;
+  S.schActiveRest=rest; // usado por saveSchShift/deleteSchShift (también se llama desde el panel admin, sin S.session.restaurant fiable)
   const canEdit=can('canEditSchedule');
   const rk=restKey(rest);
   const shifts=Object.values(schedules[rk]||{});
@@ -89,7 +90,7 @@ function saveSchShift(id){
   if(!requireCan('canEditSchedule')) return;
   if(!requireNotBlocked()) return;
   if(!fbDb){ toast('Sin conexión Firebase','#dc2626'); return; }
-  const rest=S.session.restaurant;
+  const rest=S.schActiveRest||S.session.restaurant;
   const rk=restKey(rest);
   const person=(document.getElementById('sch-person').value||'').trim();
   const day=parseInt(document.getElementById('sch-day').value,10)||0;
@@ -110,11 +111,26 @@ function deleteSchShift(id){
   if(!requireCan('canEditSchedule')) return;
   if(!confirm('¿Eliminar este turno?')) return;
   if(!fbDb) return;
-  const rk=restKey(S.session.restaurant);
+  const rest=S.schActiveRest||S.session.restaurant;
+  const rk=restKey(rest);
   fbDb.ref('schedules/'+rk+'/'+id).remove().then(()=>{
     toast('Turno eliminado','#16a34a'); render();
-    auditLog('schedule_delete',{restaurant:S.session.restaurant,shiftId:id});
+    auditLog('schedule_delete',{restaurant:rest,shiftId:id});
   });
+}
+
+// ── Horarios desde el panel admin (admin1/admin2/admin3) ────────────────────
+// Los admins no tienen S.session.restaurant fiable (no están atados a un
+// local), así que aquí eligen qué local consultar/editar con un selector,
+// reutilizando el mismo calendario que ven camareros/jefe_cocina/encargado.
+function vHorariosAdmin(){
+  const fbRests=[...new Set(Object.values(authUsers).filter(u=>u.status==='approved').flatMap(u=>u.restaurants||[u.restaurant]).filter(Boolean))];
+  const cfgRests=(cfg.users||[]).map(u=>u.restaurant).filter(r=>r&&!fbRests.includes(r));
+  const allRests=[...fbRests,...cfgRests].sort((a,b)=>a.localeCompare(b,'es'));
+  if(!allRests.length) return `<div class="empty"><div class="ei"></div><div class="et">Sin restaurantes registrados</div></div>`;
+  if(!S.horariosAdminRest||!allRests.includes(S.horariosAdminRest)) S.horariosAdminRest=allRests[0];
+  const tabs=`<div class="sup-tabs" style="margin-bottom:14px;flex-wrap:wrap">${allRests.map(r=>`<button class="stab ${S.horariosAdminRest===r?'act':''}" onclick="S.horariosAdminRest='${r.replace(/'/g,"\\'")}';renderAdminContent()">${r}</button>`).join('')}</div>`;
+  return tabs+vHorarios(S.horariosAdminRest);
 }
 
 // ── Solicitar producto a cocina (camareros) ─────────────────────────────────

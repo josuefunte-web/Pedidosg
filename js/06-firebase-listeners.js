@@ -277,6 +277,7 @@ function _listenSchedules(){
   fbDb.ref('schedules').on('value', snap => {
     schedules = snap.val() || {};
     if(S.view==='order' && S.orderTab==='horarios') render();
+    if(S.view==='admin' && S.adminTab==='horarios') renderAdminContent();
   });
 }
 

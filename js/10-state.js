@@ -38,6 +38,8 @@ let S={
   // Horarios (js/47-horarios-wishlist.js)
   schEditId:null,      // null | 'new' | shiftId del turno en edición
   schPresetDay:null,   // día (0-6) preseleccionado al pulsar "+" en una columna del calendario
+  schActiveRest:null,  // restaurante cuyo calendario se está viendo/editando ahora mismo
+  horariosAdminRest:null, // restaurante seleccionado en Horarios dentro del panel admin
   // Solicitudes de producto camarero→cocina (js/47-horarios-wishlist.js)
   wishDraft:[],        // items añadidos a la solicitud en curso, antes de enviar
 };
