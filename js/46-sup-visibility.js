@@ -198,8 +198,8 @@ function vSupVisibility(){
     <th style="padding:8px 4px;text-align:center;min-width:64px;vertical-align:bottom;background:var(--srf);position:sticky;top:0;z-index:1">
       <div style="writing-mode:vertical-rl;transform:rotate(180deg);font-size:12px;font-weight:600;white-space:nowrap;margin:0 auto 6px;height:110px;line-height:1.2">${u.restaurant}</div>
       <div style="display:flex;flex-direction:column;gap:2px;align-items:center">
-        <button class="btn btn-ghost" style="font-size:10px;padding:2px 5px;line-height:1" title="Marcar todos" onclick="svSetAllForLocal('${u.id}',true)">✓</button>
-        <button class="btn btn-ghost" style="font-size:10px;padding:2px 5px;line-height:1" title="Desmarcar todos" onclick="svSetAllForLocal('${u.id}',false)">✕</button>
+        <button class="btn btn-ghost" style="font-size:10px;padding:2px 5px;line-height:1" title="Marcar todos" onmousedown="event.preventDefault()" onclick="svSetAllForLocal('${u.id}',true)">✓</button>
+        <button class="btn btn-ghost" style="font-size:10px;padding:2px 5px;line-height:1" title="Desmarcar todos" onmousedown="event.preventDefault()" onclick="svSetAllForLocal('${u.id}',false)">✕</button>
       </div>
     </th>`).join('');
 
@@ -224,8 +224,8 @@ function vSupVisibility(){
       </td>
       ${cells}
       <td style="padding:6px 8px;white-space:nowrap;background:var(--card);border-left:1px solid var(--brd);position:sticky;right:0">
-        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 7px" title="Visible para todos" onclick="svSetAllForSup('${s.id}',true)">Todos ✓</button>
-        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 7px;margin-left:3px" title="Oculto para todos" onclick="svSetAllForSup('${s.id}',false)">Ninguno ✕</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 7px" title="Visible para todos" onmousedown="event.preventDefault()" onclick="svSetAllForSup('${s.id}',true)">Todos ✓</button>
+        <button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 7px;margin-left:3px" title="Oculto para todos" onmousedown="event.preventDefault()" onclick="svSetAllForSup('${s.id}',false)">Ninguno ✕</button>
       </td>
     </tr>`;
   }).join('');
@@ -235,7 +235,7 @@ function vSupVisibility(){
       <div class="card-t">Visibilidad de proveedores por local</div>
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px">
         <input type="text" placeholder="Buscar proveedor..." value="${(S.supVisQuery||'').replace(/"/g,'&quot;')}" oninput="svSetQuery(this.value)" style="flex:1;min-width:220px;max-width:420px;padding:8px 12px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;background:var(--card);color:var(--txt);outline:none" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>
-        <button id="sv-chip-partial" class="stab${S.supVisOnlyPartial?' act':''}" style="padding:6px 12px;font-size:12px" onclick="svTogglePartialFilter()">Solo parciales (${partialCount})</button>
+        <button id="sv-chip-partial" class="stab${S.supVisOnlyPartial?' act':''}" style="padding:6px 12px;font-size:12px" onmousedown="event.preventDefault()" onclick="svTogglePartialFilter()">Solo parciales (${partialCount})</button>
         <span style="font-size:11.5px;color:var(--mut);display:flex;align-items:center;gap:12px;margin-left:auto">
           <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:rgba(22,163,74,.15);border:1px solid rgba(22,163,74,.4);margin-right:4px;vertical-align:-1px"></span>Visible</span>
           <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:transparent;border:1px solid var(--brd);margin-right:4px;vertical-align:-1px"></span>Oculto</span>
@@ -246,7 +246,7 @@ function vSupVisibility(){
         También puedes usar los botones ✓/✕ para activar o desactivar de una vez todos los
         proveedores de un local, o todos los locales de un proveedor.
       </div>
-      <div style="overflow:auto;max-height:78vh;border:1px solid var(--brd);border-radius:10px">
+      <div id="sv-scroll" style="overflow:auto;max-height:78vh;border:1px solid var(--brd);border-radius:10px;overflow-anchor:none">
         <table id="sv-table" style="border-collapse:separate;border-spacing:0;font-size:13px;min-width:100%;user-select:none">
           <thead>
             <tr>
