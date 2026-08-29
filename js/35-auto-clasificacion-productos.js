@@ -7,7 +7,7 @@ const PROD_CAT_KEYWORDS = {
     'jamón','jamon','lomo embuchado','mortadela','salami','pepperoni','embutido',
     'foie','higado','hígado','mollejas','riñón','rinon','tuétano','rabo','carrillera','morro','tripa','callos',
     'lacón','lacon','codillo','pernil','xoriç','xoric','chuleton','ossobuco','magret','pulled','albóndiga','albondiga',
-    'manitas','papada','carrillo','pá','carn','porc','vedella','pollastre','xai',
+    'manitas','papada','carrillo','carn','porc','vedella','pollastre','xai',
     'hamburguesa','croqueta de jamon','croqueta de pollo','bull blanc','bull negre',
   ],
   'Pescados': [
@@ -39,6 +39,7 @@ const PROD_CAT_KEYWORDS = {
     'manchego','gruyere','gruyère','idiazábal','tetilla','mascarpone','burrata','feta','provolone',
     'pecorino','cottage','kéfir','kefir','buttermilk','cuajada','lactosuero','lacto',
     'llet','mantega','formatge','iogurt','mató','recuit','crema fresca',
+    'huevo','huevos','ou ','ous ',
   ],
   'Pasta y Arroces': [
     'pasta','espagueti','spaguetti','macarron','macarrón','tallarín','tallarin','tagliatelle','penne',
@@ -82,7 +83,7 @@ const PROD_CAT_KEYWORDS = {
   ],
   'Limpieza': [
     'jabón','jabon','detergente','lejía','lejia','desinfectante','suavizante','bayeta','estropajo',
-    'guante','esponja','papel cocina','papel alumini','film ','film plástico','bolsa ','envase',
+    'guante','esponja','papel','papel cocina','papel alumini','film ','film plástico','bolsa ','envase',
     'contenedor','caja ','packaging','limpiasuelos','limpiacristales','friegasuelos','amoniaco',
     'papel absorbente','servilleta','mantel','rollo','basura','cubo de basura',
   ],
@@ -91,29 +92,49 @@ const PROD_CAT_KEYWORDS = {
 function _normalizarTexto(s){
   return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 }
+function _kwMatchWord(w,kw){
+  return w===kw || w===kw+'s' || w===kw+'es' || (kw.length>=5 && w.startsWith(kw));
+}
 function clasificarProductoAuto(name){
   if(!name) return 'Otros';
   const norm=_normalizarTexto(name);
   // Palabras del nombre (sin acentos, sin signos). Evita falsos positivos por
   // subcadena: antes "Tomate" caía en Bebidas porque contenía "te ".
   const palabras=norm.split(/[^a-z0-9]+/).filter(Boolean);
+  if(!palabras.length) return 'Otros';
   const setPalabras=new Set(palabras);
   // Prioridad: Bebidas > Lácteos > Carnes > Pescados > Panadería > Verduras > Pasta > Conservas > Condimentos > Limpieza
   const order=['Bebidas','Lácteos','Carnes','Pescados','Panadería','Verduras y Frutas','Pasta y Arroces','Conservas','Condimentos','Limpieza'];
+
+  // 1) La primera palabra suele nombrar el producto en sí (p.ej. "PAN" en
+  //    "PAN DE HAMBURGUESA" o "SALSA" en "SALSA DE TOMATE"); si coincide con
+  //    una palabra clave se usa directamente, antes de que un ingrediente
+  //    secundario (hamburguesa, tomate...) más adelante en el nombre le robe
+  //    la categoría.
+  const primera=palabras[0];
   for(const cat of order){
-    const keywords=PROD_CAT_KEYWORDS[cat]||[];
-    for(let kw of keywords){
+    for(let kw of (PROD_CAT_KEYWORDS[cat]||[])){
       kw=_normalizarTexto(kw).trim();
-      if(!kw) continue;
-      if(kw.includes(' ')){
-        // Palabra clave de varias palabras → buscar la frase completa
-        if(norm.includes(kw)) return cat;
-      } else {
-        // Palabra clave simple → coincidencia por palabra completa o plural,
-        // y prefijo solo si la palabra clave es larga (≥5) para evitar errores.
-        for(const w of setPalabras){
-          if(w===kw || w===kw+'s' || w===kw+'es' || (kw.length>=5 && w.startsWith(kw))) return cat;
-        }
+      if(!kw || kw.includes(' ')) continue;
+      if(_kwMatchWord(primera,kw)) return cat;
+    }
+  }
+
+  // 2) Frases de varias palabras en cualquier posición del nombre.
+  for(const cat of order){
+    for(let kw of (PROD_CAT_KEYWORDS[cat]||[])){
+      kw=_normalizarTexto(kw).trim();
+      if(kw && kw.includes(' ') && norm.includes(kw)) return cat;
+    }
+  }
+
+  // 3) Cualquier palabra clave simple en cualquier posición del nombre.
+  for(const cat of order){
+    for(let kw of (PROD_CAT_KEYWORDS[cat]||[])){
+      kw=_normalizarTexto(kw).trim();
+      if(!kw || kw.includes(' ')) continue;
+      for(const w of setPalabras){
+        if(_kwMatchWord(w,kw)) return cat;
       }
     }
   }
