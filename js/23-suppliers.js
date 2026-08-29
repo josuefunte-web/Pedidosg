@@ -873,7 +873,9 @@ function localAddProd(sid){
 //   Fila 2: Subtítulo (se ignora)
 //   Fila 3: (vacía)
 //   Fila 4: Encabezados: Proveedor | Código | Descripción | Precio(€) | ...
-//   Fila 5+: Datos (nombre del producto en col C, precio en col D)
+//   Fila 5+: Datos (código opcional, nombre del producto en col C, precio en col D)
+// Si hay columna de código, el emparejamiento de productos existentes se hace
+// por código (prioritario) y si no, por nombre normalizado.
 // Se ignoran hojas 'Leyenda', 'Inventario', 'Resumen' — el resto se tratan
 // como proveedores. La coincidencia de proveedor es case-insensitive por
 // nombre. Para proveedores existentes solo se actualizan precios y se añaden
@@ -901,14 +903,15 @@ async function importBulkTarifa(input){
       if(_BULK_IGNORE_SHEETS.includes(sheetName)) return;
       const ws=wb.Sheets[sheetName];
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
-      // Buscar la fila de encabezado que contenga "Descripción" y "Precio"
-      let headerIdx=-1, colName=-1, colPrice=-1;
+      // Buscar la fila de encabezado que contenga "Descripción" y "Precio" (y opcionalmente "Código")
+      let headerIdx=-1, colName=-1, colPrice=-1, colCode=-1;
       for(let i=0;i<Math.min(10,rows.length);i++){
         const r=rows[i]||[];
         for(let j=0;j<r.length;j++){
           const v=(r[j]||'').toString().toLowerCase();
           if(v.includes('descripci')) colName=j;
           if(v.includes('precio')) colPrice=j;
+          if(v.includes('código')||v.includes('codigo')||v.includes('code')||v.includes('ref')) colCode=j;
         }
         if(colName>=0 && colPrice>=0){ headerIdx=i; break; }
       }
@@ -918,19 +921,23 @@ async function importBulkTarifa(input){
         const r=rows[i]||[];
         const name=(r[colName]||'').toString().trim();
         const price=parseFloat(r[colPrice]);
+        const code=colCode>=0?(r[colCode]||'').toString().trim():'';
         if(!name || isNaN(price)) continue;
-        products.push({name,price});
+        products.push(code?{name,price,code}:{name,price});
       }
       if(!products.length){ summary.skipped.push({name:sheetName,reason:'Sin productos'}); return; }
       const normed=_bulkNormName(sheetName);
       const existing=existingByName[normed];
       if(existing){
         // Actualizar: contar precios que cambian y productos nuevos
-        const existingByProdName={};
-        (existing.products||[]).forEach(p=>{ existingByProdName[_bulkNormName(p.name)]=p; });
+        const existingByProdName={}, existingByCode={};
+        (existing.products||[]).forEach(p=>{
+          existingByProdName[_bulkNormName(p.name)]=p;
+          if(p.code) existingByCode[String(p.code).trim()]=p;
+        });
         let priceChanges=0, added=0;
         products.forEach(p=>{
-          const ep=existingByProdName[_bulkNormName(p.name)];
+          const ep=(p.code&&existingByCode[p.code])||existingByProdName[_bulkNormName(p.name)];
           if(ep){
             if(Math.abs((parseFloat(ep.price)||0)-p.price)>0.001) priceChanges++;
           } else added++;
@@ -984,15 +991,19 @@ async function applyBulkTarifa(){
   if(modal) modal.innerHTML='<div style="background:var(--card);border-radius:14px;padding:30px;text-align:center"><div style="font-weight:700;font-size:16px;margin-bottom:8px">Aplicando cambios…</div><div style="font-size:13px;color:var(--mut)">No cierres esta pestaña</div></div>';
   try{
     const updates={};
-    // 1. Actualizar existentes: fusionar productos por nombre
+    // 1. Actualizar existentes: fusionar productos por código (si hay) o por nombre
     s.update.forEach(u=>{
       const sup=suppliers[u.sid]; if(!sup) return;
-      const byName={}; (sup.products||[]).forEach(p=>{ byName[_bulkNormName(p.name)]=p; });
+      const byName={}, byCode={};
+      (sup.products||[]).forEach(p=>{ byName[_bulkNormName(p.name)]=p; if(p.code) byCode[String(p.code).trim()]=p; });
       u.products.forEach(np=>{
-        const key=_bulkNormName(np.name);
-        const ep=byName[key];
-        if(ep){ ep.price=np.price; }
-        else { byName[key]={id:'p'+uid(),name:np.name,price:np.price,unit:'UN',category:''}; }
+        const ep=(np.code&&byCode[np.code])||byName[_bulkNormName(np.name)];
+        if(ep){ ep.price=np.price; if(np.code&&!ep.code) ep.code=np.code; }
+        else {
+          const created={id:'p'+uid(),name:np.name,price:np.price,unit:'UN',category:'',...(np.code?{code:np.code}:{})};
+          byName[_bulkNormName(np.name)]=created;
+          if(np.code) byCode[np.code]=created;
+        }
       });
       updates['suppliers/'+u.sid+'/products']=Object.values(byName);
     });
@@ -1000,7 +1011,7 @@ async function applyBulkTarifa(){
     s.create.forEach(c=>{
       const nid='s'+uid();
       const nameStr=String(c.name||'').trim();
-      const products=c.products.map(p=>({id:'p'+uid(),name:p.name,price:p.price,unit:'UN',category:''}));
+      const products=c.products.map(p=>({id:'p'+uid(),name:p.name,price:p.price,unit:'UN',category:'',...(p.code?{code:p.code}:{})}));
       updates['suppliers/'+nid]={id:nid,name:nameStr,emoji:'',phone:'',products};
     });
     await fbDb.ref().update(updates);
