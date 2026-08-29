@@ -322,7 +322,7 @@ function supDetailForm(sup){
         </tr>`;
     }).join('');
     const _cc=catColor(cat);
-    return `<details class="sup-cat-details" style="margin-bottom:10px">
+    return `<details class="sup-cat-details" data-cat="${_a(cat)}" style="margin-bottom:10px">
       <summary style="cursor:pointer;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:6px 0 4px;border-bottom:2px solid ${_cc}40;margin-bottom:6px;display:flex;align-items:center;gap:6px;color:${_cc}">${catDot(cat)} ${cat} <span style="font-weight:400;opacity:.6;color:var(--mut)">(${byCat[cat].length})</span></summary>
       <div class="pt-table-w"><table class="pt-table">
         <thead><tr>
@@ -865,7 +865,19 @@ window.toggleProdRow=function(btn){
   btn.textContent=open?'▾':'▴';
   btn.classList.toggle('pt-exp-open',!open);
 };
-function delProd(sid,pid){ if(!suppliers[sid])return;const _sy=window.scrollY;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups(sid);renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy)); }
+function delProd(sid,pid){
+  if(!suppliers[sid])return;
+  const _sy=window.scrollY;
+  const _openCats=Array.from(document.querySelectorAll('details.sup-cat-details[open]')).map(d=>d.dataset.cat);
+  suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);
+  saveSups(sid);
+  renderAdminContent();
+  _openCats.forEach(cat=>{
+    const det=document.querySelector(`details.sup-cat-details[data-cat="${CSS.escape(cat)}"]`);
+    if(det) det.open=true;
+  });
+  requestAnimationFrame(()=>window.scrollTo(0,_sy));
+}
 function localAddProd(sid){
   const name=document.getElementById('lp-name')?.value.trim();
   const unit=document.getElementById('lp-unit')?.value||'KG';
