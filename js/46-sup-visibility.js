@@ -13,21 +13,38 @@
 // una hoja de cálculo), además de un buscador de proveedores y un filtro
 // para localizar los que tienen visibilidad a medias.
 
+// Los botones "Todos ✓ / Ninguno ✕" actualizan las celdas ya pintadas
+// directamente en el DOM (como el arrastre) en vez de volver a construir
+// toda la tabla — un renderAdminContent() aquí resetea el scroll interno
+// de la matriz (y el de la página) cada vez que se pulsan, que es molesto
+// cuando hay muchos proveedores y toca desplazarse para llegar a ellos.
 function svSetAllForSup(sid, visible){
-  const users=cfg.users||[];
-  users.forEach(u=>toggleSupVisibilityQuiet(sid,u.id,visible));
+  const tr=document.querySelector(`#sv-tbody tr[data-sid="${sid}"]`);
+  if(tr){
+    tr.querySelectorAll('td.sv-cell').forEach(td=>svApplyPaint(td,visible));
+  } else {
+    (cfg.users||[]).forEach(u=>toggleSupVisibilityQuiet(sid,u.id,visible));
+  }
   saveSups(sid);
+  svUpdatePartialChip();
   toast(visible?'Proveedor visible para todos los locales':'Proveedor oculto para todos los locales','#16a34a');
-  renderAdminContent();
 }
 function svSetAllForLocal(uid, visible){
-  const sups=supList();
-  sups.forEach(s=>toggleSupVisibilityQuiet(s.id,uid,visible));
+  const rows=document.querySelectorAll('#sv-tbody tr[data-sid]');
+  if(rows.length){
+    rows.forEach(tr=>{
+      const td=tr.querySelector(`td.sv-cell[data-uid="${uid}"]`);
+      if(td) svApplyPaint(td,visible);
+    });
+  } else {
+    supList().forEach(s=>toggleSupVisibilityQuiet(s.id,uid,visible));
+  }
   // Guardar todos los proveedores tocados de una vez
   if(fbDb) fbDb.ref('suppliers').set(suppliers);
+  localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
+  svUpdatePartialChip();
   const localName=(cfg.users.find(u=>u.id===uid)||{}).restaurant||uid;
   toast(visible?`Todos los proveedores activos para ${localName}`:`Todos los proveedores ocultos para ${localName}`,'#16a34a');
-  renderAdminContent();
 }
 // Versión sin guardar/toast — solo muta en memoria (para hacer un solo guardado al final)
 function toggleSupVisibilityQuiet(sid,uid,visible){
@@ -121,7 +138,18 @@ function svApplyPaint(td,visible){
   }
   const partial=n>0&&n<users.length;
   tr.dataset.partial=partial?'1':'0';
-  if(S.supVisOnlyPartial && !partial) tr.style.display='none';
+  if(S.supVisOnlyPartial){ tr.style.display=partial?'':'none'; }
+}
+
+// Recuenta cuántas filas están marcadas como parciales y refresca el
+// contador del chip. Se llama una sola vez al terminar (soltar el
+// arrastre, o tras un botón "Todos/Ninguno"), no por cada celda pintada.
+function svUpdatePartialChip(){
+  const tbody=document.getElementById('sv-tbody');
+  const chip=document.getElementById('sv-chip-partial');
+  if(!tbody || !chip) return;
+  const n=tbody.querySelectorAll('tr[data-sid][data-partial="1"]').length;
+  chip.textContent=`Solo parciales (${n})`;
 }
 
 function initSupVisibility(){
@@ -150,6 +178,7 @@ function initSupVisibility(){
       // Un único guardado para todos los proveedores tocados en el arrastre
       if(fbDb) fbDb.ref('suppliers').set(suppliers);
       localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
+      svUpdatePartialChip();
     }
     _svTouched=null;
   });
