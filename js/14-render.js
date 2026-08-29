@@ -20,6 +20,13 @@ function renderAdminContent(){
   if(S.adminTab==='escandallos' && S._escDetailId && document.getElementById('esc-detail-wrap')?.style.display==='block') return;
   if(S.adminTab==='inventario'  && S.invEditId) return; // formulario inline abierto
   const _sv=window.scrollY;
+  // La matriz de "Visibilidad por local" tiene su propio scroll interno
+  // (vertical y horizontal). Un guardado ahí dispara el listener de
+  // Firebase de `suppliers`, que llama a este render aunque el cambio ya
+  // se haya pintado en el sitio — sin esto, reconstruir la tabla resetea
+  // ese scroll interno a 0 y "salta" hasta el primer local.
+  const _svScrollEl=document.getElementById('sv-scroll');
+  const _svScroll=_svScrollEl?{left:_svScrollEl.scrollLeft,top:_svScrollEl.scrollTop}:null;
   let content='';
   if(S.adminTab==='dashboard') content=vDashboard();
   else if(S.adminTab==='pending')       content=vPending();
@@ -41,7 +48,13 @@ function renderAdminContent(){
   else if(S.adminTab==='horarios') content=vHorariosAdmin();
   tc.innerHTML=content;
   if(S.adminTab==='escandallos') initEscandallos();
-  if(S.adminTab==='sup-visibility') initSupVisibility();
+  if(S.adminTab==='sup-visibility'){
+    initSupVisibility();
+    if(_svScroll){
+      const el=document.getElementById('sv-scroll');
+      if(el){ el.scrollLeft=_svScroll.left; el.scrollTop=_svScroll.top; }
+    }
+  }
   if(S.adminTab==='budgets') setTimeout(renderBudgetTrendChart,100);
   // Update sidebar stats
   const pend=orders.filter(o=>o.status==='pending');
