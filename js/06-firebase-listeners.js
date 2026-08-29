@@ -22,6 +22,8 @@ function initFirebaseListeners(){
   _listenPendingReview();
   _listenAuthUsers();
   _listenFoodCost();
+  _listenWishlist();
+  _listenSchedules();
 }
 
 // Estado local del cliente para detectar pedidos nuevos vs cambios de estado
@@ -259,6 +261,22 @@ function _listenPendingReview(){
   fbDb.ref('pendingReview').on('value', snap => {
     pendingReview = snap.val() || {};
     if(S.view==='admin' && (S.adminTab==='inventario'||S.adminTab==='albaranes')) renderAdminContent();
+  });
+}
+
+// ── Solicitudes de producto de camareros a cocina (wishlist) ────────────────
+function _listenWishlist(){
+  fbDb.ref('wishlist').on('value', snap => {
+    wishlist = snap.val() || {};
+    if(S.view==='order' && (S.orderTab==='wishlist-new' || S.orderTab==='wishlist-manage')) render();
+  });
+}
+
+// ── Horarios por local ───────────────────────────────────────────────────────
+function _listenSchedules(){
+  fbDb.ref('schedules').on('value', snap => {
+    schedules = snap.val() || {};
+    if(S.view==='order' && S.orderTab==='horarios') render();
   });
 }
 

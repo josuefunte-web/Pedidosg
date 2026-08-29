@@ -35,6 +35,10 @@ let S={
   cmpKind:'all',       // 'all' | 'saving' | 'single'
   cmpSort:'saving',    // 'saving' | 'price' | 'name' | 'pct'
   cmpOpen:{},          // {groupKey:true}
+  // Horarios (js/47-horarios-wishlist.js)
+  schEditId:null,      // null | 'new' | shiftId del turno en edición
+  // Solicitudes de producto camarero→cocina (js/47-horarios-wishlist.js)
+  wishDraft:[],        // items añadidos a la solicitud en curso, antes de enviar
 };
 let cropState={dragging:false,startX:0,startY:0,endX:0,endY:0};
 const PROD_CATS=['Carnes','Pescados','Verduras y Frutas','Lácteos','Pasta y Arroces','Conservas','Condimentos','Panadería','Bebidas','Limpieza','Otros'];

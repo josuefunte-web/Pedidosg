@@ -19,12 +19,25 @@ function vOrder(){
   // Si están en esa pestaña por accidente, redirigir a "Mis pedidos" (view-only).
   if(S.orderTab==='new' && !can('canCreateOrders')) S.orderTab='history';
   const _showNewTab = can('canCreateOrders');
+  // "Solicitar producto" es para quien NO puede hacer pedidos directamente
+  // (camareros): les da una vía para pedir productos a cocina/encargado.
+  const _showWishlistNew = can('canSendWishlist') && !can('canCreateOrders');
+  if(S.orderTab==='wishlist-new' && !_showWishlistNew) S.orderTab='history';
+  // "Solicitudes" es la vista de gestión, para quien SÍ puede hacer pedidos
+  // (jefe_cocina+): ahí atienden las solicitudes que mandan los camareros.
+  const _showWishlistManage = can('canCreateOrders');
+  if(S.orderTab==='wishlist-manage' && !_showWishlistManage) S.orderTab='history';
+  const _pendingWish = _showWishlistManage ? Object.values(wishlist).filter(w=>w.restaurant===S.session.restaurant&&w.status!=='done').length : 0;
+  const wishBadge=_pendingWish?` <span style="background:var(--acc);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px">${_pendingWish}</span>`:'';
   const tabsHtml=`<div class="tabs" style="margin-bottom:16px">
     ${_showNewTab?`<button class="tab ${S.orderTab==='new'?'act':''}" onclick="S.orderTab='new';render()">Hacer pedido</button>`:''}
     <button class="tab ${S.orderTab==='history'?'act':''}" onclick="S.orderTab='history';render()"> Mis pedidos${histBadge}</button>
     <button class="tab ${S.orderTab==='gastos'?'act':''}" onclick="S.orderTab='gastos';render()">Mi gasto</button>
     <button class="tab ${S.orderTab==='escandallos'?'act':''}" onclick="S.orderTab='escandallos';render()">Escandallos</button>
     <button class="tab ${S.orderTab==='inventario'?'act':''}" onclick="S.orderTab='inventario';render()">Inventario</button>
+    <button class="tab ${S.orderTab==='horarios'?'act':''}" onclick="S.orderTab='horarios';render()">Horarios</button>
+    ${_showWishlistNew?`<button class="tab ${S.orderTab==='wishlist-new'?'act':''}" onclick="S.orderTab='wishlist-new';render()">Solicitar producto</button>`:''}
+    ${_showWishlistManage?`<button class="tab ${S.orderTab==='wishlist-manage'?'act':''}" onclick="S.orderTab='wishlist-manage';render()">Solicitudes${wishBadge}</button>`:''}
   </div>`;
   const restPickerHtml=myRests.length>1?`<div class="rest-picker">
     <div class="rest-picker-lbl">Pedido para</div>
@@ -43,6 +56,15 @@ function vOrder(){
   }
   if(S.orderTab==='inventario'){
     return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vLocalInventario(S.session.restaurant)}</div>`;
+  }
+  if(S.orderTab==='horarios'){
+    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vHorarios()}</div>`;
+  }
+  if(S.orderTab==='wishlist-new'){
+    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vWishlistCamarero()}</div>`;
+  }
+  if(S.orderTab==='wishlist-manage'){
+    return `<div class="main">${adminBanner}${tabsHtml}${myRests.length>1?restPickerHtml:''}${vWishlistManage()}</div>`;
   }
 
   const sups=visibleSups();
