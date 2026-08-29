@@ -286,35 +286,57 @@ function supDetailForm(sup){
   const prodsHtml=usedCats.map(cat=>{
     const rows=byCat[cat].map(p=>{
       const unitOpts=_U.map(u=>`<option${(p.unit||'KG')===u?' selected':''}>${u}</option>`).join('');
-      const catSel=`<span style="display:inline-flex;align-items:center;gap:5px"><span style="font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.3px">Categoría</span><select title="Clasificación del producto" style="padding:4px 8px;border:1.5px solid var(--brd);border-radius:7px;font-size:12px;font-weight:600;background:var(--card);color:var(--txt)" onchange="editProdCat('${sid}','${p.id}',this.value)">${prodCatOpts(p.category||'Otros')}</select></span>`;
       const alerSel=ALERGENOS.map(a=>`<label style="display:inline-flex;align-items:center;gap:3px;font-size:10px;color:var(--mut);cursor:pointer;margin:1px 3px 1px 0;padding:1px 5px;border-radius:4px;background:${(p.alergenos||[]).includes(a.id)?'#fff3cd':'var(--srf)'};border:1px solid ${(p.alergenos||[]).includes(a.id)?'#ffc107':'var(--brd)'}"><input type="checkbox" ${(p.alergenos||[]).includes(a.id)?'checked':''} onchange="toggleProdAlergeno('${sid}','${p.id}','${a.id}',this.checked)" style="width:11px;height:11px;accent-color:#d97706"> ${a.label}</label>`).join('');
-      return `<div class="prod-row" style="flex-direction:column;align-items:flex-start;gap:8px">
-        <div class="prod-info" style="width:100%">
-          <div style="display:flex;gap:6px;align-items:center;max-width:520px">
-            <input type="text" class="prod-code-t" value="${_a(p.code||'')}" title="Código de producto" placeholder="Código" style="width:90px;flex-shrink:0;padding:5px 7px;border:1.5px solid var(--brd);border-radius:6px;font-size:12px;font-family:monospace;background:var(--card);color:var(--txt);box-sizing:border-box" onchange="editProdCode('${sid}','${p.id}',this.value)"/>
-            <input type="text" class="prod-name-t" value="${_a(p.name)}" title="Nombre del producto" style="flex:1;padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:14px;font-weight:600;background:var(--card);color:var(--txt);box-sizing:border-box" onchange="editProdName('${sid}','${p.id}',this.value)"/>
-          </div>
-          <div style="display:flex;gap:5px;align-items:center;margin-top:5px;flex-wrap:wrap">
-            ${catSel}
-            <select style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" onchange="editProdUnit('${sid}','${p.id}',this.value)">${unitOpts}</select>
-            <input type="number" value="${parseFloat(p.price||0).toFixed(2)}" step="0.01" min="0" title="Precio €" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sid}','${p.id}',this.value)"/>
-            <span style="font-size:12px;color:var(--mut)">€</span>
-            <input type="number" value="${p.pesoGr||''}" step="1" min="0" placeholder="gr" title="Peso gr" style="width:60px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdGr('${sid}','${p.id}',this.value)"/>
-            <span style="font-size:12px;color:var(--mut)">gr</span>
-            <button class="btn btn-no btn-xs" onclick="delProd('${sid}','${p.id}')">Eliminar</button>
-          </div>
-          <div style="margin-top:6px;font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">Alérgenos</div>
-          <div style="display:flex;flex-wrap:wrap">${alerSel}</div>
-          <div style="margin-top:8px;font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Conversiones de unidad</div>
-          <div id="conv-list-${sid}-${p.id}">${renderConvRows(sid,p)}</div>
-          <button class="btn btn-ghost btn-xs" style="margin-top:4px" onclick="addProdConvCustom('${sid}','${p.id}')">+ Añadir unidad personalizada</button>
-        </div>
-      </div>`;
+      const alCount=(p.alergenos||[]).length;
+      const cvCount=(p.conversions||[]).length;
+      const badges=
+        (alCount?`<span class="pt-badge pt-badge-al" title="${alCount} alérgeno${alCount===1?'':'s'}">⚠${alCount}</span>`:'') +
+        (cvCount?`<span class="pt-badge pt-badge-cv" title="${cvCount} conversión${cvCount===1?'':'es'} de unidad">⇄${cvCount}</span>`:'');
+      return `<tr class="prod-row">
+          <td class="pt-td pt-td-code"><input type="text" class="prod-code-t" value="${_a(p.code||'')}" title="Código de producto" placeholder="—" onchange="editProdCode('${sid}','${p.id}',this.value)"/></td>
+          <td class="pt-td pt-td-name"><input type="text" class="prod-name-t" value="${_a(p.name)}" title="Nombre del producto" onchange="editProdName('${sid}','${p.id}',this.value)"/></td>
+          <td class="pt-td pt-td-cat"><select title="Categoría" onchange="editProdCat('${sid}','${p.id}',this.value)">${prodCatOpts(p.category||'Otros')}</select></td>
+          <td class="pt-td pt-td-unit"><select title="Unidad" onchange="editProdUnit('${sid}','${p.id}',this.value)">${unitOpts}</select></td>
+          <td class="pt-td pt-td-price"><input type="number" value="${parseFloat(p.price||0).toFixed(2)}" step="0.01" min="0" title="Precio €" onchange="editProdPrice('${sid}','${p.id}',this.value)"/></td>
+          <td class="pt-td pt-td-gr"><input type="number" value="${p.pesoGr||''}" step="1" min="0" placeholder="—" title="Peso en gramos" onchange="editProdGr('${sid}','${p.id}',this.value)"/></td>
+          <td class="pt-td pt-td-badges">${badges}</td>
+          <td class="pt-td pt-td-acts">
+            <button type="button" class="pt-exp-btn" onclick="toggleProdRow(this)" title="Alérgenos y conversiones de unidad">▾</button>
+            <button type="button" class="pt-del-btn" onclick="delProd('${sid}','${p.id}')" title="Eliminar producto">✕</button>
+          </td>
+        </tr>
+        <tr class="prod-detail-row" style="display:none">
+          <td class="pt-detail-td" colspan="8">
+            <div class="pt-detail-inner">
+              <div class="pt-detail-sec">
+                <div class="pt-detail-lbl">Alérgenos</div>
+                <div style="display:flex;flex-wrap:wrap">${alerSel}</div>
+              </div>
+              <div class="pt-detail-sec">
+                <div class="pt-detail-lbl">Conversiones de unidad</div>
+                <div id="conv-list-${sid}-${p.id}">${renderConvRows(sid,p)}</div>
+                <button class="btn btn-ghost btn-xs" style="margin-top:4px" onclick="addProdConvCustom('${sid}','${p.id}')">+ Añadir unidad personalizada</button>
+              </div>
+            </div>
+          </td>
+        </tr>`;
     }).join('');
     const _cc=catColor(cat);
     return `<details class="sup-cat-details" style="margin-bottom:10px">
       <summary style="cursor:pointer;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:6px 0 4px;border-bottom:2px solid ${_cc}40;margin-bottom:6px;display:flex;align-items:center;gap:6px;color:${_cc}">${catDot(cat)} ${cat} <span style="font-weight:400;opacity:.6;color:var(--mut)">(${byCat[cat].length})</span></summary>
-      ${rows}
+      <div class="pt-table-w"><table class="pt-table">
+        <thead><tr>
+          <th class="pt-th pt-th-code">Cód.</th>
+          <th class="pt-th pt-th-name">Producto</th>
+          <th class="pt-th pt-th-cat">Categoría</th>
+          <th class="pt-th pt-th-unit">Ud.</th>
+          <th class="pt-th pt-th-price">Precio €</th>
+          <th class="pt-th pt-th-gr">Gr</th>
+          <th class="pt-th pt-th-badges"></th>
+          <th class="pt-th pt-th-acts"></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
     </details>`;
   }).join('');
   const infoCard = `<div class="card">
@@ -350,7 +372,7 @@ function supDetailForm(sup){
     <div id="sdp-list-${sid}">${prodsHtml}</div>
     <div class="sh" style="margin-top:16px">Añadir nuevo producto</div>
     <div style="display:grid;grid-template-columns:100px 2fr 1fr 1fr 80px;gap:8px;margin-bottom:8px">
-      <div class="fg" style="margin:0"><label>Código</label><input type="text" id="pf-code-${sid}" placeholder="opcional"/></div>
+      <div class="fg" style="margin:0"><label>Código *</label><input type="text" id="pf-code-${sid}" placeholder="obligatorio"/></div>
       <div class="fg" style="margin:0"><label>Nombre</label><input type="text" id="pf-name-${sid}" placeholder="Entrecot..."/></div>
       <div class="fg" style="margin:0"><label>Categoría</label><select id="pf-cat-${sid}">${prodCatOpts('')}</select></div>
       <div class="fg" style="margin:0"><label>Unidad</label><select id="pf-unit-${sid}"><option>KG</option><option>g</option><option>UN</option><option>L</option><option>Caja</option><option>Bote</option></select></div>
@@ -516,15 +538,11 @@ async function importSupTarifa(sid, input){
       saveSups(sid);
       setStatus(`Tarifa importada: <strong>${added} nuevos</strong> + ${updated} actualizados (${added+updated} total)`, '#16a34a');
       toast(`${added+updated} productos importados en ${sup.name}`, '#16a34a', 4000);
-      // Refrescar lista de productos sin cerrar el panel
-      const listEl = document.getElementById('sdp-list-'+sid);
-      if(listEl){
-        const _U=['KG','L','UN','Caja','Bote','Bolsa','g'];
-        listEl.innerHTML = (sup.products||[]).map(p=>{
-          const unitOpts=_U.map(u=>`<option${(p.unit||'KG')===u?' selected':''}>${u}</option>`).join('');
-          return `<div class="prod-row"><div class="prod-info" style="flex:1"><div style="display:flex;gap:6px;align-items:center;max-width:520px"><input type="text" class="prod-code-t" value="${_a(p.code||'')}" title="Código de producto" placeholder="Código" style="width:90px;flex-shrink:0;padding:5px 7px;border:1.5px solid var(--brd);border-radius:6px;font-size:12px;font-family:monospace;background:var(--card);color:var(--txt);box-sizing:border-box" onchange="editProdCode('${sid}','${p.id}',this.value)"/><input type="text" class="prod-name-t" value="${_a(p.name)}" title="Nombre del producto" style="flex:1;padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:14px;font-weight:600;background:var(--card);color:var(--txt);box-sizing:border-box" onchange="editProdName('${sid}','${p.id}',this.value)"/></div><div style="display:flex;gap:5px;align-items:center;margin-top:5px;flex-wrap:wrap"><select style="padding:3px 6px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt)" onchange="editProdUnit('${sid}','${p.id}',this.value)">${unitOpts}</select><input type="number" value="${parseFloat(p.price||0).toFixed(2)}" step="0.01" min="0" title="Precio €" style="width:80px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdPrice('${sid}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">€</span><input type="number" value="${p.pesoGr||''}" step="1" min="0" placeholder="gr" title="Peso en gramos" style="width:66px;padding:4px 8px;border:1px solid var(--brd);border-radius:6px;font-size:13px" onchange="editProdGr('${sid}','${p.id}',this.value)"/><span style="font-size:12px;color:var(--mut)">gr</span></div></div><button class="btn btn-no btn-xs" style="align-self:center" onclick="delProd('${sid}','${p.id}')">✕</button></div>`;
-        }).join('');
-      }
+      // Refrescar la ficha del proveedor para que la tabla de productos
+      // (agrupada por categoría) recoja lo recién importado.
+      const _sy=window.scrollY;
+      renderAdminContent();
+      requestAnimationFrame(()=>window.scrollTo(0,_sy));
     } catch(e){ setStatus('Error al leer el Excel: '+e.message,'#dc2626'); console.error(e); }
     return;
   }
@@ -590,12 +608,17 @@ function editProdCode(sid,pid,val){
   const code=(val||'').trim();
   const prod=suppliers[sid].products.find(p=>p.id===pid);
   if(!prod) return;
-  if(code && suppliers[sid].products.some(p=>p!==prod && p.code===code)){
+  if(!code){
+    toast('El código de producto es obligatorio, no se puede dejar vacío','#dc2626');
+    renderAdminContent();
+    return;
+  }
+  if(suppliers[sid].products.some(p=>p!==prod && p.code===code)){
     toast('Ese código ya lo usa otro producto de este proveedor','#dc2626');
     renderAdminContent();
     return;
   }
-  if(code) prod.code=code; else delete prod.code;
+  prod.code=code;
   saveSups(sid);
   toast('Código actualizado','#16a34a');
 }
@@ -634,9 +657,9 @@ function addProd(sid){
   const grRaw=document.getElementById('pf-gr-'+sid)?.value;
   const pesoGr=grRaw&&!isNaN(parseInt(grRaw))?parseInt(grRaw):undefined;
   if(!name||isNaN(price)||price<0){toast('Nombre y precio obligatorios','#dc2626');return;}
-  if(code && (suppliers[sid].products||[]).some(p=>p.code===code)){toast('Ese código ya lo usa otro producto de este proveedor','#dc2626');return;}
-  const prod={id:'p'+uid(),name,unit:unit||'KG',price,category};
-  if(code) prod.code=code;
+  if(!code){toast('El código de producto del proveedor es obligatorio','#dc2626');return;}
+  if((suppliers[sid].products||[]).some(p=>p.code===code)){toast('Ese código ya lo usa otro producto de este proveedor','#dc2626');return;}
+  const prod={id:'p'+uid(),name,unit:unit||'KG',price,category,code};
   if(pesoGr!==undefined) prod.pesoGr=pesoGr;
   if(!Array.isArray(suppliers[sid].products)) suppliers[sid].products=Object.values(suppliers[sid].products||{});
   suppliers[sid].products.push(prod);
@@ -820,6 +843,10 @@ function filterSupProds(term,containerId){
       const name=(nameEl?(nameEl.value??nameEl.textContent):'' ).toLowerCase();
       const match=!q||name.includes(q);
       r.style.display=match?'':'none';
+      // Cada producto ocupa dos <tr> (fila + fila de detalle plegable):
+      // oculta también la de detalle cuando el producto no coincide.
+      const det2=r.nextElementSibling;
+      if(det2 && det2.classList.contains('prod-detail-row') && !match) det2.style.display='none';
       if(match) anyMatch=true;
     });
     // Con búsqueda activa, abre solo las categorías con resultados; sin
@@ -827,6 +854,17 @@ function filterSupProds(term,containerId){
     det.open=q?anyMatch:false;
   });
 }
+// Muestra/oculta la fila de detalle (alérgenos + conversiones) de un producto,
+// que vive como <tr> hermano justo después de la fila principal.
+window.toggleProdRow=function(btn){
+  const tr=btn.closest('tr');
+  const det=tr&&tr.nextElementSibling;
+  if(!det||!det.classList.contains('prod-detail-row')) return;
+  const open=det.style.display!=='none';
+  det.style.display=open?'none':'table-row';
+  btn.textContent=open?'▾':'▴';
+  btn.classList.toggle('pt-exp-open',!open);
+};
 function delProd(sid,pid){ if(!suppliers[sid])return;const _sy=window.scrollY;suppliers[sid].products=suppliers[sid].products.filter(p=>p.id!==pid);saveSups(sid);renderAdminContent();requestAnimationFrame(()=>window.scrollTo(0,_sy)); }
 function localAddProd(sid){
   const name=document.getElementById('lp-name')?.value.trim();

@@ -19,6 +19,7 @@ function initFirebaseListeners(){
   _listenPriceHistory();
   _listenTemplates();
   _listenInventory();
+  _listenPendingReview();
   _listenAuthUsers();
   _listenFoodCost();
 }
@@ -250,6 +251,15 @@ function _rerenderInventory(){
   if(S.view==='order' && S.orderTab==='inventario'){
     const _sv=window.scrollY; render(); requestAnimationFrame(()=>window.scrollTo(0,_sv));
   }
+}
+
+// ── Cola de revisión: productos sin proveedor/código reconocido, entrados
+// desde inventario manual o desde la importación de Excel de albaranes ────
+function _listenPendingReview(){
+  fbDb.ref('pendingReview').on('value', snap => {
+    pendingReview = snap.val() || {};
+    if(S.view==='admin' && (S.adminTab==='inventario'||S.adminTab==='albaranes')) renderAdminContent();
+  });
 }
 
 // ── Usuarios (registros con email/contraseña y aprobaciones) ────────────────
