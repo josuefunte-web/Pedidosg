@@ -244,7 +244,7 @@ function submitOrder(){
   if(autoOrders.length){
     // Auto-approved: one WA per supplier
     autoOrders.forEach(o=>{
-      const sup=suppliers[o.supId];const _ph=supPhoneFor(sup,o.restaurant);if(_ph)showWA(_ph,msgSupplier(o),`Pedido aprobado — envíalo a ${sup.name}`);
+      const sup=suppliers[o.supId];const _ph=supPhoneFor(sup,o.restaurant);if(_ph)showWA(_ph,msgSupplier(o),`Pedido aprobado — envíalo a ${sup.name}`,null,o);
     });
     // Notificación push también para auto-aprobados
     const totalAuto=autoOrders.reduce((s,o)=>s+total(o),0);
@@ -288,7 +288,7 @@ function approve(id){
   const localPhone=o?(cfg.localPhones?.[o.restaurant]||''):'';
   const nextWA=localPhone?{phone:localPhone,msg:msgLocal(o,sup?.name||o.supId),desc:`Avisa a ${o.restaurant} que el pedido fue enviado`}:null;
   const supPhone=o?supPhoneFor(sup,o.restaurant):'';
-  if(o&&supPhone){ markSentToSupplier(id); showWA(supPhone,msgSupplier({...o,status:'approved'}),`Pedido aprobado — envía a ${sup.name}`,nextWA); }
+  if(o&&supPhone){ markSentToSupplier(id); showWA(supPhone,msgSupplier({...o,status:'approved'}),`Pedido aprobado — envía a ${sup.name}`,nextWA,{...o,status:'approved'}); }
   else if(nextWA) showWA(nextWA.phone,nextWA.msg,nextWA.desc);
 }
 function rejectWithReason(id){
@@ -354,7 +354,7 @@ function approveWithEdits(id){
   const localPhone2=oOrig?(cfg.localPhones?.[oOrig.restaurant]||''):'';
   const nextWA2=localPhone2?{phone:localPhone2,msg:msgLocal({...oOrig,items},sup?.name||oOrig.supId),desc:`Avisa a ${oOrig.restaurant} que el pedido fue enviado`}:null;
   const supPhone2=oOrig?supPhoneFor(sup,oOrig.restaurant):'';
-  if(oOrig&&supPhone2) showWA(supPhone2,msgSupplier({...oOrig,status:'approved',items,modifiedByAdmin:true}),`Pedido aprobado — envía a ${sup.name}`,nextWA2);
+  if(oOrig&&supPhone2) showWA(supPhone2,msgSupplier({...oOrig,status:'approved',items,modifiedByAdmin:true}),`Pedido aprobado — envía a ${sup.name}`,nextWA2,{...oOrig,status:'approved',items,modifiedByAdmin:true});
   else if(nextWA2) showWA(nextWA2.phone,nextWA2.msg,nextWA2.desc);
 }
 
