@@ -72,6 +72,7 @@ function vSuppliers(){
         '<button class="btn btn-ghost btn-sm" onclick="exportExcel(\'all\')">Exportar pedidos</button>' +
         '<button class="btn btn-ghost btn-sm" onclick="autoClasificarProductos(false)" title="Asigna categoría a los productos que no tienen ninguna">Clasificar automáticamente</button>' +
         '<button class="btn btn-ghost btn-sm" onclick="reclasificarTodo()" title="Revisa todos los productos y corrige los que estén mal clasificados">Revisar clasificación</button>' +
+        (canBulk ? '<button class="btn btn-ghost btn-sm" onclick="exportCatalogoTarifas()" title="Descarga un XLSX con una hoja por proveedor y todos sus productos, incluidos los alérgenos">Exportar catálogo</button>' : '') +
         (canBulk ? '<label class="btn btn-acc btn-sm" style="cursor:pointer" title="Sube un XLSX con una hoja por proveedor">Importar plantilla masiva<input type="file" accept=".xlsx,.xls" style="display:none" onchange="importBulkTarifa(this)"/></label>' : '') +
       '</div>' +
     '</div>';
@@ -872,10 +873,16 @@ function localAddProd(sid){
 //   Fila 1: Título (se ignora)
 //   Fila 2: Subtítulo (se ignora)
 //   Fila 3: (vacía)
-//   Fila 4: Encabezados: Proveedor | Código | Descripción | Precio(€) | ...
-//   Fila 5+: Datos (código opcional, nombre del producto en col C, precio en col D)
+//   Fila 4: Encabezados: Proveedor | Código | Descripción | Precio(€) | Alérgenos
+//   Fila 5+: Datos (código opcional, nombre del producto, precio, alérgenos opcional)
 // Si hay columna de código, el emparejamiento de productos existentes se hace
 // por código (prioritario) y si no, por nombre normalizado.
+// La columna "Alérgenos" (opcional, detectada por contener "alerg" en el
+// encabezado) acepta una lista separada por comas/punto y coma de nombres o
+// ids de ALERGENOS (ej. "Gluten, Lácteos" o "gluten;lacteos"); si una fila la
+// trae vacía, no se toca el alérgeno ya guardado del producto. Ver
+// exportCatalogoTarifas() para generar la plantilla de partida con el
+// catálogo actual ya volcado.
 // Se ignoran hojas 'Leyenda', 'Inventario', 'Resumen' — el resto se tratan
 // como proveedores. La coincidencia de proveedor es case-insensitive por
 // nombre. Para proveedores existentes solo se actualizan precios y se añaden
@@ -886,6 +893,58 @@ const _BULK_IGNORE_SHEETS=['Leyenda','Inventario','Resumen','Portada','Total','T
 window._bulkPreview=null;
 
 function _bulkNormName(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/[^\w\sáéíóúñ]/gi,''); }
+
+// Convierte un array de ids de ALERGENOS a texto legible "Gluten, Lácteos"
+function _alergenosToText(ids){
+  if(!ids||!ids.length) return '';
+  return ids.map(id=>{ const a=ALERGENOS.find(x=>x.id===id); return a?a.label:id; }).join(', ');
+}
+// Convierte texto "Gluten, Lácteos" o "gluten;lacteos" a array de ids válidos de ALERGENOS
+function _alergenosFromText(txt){
+  if(!txt) return [];
+  const parts=String(txt).split(/[,;\/]/).map(s=>_bulkNormName(s)).filter(Boolean);
+  const ids=new Set();
+  parts.forEach(p=>{
+    const found=ALERGENOS.find(a=>_bulkNormName(a.label)===p || a.id===p || _bulkNormName(a.id)===p);
+    if(found) ids.add(found.id);
+  });
+  return [...ids];
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// EXPORTACIÓN — genera el mismo formato de plantilla que espera la
+// importación masiva (una hoja por proveedor), incluyendo columna Alérgenos,
+// para poder rellenarla fuera de la app y volver a importarla.
+// ══════════════════════════════════════════════════════════════════════════
+function exportCatalogoTarifas(){
+  if(typeof XLSX==='undefined'){ toast('La librería XLSX no está cargada','#dc2626'); return; }
+  const sups=Object.values(suppliers||{}).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if(!sups.length){ toast('No hay proveedores para exportar','#dc2626'); return; }
+  const wb=XLSX.utils.book_new();
+  const usedNames=new Set();
+  sups.forEach(sup=>{
+    const rows=[
+      [`Tarifa — ${sup.name||sup.id}`],
+      ['Catálogo exportado para revisar/completar alérgenos y volver a importar'],
+      [],
+      ['Proveedor','Código','Descripción','Precio(€)','Alérgenos'],
+    ];
+    (Array.isArray(sup.products)?sup.products:Object.values(sup.products||{})).forEach(p=>{
+      rows.push([sup.name||sup.id, p.code||'', p.name||'', typeof p.price==='number'?p.price:parseFloat(p.price)||0, _alergenosToText(p.alergenos)]);
+    });
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:22},{wch:12},{wch:40},{wch:10},{wch:30}];
+    // Nombres de hoja válidos en Excel: máx 31 chars, sin caracteres especiales, únicos
+    let sheetName=(sup.name||sup.id).toString().replace(/[\\/*?:\[\]]/g,' ').trim().slice(0,31)||sup.id;
+    let base=sheetName, n=2;
+    while(usedNames.has(sheetName)){ sheetName=(base.slice(0,28)+' '+n).slice(0,31); n++; }
+    usedNames.add(sheetName);
+    XLSX.utils.book_append_sheet(wb,ws,sheetName);
+  });
+  const fecha=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,`catalogo-alergenos-${fecha}.xlsx`);
+  toast('Catálogo exportado','#16a34a');
+}
 
 async function importBulkTarifa(input){
   const file=input.files[0]; if(!file) return;
@@ -904,7 +963,7 @@ async function importBulkTarifa(input){
       const ws=wb.Sheets[sheetName];
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
       // Buscar la fila de encabezado que contenga "Descripción" y "Precio" (y opcionalmente "Código")
-      let headerIdx=-1, colName=-1, colPrice=-1, colCode=-1;
+      let headerIdx=-1, colName=-1, colPrice=-1, colCode=-1, colAlerg=-1;
       for(let i=0;i<Math.min(10,rows.length);i++){
         const r=rows[i]||[];
         for(let j=0;j<r.length;j++){
@@ -912,6 +971,7 @@ async function importBulkTarifa(input){
           if(v.includes('descripci')) colName=j;
           if(v.includes('precio')) colPrice=j;
           if(v.includes('código')||v.includes('codigo')||v.includes('code')||v.includes('ref')) colCode=j;
+          if(v.includes('alerg')) colAlerg=j;
         }
         if(colName>=0 && colPrice>=0){ headerIdx=i; break; }
       }
@@ -922,8 +982,9 @@ async function importBulkTarifa(input){
         const name=(r[colName]||'').toString().trim();
         const price=parseFloat(r[colPrice]);
         const code=colCode>=0?(r[colCode]||'').toString().trim():'';
+        const alergenos=colAlerg>=0?_alergenosFromText(r[colAlerg]):null;
         if(!name || isNaN(price)) continue;
-        products.push(code?{name,price,code}:{name,price});
+        products.push({name,price,...(code?{code}:{}),...(alergenos&&alergenos.length?{alergenos}:{})});
       }
       if(!products.length){ summary.skipped.push({name:sheetName,reason:'Sin productos'}); return; }
       const normed=_bulkNormName(sheetName);
@@ -935,14 +996,19 @@ async function importBulkTarifa(input){
           existingByProdName[_bulkNormName(p.name)]=p;
           if(p.code) existingByCode[String(p.code).trim()]=p;
         });
-        let priceChanges=0, added=0;
+        let priceChanges=0, added=0, alergChanges=0;
         products.forEach(p=>{
           const ep=(p.code&&existingByCode[p.code])||existingByProdName[_bulkNormName(p.name)];
           if(ep){
             if(Math.abs((parseFloat(ep.price)||0)-p.price)>0.001) priceChanges++;
+            if(p.alergenos && p.alergenos.length){
+              const before=(ep.alergenos||[]).slice().sort().join(',');
+              const after=p.alergenos.slice().sort().join(',');
+              if(before!==after) alergChanges++;
+            }
           } else added++;
         });
-        summary.update.push({sid:existing.id,name:existing.name,total:products.length,priceChanges,added,products});
+        summary.update.push({sid:existing.id,name:existing.name,total:products.length,priceChanges,added,alergChanges,products});
       } else {
         summary.create.push({name:sheetName,total:products.length,products});
       }
@@ -960,7 +1026,8 @@ function _showBulkPreview(){
   const totalNewProds=s.create.reduce((a,c)=>a+c.total,0);
   const totalPriceChanges=s.update.reduce((a,c)=>a+c.priceChanges,0);
   const totalAdded=s.update.reduce((a,c)=>a+c.added,0);
-  const upList=s.update.length?`<div style="margin-top:10px"><div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0369a1">🔄 ${s.update.length} proveedores a actualizar</div><div style="max-height:180px;overflow-y:auto;font-size:12px">${s.update.map(u=>`<div style="padding:3px 0;border-bottom:1px solid var(--brd)"><strong>${u.name}</strong> — ${u.priceChanges} precio${u.priceChanges!==1?'s':''} cambia, ${u.added} producto${u.added!==1?'s':''} nuevo${u.added!==1?'s':''}</div>`).join('')}</div></div>`:'';
+  const totalAlergChanges=s.update.reduce((a,c)=>a+(c.alergChanges||0),0);
+  const upList=s.update.length?`<div style="margin-top:10px"><div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#0369a1">🔄 ${s.update.length} proveedores a actualizar</div><div style="max-height:180px;overflow-y:auto;font-size:12px">${s.update.map(u=>`<div style="padding:3px 0;border-bottom:1px solid var(--brd)"><strong>${u.name}</strong> — ${u.priceChanges} precio${u.priceChanges!==1?'s':''} cambia, ${u.added} producto${u.added!==1?'s':''} nuevo${u.added!==1?'s':''}${u.alergChanges?`, ${u.alergChanges} alérgeno${u.alergChanges!==1?'s':''} actualizado${u.alergChanges!==1?'s':''}`:''}</div>`).join('')}</div></div>`:'';
   const crList=s.create.length?`<div style="margin-top:10px"><div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#16a34a">➕ ${s.create.length} proveedores nuevos</div><div style="max-height:180px;overflow-y:auto;font-size:12px">${s.create.map(c=>`<div style="padding:3px 0;border-bottom:1px solid var(--brd)"><strong>${c.name}</strong> — ${c.total} productos</div>`).join('')}</div></div>`:'';
   const skList=s.skipped.length?`<div style="margin-top:10px"><div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#d97706">⚠️ ${s.skipped.length} hojas ignoradas</div><div style="max-height:120px;overflow-y:auto;font-size:12px">${s.skipped.map(k=>`<div style="padding:2px 0;color:var(--mut)">${k.name} — ${k.reason}</div>`).join('')}</div></div>`:'';
   const modal=document.createElement('div');
@@ -973,8 +1040,9 @@ function _showBulkPreview(){
       <div style="flex:1;min-width:120px;padding:10px;background:#eff6ff;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:800;color:#0369a1">${s.update.length}</div><div style="font-size:11px;color:#0369a1">actualizar</div></div>
       <div style="flex:1;min-width:120px;padding:10px;background:#f0fdf4;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:800;color:#16a34a">${s.create.length}</div><div style="font-size:11px;color:#16a34a">crear nuevos</div></div>
       <div style="flex:1;min-width:120px;padding:10px;background:#fff7ed;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:800;color:#d97706">${totalPriceChanges+totalAdded+totalNewProds}</div><div style="font-size:11px;color:#d97706">cambios totales</div></div>
+      <div style="flex:1;min-width:120px;padding:10px;background:#fff3cd;border-radius:8px;text-align:center"><div style="font-size:20px;font-weight:800;color:#b45309">${totalAlergChanges}</div><div style="font-size:11px;color:#b45309">alérgenos</div></div>
     </div>
-    <div style="font-size:12px;color:var(--mut);margin-bottom:10px;padding:8px;background:var(--srf);border-radius:6px">📝 De los proveedores existentes solo se actualizan precios y se añaden productos nuevos — nunca se borran productos ni se pierden categorías/unidades/alérgenos ya configurados.</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:10px;padding:8px;background:var(--srf);border-radius:6px">📝 De los proveedores existentes solo se actualizan precios, alérgenos (si la hoja trae columna "Alérgenos" con datos) y se añaden productos nuevos — nunca se borran productos ni se pierden categorías/unidades ya configurados.</div>
     ${upList}${crList}${skList}
     <div style="display:flex;gap:8px;margin-top:16px">
       <button class="btn btn-ok btn-sm" onclick="applyBulkTarifa()" style="flex:1">✓ Aplicar cambios</button>
@@ -998,9 +1066,12 @@ async function applyBulkTarifa(){
       (sup.products||[]).forEach(p=>{ byName[_bulkNormName(p.name)]=p; if(p.code) byCode[String(p.code).trim()]=p; });
       u.products.forEach(np=>{
         const ep=(np.code&&byCode[np.code])||byName[_bulkNormName(np.name)];
-        if(ep){ ep.price=np.price; if(np.code&&!ep.code) ep.code=np.code; }
-        else {
-          const created={id:'p'+uid(),name:np.name,price:np.price,unit:'UN',category:'',...(np.code?{code:np.code}:{})};
+        if(ep){
+          ep.price=np.price;
+          if(np.code&&!ep.code) ep.code=np.code;
+          if(np.alergenos&&np.alergenos.length) ep.alergenos=np.alergenos;
+        } else {
+          const created={id:'p'+uid(),name:np.name,price:np.price,unit:'UN',category:'',...(np.code?{code:np.code}:{}),...(np.alergenos&&np.alergenos.length?{alergenos:np.alergenos}:{})};
           byName[_bulkNormName(np.name)]=created;
           if(np.code) byCode[np.code]=created;
         }
@@ -1011,7 +1082,7 @@ async function applyBulkTarifa(){
     s.create.forEach(c=>{
       const nid='s'+uid();
       const nameStr=String(c.name||'').trim();
-      const products=c.products.map(p=>({id:'p'+uid(),name:p.name,price:p.price,unit:'UN',category:'',...(p.code?{code:p.code}:{})}));
+      const products=c.products.map(p=>({id:'p'+uid(),name:p.name,price:p.price,unit:'UN',category:'',...(p.code?{code:p.code}:{}),...(p.alergenos&&p.alergenos.length?{alergenos:p.alergenos}:{})}));
       updates['suppliers/'+nid]={id:nid,name:nameStr,emoji:'',phone:'',products};
     });
     await fbDb.ref().update(updates);
