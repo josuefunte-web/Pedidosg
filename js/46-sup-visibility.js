@@ -43,6 +43,10 @@ const SV_CHECK_SVG='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-wi
 // color dependiera de un `style` fijado al renderizar, cambiarlo a mano en
 // cada celda pintada quedaría desincronizado.
 const SV_STYLE=`<style>
+  /* Esta pantalla es una tabla ancha (proveedores × locales): el límite de
+     900px de .main (pensado para lectura de texto) la deja apretujada con
+     mucho hueco muerto a los lados. Aquí se anula solo para esta vista. */
+  .main.sv-wide{max-width:none}
   .sv-cell{background:transparent}
   .sv-cell.sv-vis{background:rgba(22,163,74,.08)}
   .sv-dot{width:16px;height:16px;border-radius:5px;margin:0 auto;border:1.5px solid var(--brd);display:flex;align-items:center;justify-content:center;transition:background .08s,border-color .08s}
@@ -197,11 +201,11 @@ function vSupVisibility(){
     </tr>`;
   }).join('');
 
-  return `${SV_STYLE}<div class="main">
+  return `${SV_STYLE}<div class="main sv-wide">
     <div class="card">
       <div class="card-t">Visibilidad de proveedores por local</div>
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px">
-        <input type="text" placeholder="Buscar proveedor..." value="${(S.supVisQuery||'').replace(/"/g,'&quot;')}" oninput="svSetQuery(this.value)" style="flex:1;min-width:180px;max-width:280px;padding:8px 12px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;background:var(--card);color:var(--txt);outline:none" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>
+        <input type="text" placeholder="Buscar proveedor..." value="${(S.supVisQuery||'').replace(/"/g,'&quot;')}" oninput="svSetQuery(this.value)" style="flex:1;min-width:220px;max-width:420px;padding:8px 12px;border:1.5px solid var(--brd);border-radius:9px;font-size:13px;background:var(--card);color:var(--txt);outline:none" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>
         <button id="sv-chip-partial" class="stab${S.supVisOnlyPartial?' act':''}" style="padding:6px 12px;font-size:12px" onclick="svTogglePartialFilter()">Solo parciales (${partialCount})</button>
         <span style="font-size:11.5px;color:var(--mut);display:flex;align-items:center;gap:12px;margin-left:auto">
           <span><span style="display:inline-block;width:11px;height:11px;border-radius:3px;background:rgba(22,163,74,.15);border:1px solid rgba(22,163,74,.4);margin-right:4px;vertical-align:-1px"></span>Visible</span>
