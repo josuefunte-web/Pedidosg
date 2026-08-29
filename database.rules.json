@@ -132,6 +132,23 @@
     "errorLogs": {
       ".read": "auth != null && root.child('authUsers').child(auth.uid).child('role').val() === 'admin1'",
       ".write": "auth != null"
+    },
+    "wishlist": {
+      ".read": "auth != null",
+      ".indexOn": ["restaurant", "status", "createdAt"],
+      "$wishId": {
+        ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && ((!data.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && (root.child('authUsers').child(auth.uid).child('role').val() === 'jefe_cocina' || root.child('authUsers').child(auth.uid).child('role').val() === 'encargado' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin3' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin1'))",
+        ".validate": "newData.hasChildren(['id','restaurant','uid','items','status','createdAt'])"
+      }
+    },
+    "schedules": {
+      ".read": "auth != null",
+      "$restKey": {
+        "$shiftId": {
+          ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'encargado' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin3' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin1')",
+          ".validate": "newData.hasChildren(['id','restaurant','day','person'])"
+        }
+      }
     }
   }
 }

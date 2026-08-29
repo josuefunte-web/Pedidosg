@@ -12,6 +12,8 @@ let inventory   = {}; // {restKey: {productId: {id,name,unit,qty,minStock,catego
 let inventoryMovements = {}; // {restKey: {movId: {productId,productName,type,qty,date,source,orderId,note}}}
 let pendingReview = {}; // {id: {id,type:'inventario'|'excel-albaran',supName,code,name,unit,price,qty,restaurant,note,createdAt,createdBy}}
 let foodCost    = {}; // {monthKey('YYYY-MM'): {userId: {desc1,desc2,objetivo,days:{day:{fact,compras}}}}}
+let wishlist    = {}; // {id: {id,restaurant,uid,authorName,items:[{name,qty,unit}],note,status:'pending'|'done',createdAt,doneAt,doneBy,doneByName}}
+let schedules   = {}; // {restKey: {shiftId: {id,restaurant,day,person,start,end,note,updatedAt,updatedBy}}}
 let fbConnected = false;
 
 function supList(){ return Object.values(suppliers).sort((a,b)=>{const oa=a.orden??999,ob=b.orden??999;return oa!==ob?oa-ob:a.name.localeCompare(b.name,'es');}); }
