@@ -273,7 +273,7 @@ function _renderInvSupplierField(){
       ${sups.map(s=>`<option value="${s.id}" ${cur===s.id?'selected':''}>${s.emoji?s.emoji+' ':''}${s.name}</option>`).join('')}
       <option value="otro" ${cur==='otro'?'selected':''}>Proveedor no registrado…</option>
     </select>
-    ${cur==='otro'?`<input id="inv-form-sup-other" class="inp" style="margin-top:6px" value="${(S.invForm.supOther||'').replace(/"/g,'&quot;')}" placeholder="Nombre del proveedor (se revisará antes de darlo de alta)"/>`:''}
+    ${cur==='otro'?`<input id="inv-form-sup-other" class="inp" style="margin-top:6px" value="${(S.invForm.supOther||'').replace(/"/g,'&quot;')}" oninput="S.invForm.supOther=this.value" placeholder="Nombre del proveedor (se revisará antes de darlo de alta)"/>`:''}
   </div>`;
 }
 
@@ -309,7 +309,7 @@ function submitInvForm(rest){
     qty:primaryQty, // Legacy — usado por código antiguo que aún lo lee
     qtys, // Fuente de verdad para multi-unit
     minStock,category,price,needsReview,
-    ...(isNew?{manual:true}:{})
+    manual:isNew?true:(oldItem?.manual===true)
   });
   if(needsReview && fbDb){
     const rid='pr_'+Date.now()+'_'+Math.random().toString(36).slice(2,6);
@@ -361,7 +361,7 @@ function _renderInvQtysForm(){
   return `<div style="grid-column:1/-1">
     <label style="font-size:12px;color:var(--mut)">Cantidad actual (puedes tener varias unidades a la vez)</label>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-top:4px" id="inv-qtys-grid">
-      ${allUnits.map(u=>{const v=currentQtys[u]!==undefined?currentQtys[u]:'';return `<div style="display:flex;align-items:center;gap:4px"><input type="number" min="0" step="0.001" value="${v}" data-inv-qty-unit="${u}" placeholder="0" style="flex:1;padding:6px 8px;border:1.5px solid var(--brd);border-radius:8px;font-size:14px;background:var(--card);color:var(--txt);min-width:50px"/><span style="font-size:12px;color:var(--mut);font-weight:600;min-width:36px">${u}</span></div>`;}).join('')}
+      ${allUnits.map(u=>{const v=currentQtys[u]!==undefined?currentQtys[u]:'';return `<div style="display:flex;align-items:center;gap:4px"><input type="number" min="0" step="0.001" value="${v}" data-inv-qty-unit="${u}" oninput="if(!S.invForm.qtys)S.invForm.qtys={};const n=parseFloat(this.value);if(!isNaN(n)&&n!==0)S.invForm.qtys['${u}']=n;else delete S.invForm.qtys['${u}']" placeholder="0" style="flex:1;padding:6px 8px;border:1.5px solid var(--brd);border-radius:8px;font-size:14px;background:var(--card);color:var(--txt);min-width:50px"/><span style="font-size:12px;color:var(--mut);font-weight:600;min-width:36px">${u}</span></div>`;}).join('')}
     </div>
     <div style="font-size:11px;color:var(--mut);margin-top:6px">Deja vacío o en 0 las unidades que no tengas. Ejemplo: 1 Caja + 3 UN + 0.3 KG</div>
   </div>`;
@@ -530,9 +530,9 @@ function vInventario(){
   const formHtml=`<div class="card" style="margin-bottom:14px">
     <div style="font-weight:700;font-size:14px;margin-bottom:10px">${isEditing&&S.invEditId!=='new'?'Editar producto':' Añadir producto'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      <div><label style="font-size:12px;color:var(--mut)">Nombre</label><input id="inv-form-name" class="inp" value="${(S.invForm.name||'').replace(/"/g,'&quot;')}" placeholder="ej: Pechuga de pollo" /></div>
-      <div><label style="font-size:12px;color:var(--mut)">Precio / unidad (€)</label><input id="inv-form-price" class="inp" type="number" min="0" step="0.01" value="${S.invForm.price??''}" placeholder="0.00" /></div>
-      <div><label style="font-size:12px;color:var(--mut)">Stock mínimo</label><input id="inv-form-min" class="inp" type="number" min="0" step="0.01" value="${S.invForm.minStock??''}" placeholder="0 = sin alerta" /></div>
+      <div><label style="font-size:12px;color:var(--mut)">Nombre</label><input id="inv-form-name" class="inp" value="${(S.invForm.name||'').replace(/"/g,'&quot;')}" oninput="S.invForm.name=this.value" placeholder="ej: Pechuga de pollo" /></div>
+      <div><label style="font-size:12px;color:var(--mut)">Precio / unidad (€)</label><input id="inv-form-price" class="inp" type="number" min="0" step="0.01" value="${S.invForm.price??''}" oninput="S.invForm.price=this.value" placeholder="0.00" /></div>
+      <div><label style="font-size:12px;color:var(--mut)">Stock mínimo</label><input id="inv-form-min" class="inp" type="number" min="0" step="0.01" value="${S.invForm.minStock??''}" oninput="S.invForm.minStock=this.value" placeholder="0 = sin alerta" /></div>
       ${_renderInvSupplierField()}
       ${_renderInvQtysForm()}
     </div>
@@ -663,10 +663,10 @@ function vLocalInventario(rest){
   const formHtml=`<div class="card" style="margin-bottom:14px">
     <div style="font-weight:700;font-size:14px;margin-bottom:10px">${S.invEditId&&S.invEditId!=='new'?'Editar producto':' Añadir producto'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-      <div><label style="font-size:12px;color:var(--mut)">Nombre</label><input id="inv-form-name" class="inp" value="${(S.invForm.name||'').replace(/"/g,'&quot;')}" placeholder="ej: Pechuga de pollo" /></div>
-      <div><label style="font-size:12px;color:var(--mut)">Precio / unidad (€)</label><input id="inv-form-price" class="inp" type="number" min="0" step="0.01" value="${S.invForm.price??''}" placeholder="0.00" /></div>
+      <div><label style="font-size:12px;color:var(--mut)">Nombre</label><input id="inv-form-name" class="inp" value="${(S.invForm.name||'').replace(/"/g,'&quot;')}" oninput="S.invForm.name=this.value" placeholder="ej: Pechuga de pollo" /></div>
+      <div><label style="font-size:12px;color:var(--mut)">Precio / unidad (€)</label><input id="inv-form-price" class="inp" type="number" min="0" step="0.01" value="${S.invForm.price??''}" oninput="S.invForm.price=this.value" placeholder="0.00" /></div>
       <div style="grid-column:1/-1">${_renderInvSupplierField()}</div>
-      <div><label style="font-size:12px;color:var(--mut)">Stock mínimo</label><input id="inv-form-min" class="inp" type="number" min="0" step="0.01" value="${S.invForm.minStock??''}" placeholder="0 = sin alerta" /></div>
+      <div><label style="font-size:12px;color:var(--mut)">Stock mínimo</label><input id="inv-form-min" class="inp" type="number" min="0" step="0.01" value="${S.invForm.minStock??''}" oninput="S.invForm.minStock=this.value" placeholder="0 = sin alerta" /></div>
       <div></div>
       ${_renderInvQtysForm()}
     </div>
