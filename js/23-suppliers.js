@@ -4,6 +4,24 @@
    con detalle plegable. Sin emojis en la lista. supDetailForm y
    funciones satélite (saveSup2, delSup, etc.) NO se han tocado.
    ═══════════════════════════════════════════════════════════════ */
+// Normaliza unidades venidas de tarifas importadas (Excel/PDF) a la forma
+// canónica usada en el resto de la app. Sin esto, "kg", "Kg." o "kilogramo"
+// se guardaban tal cual y no coincidían con el botón "KG" del pedido,
+// provocando que se pidiera una conversión aunque el producto ya estuviera en KG.
+function normalizeUnit(raw){
+  const u=(raw||'').trim();
+  const low=u.toLowerCase().replace(/\.$/,'');
+  const MAP={
+    'kg':'KG','kgs':'KG','kilo':'KG','kilos':'KG','kilogramo':'KG','kilogramos':'KG',
+    'l':'L','lt':'L','lts':'L','litro':'L','litros':'L',
+    'un':'UN','ud':'UN','uds':'UN','unid':'UN','unidad':'UN','unidades':'UN',
+    'caja':'Caja','cajas':'Caja',
+    'bote':'Bote','botes':'Bote',
+    'bolsa':'Bolsa','bolsas':'Bolsa',
+    'g':'g','gr':'g','grs':'g','gramo':'g','gramos':'g'
+  };
+  return MAP[low]||u||'UN';
+}
 function vSuppliers(){
   // Si hay un proveedor abierto, mostramos su ficha completa a página entera
   // en vez de la lista — antes se desplegaba inline dentro de la fila de la
@@ -526,7 +544,7 @@ async function importSupTarifa(sid, input){
 
       rows.forEach(r=>{
         const name = cleanProdName(String(r[nameKey]||'').trim()); if(!name) return;
-        const unit = unitKey ? String(r[unitKey]||'UN').trim() : 'UN';
+        const unit = unitKey ? normalizeUnit(r[unitKey]) : 'UN';
         const price = parseFloat(String(r[priceKey]||'0').replace(',','.'))||0;
         const code  = codeKey ? String(r[codeKey]||'').trim() : '';
         const id    = code ? 'imp_'+code : 'imp_'+uid();
@@ -572,7 +590,7 @@ async function importSupTarifa(sid, input){
       parsed.forEach(p=>{
         const name=cleanProdName(String(p.name||'').trim()); if(!name) return;
         const code=String(p.code||'').trim();
-        const unit=String(p.unit||'UN').trim();
+        const unit=normalizeUnit(p.unit);
         const price=parseFloat(p.price)||0;
         const id=code?'imp_'+code:'imp_'+uid();
         const idx=code?sup.products.findIndex(x=>x.code===code||x.id==='imp_'+code):-1;
@@ -707,10 +725,14 @@ function clasificarProveedorTodo(sid){
   toast(`${sup.products.length} productos clasificados como ${cat}`,'#16a34a',4000);
 }
 // --- Conversiones de unidad ---
+// Compara unidades ignorando mayúsculas/minúsculas y espacios sobrantes —
+// tarifas importadas de Excel/PDF a veces guardan "kg" o "Kg " en vez de "KG",
+// y sin esto el sistema pedía una conversión inexistente para la misma unidad.
+function _unitEq(a,b){ return (a||'').trim().toLowerCase()===(b||'').trim().toLowerCase(); }
 // Devuelve las unidades disponibles para un producto: unidad base + fromUnits de conversiones
 function _prodUnits(p){
   const base=p.unit||'KG';
-  const extras=(p.conversions||[]).map(c=>c.fromUnit).filter(u=>u&&u!==base);
+  const extras=(p.conversions||[]).map(c=>c.fromUnit).filter(u=>u&&!_unitEq(u,base));
   return [base,...extras];
 }
 // Muestra una fila por cada unidad común distinta a la del precio (unidad base).
@@ -721,13 +743,13 @@ function _prodUnits(p){
 function renderConvRows(sid,p){
   const base=p.unit||'KG';
   const COMMON=['KG','L','UN','Caja','Bote','Bolsa','g'];
-  const others=COMMON.filter(u=>u!==base);
+  const others=COMMON.filter(u=>!_unitEq(u,base));
   // Preservar conversiones con unidades personalizadas no listadas en COMMON
-  const custom=(p.conversions||[]).map(c=>c.fromUnit).filter(u=>u&&!COMMON.includes(u));
+  const custom=(p.conversions||[]).map(c=>c.fromUnit).filter(u=>u&&!COMMON.some(c2=>_unitEq(c2,u)));
   const all=[...others,...custom];
   return `<div style="font-size:11px;color:var(--mut);margin-bottom:6px;line-height:1.4">Precio registrado en <strong>${base}</strong>. Rellena las equivalencias que apliquen a este producto (deja vacío las que no).</div>
     ${all.map(u=>{
-      const conv=(p.conversions||[]).find(c=>c.fromUnit===u);
+      const conv=(p.conversions||[]).find(c=>_unitEq(c.fromUnit,u));
       const val=conv?conv.factor:'';
       const pending=conv&&conv.pendingValidation;
       return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap${pending?';background:#dbeafe;padding:4px 6px;border-radius:6px':''}">
@@ -745,7 +767,7 @@ function setProdConv(sid,pid,unit,val){
   const prod=suppliers[sid]?.products.find(p=>p.id===pid);
   if(!prod) return;
   if(!prod.conversions) prod.conversions=[];
-  const idx=prod.conversions.findIndex(c=>c.fromUnit===unit);
+  const idx=prod.conversions.findIndex(c=>_unitEq(c.fromUnit,unit));
   const f=parseFloat(val);
   if(isNaN(f)||f<=0){
     // Vaciar = eliminar la conversión

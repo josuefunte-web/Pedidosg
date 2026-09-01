@@ -122,11 +122,10 @@ function vOrder(){
   const stabs=`<select onchange="setSup(this.value)" style="max-width:320px;font-weight:600;cursor:pointer">${sups.map(s=>{const sc2=S.cart[s.id]||{};const n=Object.values(sc2).reduce((a,v)=>a+v,0);return `<option value="${s.id}" ${S.supId===s.id?'selected':''}>${s.emoji} ${s.name}${n>0?` — ${n} en el carrito`:''}</option>`;}).join('')}</select>`;
   const searchTerm=(S.prodSearch||'').toLowerCase().trim();
   const filteredProds=sup.products.filter(p=>!searchTerm||p.name.toLowerCase().includes(searchTerm));
-  const _UNITS=['KG','L','UN','Caja'];
   function mkProdCard(p){
     const q=(S.cart[S.supId]||{})[p.id]||0;
     const selUnit=(S.cartUnits[S.supId]||{})[p.id]||p.unit;
-    const unitBtns=_UNITS.map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
+    const unitBtns=_prodUnits(p).map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
     return `<div class="pi ${q>0?'ic':''}" id="pi-${p.id}">
       <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${pkgLabel(p)}</div></div>
       <div class="qc">
