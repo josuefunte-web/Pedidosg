@@ -188,7 +188,15 @@ function orderCard(o,showActions){
         <button class="btn btn-ok btn-sm" onclick="editAddProduct('${o.id}','${o.supId}')">Añadir</button>
       </div>`:'');
   } else {
-    itemsHtml=(o.items||[]).map(it=>`<div class="pr"><span class="pn">${it.name||'?'}</span><span class="pq">${convQtyStr(it.qty,it.unit,it.baseUnit||it.unit,it.conversions)}</span><span class="pp">${fmt((it.qty||0)*(it.price||0))}</span></div>`).join('');
+    const _recvLbl={partial:'Parcial',missing:'Faltó',bad:'Mal estado'};
+    const _recvColor={partial:'#d97706',missing:'#dc2626',bad:'#dc2626'};
+    const displayItems=(o.status==='received'&&o.receivedItems)?o.receivedItems:(o.items||[]);
+    itemsHtml=displayItems.map(it=>{
+      const issue=it.recvStatus&&it.recvStatus!=='ok';
+      const issueTag=issue?` <span class="badge" style="background:#fef3c7;color:${_recvColor[it.recvStatus]||'#92400e'}">${_recvLbl[it.recvStatus]||it.recvStatus}</span>`:'';
+      const issueNote=it.recvNote?`<div style="font-size:11px;color:var(--mut);padding-left:2px">↳ ${escHtml(it.recvNote)}</div>`:'';
+      return `<div class="pr" style="${issue?'flex-wrap:wrap':''}"><span class="pn">${it.name||'?'}${issueTag}</span><span class="pq">${convQtyStr(it.qty,it.unit,it.baseUnit||it.unit,it.conversions)}</span><span class="pp">${fmt((it.qty||0)*(it.price||0))}</span>${issueNote}</div>`;
+    }).join('');
   }
   let acts='';
   if(showActions&&o.status==='pending'){
@@ -250,6 +258,7 @@ function orderCard(o,showActions){
     </div>
     ${largeAlert}${budgetAlert}
     ${o.approvalNote?`<div style="background:#f0fdf4;border-left:3px solid #16a34a;border-radius:0 6px 6px 0;padding:6px 10px;margin:4px 0 6px;font-size:12px;color:#166534">Admin: ${o.approvalNote}</div>`:''}
+    ${o.receivedNote?`<div style="background:#fef3c7;border-left:3px solid #d97706;border-radius:0 6px 6px 0;padding:6px 10px;margin:4px 0 6px;font-size:12px;color:#92400e">Incidencia: ${escHtml(o.receivedNote)}</div>`:''}
     ${o.notes?`<div style="background:var(--bg);border-left:3px solid var(--pri);border-radius:0 6px 6px 0;padding:6px 10px;margin:4px 0 6px;font-size:12px;color:var(--txt)"> <em>${o.notes}</em></div>`:''}
     ${isEditing?`<div class="banner blue" style="margin-bottom:10px"> Modifica las cantidades y pulsa <strong>Aprobar</strong></div>`:''}
     <div class="pl">${itemsHtml}${totLabel}</div>
