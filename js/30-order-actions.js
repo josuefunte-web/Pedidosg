@@ -9,14 +9,14 @@ function setUnit(pid,unit){
   // Si la unidad seleccionada no es la base y NO hay conversión definida para
   // ella, obligar al usuario a introducirla ahora (queda pendiente de que el
   // admin valide el factor). Sin esto, el precio del pedido saldría mal.
-  if(unit!==baseUnit){
-    const conv=(prod.conversions||[]).find(c=>c.fromUnit===unit&&parseFloat(c.factor)>0);
+  if(!_unitEq(unit,baseUnit)){
+    const conv=(prod.conversions||[]).find(c=>_unitEq(c.fromUnit,unit)&&parseFloat(c.factor)>0);
     if(!conv){
       promptMissingConversion(S.supId,pid,unit,()=>{
         // Cuando termine el modal (guardado o cancelado), reaplicar setUnit
         // solo si ahora sí existe la conversión.
         const updatedProd=(suppliers[S.supId]?.products||[]).find(p=>p.id===pid);
-        const nowConv=(updatedProd?.conversions||[]).find(c=>c.fromUnit===unit&&parseFloat(c.factor)>0);
+        const nowConv=(updatedProd?.conversions||[]).find(c=>_unitEq(c.fromUnit,unit)&&parseFloat(c.factor)>0);
         if(nowConv) _applySetUnit(pid,unit);
       });
       return;
@@ -28,7 +28,8 @@ function _applySetUnit(pid,unit){
   if(!S.cartUnits[S.supId])S.cartUnits[S.supId]={};
   S.cartUnits[S.supId][pid]=unit;
   const sup=suppliers[S.supId];if(!sup)return;
-  const prodUnits=['KG','L','UN','Caja'];
+  const prod=(sup.products||[]).find(p=>p.id===pid);
+  const prodUnits=prod?_prodUnits(prod):['KG','L','UN','Caja'];
   const el=document.getElementById('ur-'+pid);
   if(el) el.innerHTML=prodUnits.map(u=>`<button class="ubt${unit===u?' ubt-on':''}" onclick="setUnit('${pid}','${u}');event.stopPropagation()">${u}</button>`).join('');
   // Recalcular la barra del carrito con la nueva unidad (mismo cálculo que chgQ)
@@ -92,11 +93,10 @@ function filterProds(val){
   const sup=suppliers[S.supId];if(!sup)return;
   const term=(val||'').toLowerCase().trim();
   const filtered=sup.products.filter(p=>!term||p.name.toLowerCase().includes(term));
-  const _UNITS=['KG','L','UN','Caja'];
   function mkCard(p){
     const q=(S.cart[S.supId]||{})[p.id]||0;
     const selUnit=(S.cartUnits[S.supId]||{})[p.id]||p.unit;
-    const unitBtns=_UNITS.map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
+    const unitBtns=_prodUnits(p).map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
     return `<div class="pi ${q>0?'ic':''}" id="pi-${p.id}">
       <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${pkgLabel(p)}</div></div>
       <div class="qc">
@@ -143,7 +143,7 @@ function chgQ(id,d){
         const sup=suppliers[S.supId];
         const prod=sup&&sup.products.find(p=>p.id===id);
         const selUnit=(S.cartUnits[S.supId]||{})[id]||(prod&&prod.unit)||'UN';
-        const _pu=['KG','L','UN','Caja'];
+        const _pu=prod?_prodUnits(prod):['KG','L','UN','Caja'];
         ur.innerHTML=_pu.map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${id}','${u}');event.stopPropagation()">${u}</button>`).join('');
       }
     } else { ur.style.display='none'; }
