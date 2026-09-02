@@ -105,6 +105,10 @@
         ".write": "auth != null && auth.uid === $uid && root.child('authUsers').child(auth.uid).child('blocked').val() !== true"
       }
     },
+    "favorites": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'jefe_cocina' || root.child('authUsers').child(auth.uid).child('role').val() === 'encargado' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin3' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin1')"
+    },
     "inventory": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('authUsers').child(auth.uid).child('blocked').val() !== true && (root.child('authUsers').child(auth.uid).child('role').val() === 'jefe_cocina' || root.child('authUsers').child(auth.uid).child('role').val() === 'encargado' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin3' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin2' || root.child('authUsers').child(auth.uid).child('role').val() === 'admin1')"

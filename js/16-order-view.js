@@ -126,8 +126,10 @@ function vOrder(){
     const q=(S.cart[S.supId]||{})[p.id]||0;
     const selUnit=(S.cartUnits[S.supId]||{})[p.id]||p.unit;
     const unitBtns=_prodUnits(p).map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
+    const fav=isFavorite(S.supId,p.id);
+    const favBtn=`<button class="fav-bt" title="${fav?'Quitar de favoritos':'Marcar como favorito'}" onclick="toggleFavorite('${S.supId}','${p.id}');event.stopPropagation()" style="background:none;border:none;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;color:${fav?'#f59e0b':'var(--mut)'}">${fav?'★':'☆'}</button>`;
     return `<div class="pi ${q>0?'ic':''}" id="pi-${p.id}">
-      <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${pkgLabel(p)}</div></div>
+      <div class="pi-i"><div class="pi-n">${favBtn} ${p.name}</div><div class="pi-p">${pkgLabel(p)}</div></div>
       <div class="qc">
         <button class="qb" onclick="chgQ('${p.id}',-1)">−</button>
         <div class="qd" id="qd-${p.id}">${q}</div>
@@ -136,18 +138,26 @@ function vOrder(){
       ${q>0?`<div class="urow" id="ur-${p.id}">${unitBtns}</div>`:`<div class="urow" id="ur-${p.id}" style="display:none">${unitBtns}</div>`}
     </div>`;
   }
+  // Favoritos del local para este proveedor: siempre arriba del todo.
+  const favProds=filteredProds.filter(p=>isFavorite(S.supId,p.id));
+  const restProds=filteredProds.filter(p=>!isFavorite(S.supId,p.id));
+  const favSection=favProds.length?`
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:5px 2px 6px;border-bottom:2px solid #f59e0b40;margin-bottom:8px;display:flex;align-items:center;gap:5px;color:#f59e0b">★ Favoritos</div>
+      <div class="pgrid">${favProds.map(mkProdCard).join('')}</div>
+    </div>`:'';
   // Agrupar por categoría (solo si no hay búsqueda activa)
   let prods='';
   if(searchTerm){
-    prods=`<div class="pgrid">${filteredProds.map(mkProdCard).join('')}</div>`;
+    prods=favSection+`<div class="pgrid">${restProds.map(mkProdCard).join('')}</div>`;
   } else {
     const byCat={};
-    filteredProds.forEach(p=>{ const c=p.category||'Otros'; if(!byCat[c])byCat[c]=[]; byCat[c].push(p); });
+    restProds.forEach(p=>{ const c=p.category||'Otros'; if(!byCat[c])byCat[c]=[]; byCat[c].push(p); });
     const catOrder=[...PROD_CATS,...Object.keys(byCat).filter(c=>!PROD_CATS.includes(c))].filter(c=>byCat[c]);
     if(catOrder.length<=1){
-      prods=`<div class="pgrid">${filteredProds.map(mkProdCard).join('')}</div>`;
+      prods=favSection+`<div class="pgrid">${restProds.map(mkProdCard).join('')}</div>`;
     } else {
-      prods=catOrder.map(cat=>`
+      prods=favSection+catOrder.map(cat=>`
         <div style="margin-bottom:14px">
           <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:5px 2px 6px;border-bottom:2px solid ${catColor(cat)}40;margin-bottom:8px;display:flex;align-items:center;gap:5px;color:${catColor(cat)}">${catDot(cat)} ${cat}</div>
           <div class="pgrid">${byCat[cat].map(mkProdCard).join('')}</div>
