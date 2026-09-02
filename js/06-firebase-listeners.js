@@ -24,6 +24,7 @@ function initFirebaseListeners(){
   _listenFoodCost();
   _listenWishlist();
   _listenSchedules();
+  _listenFavorites();
 }
 
 // Estado local del cliente para detectar pedidos nuevos vs cambios de estado
@@ -278,6 +279,14 @@ function _listenSchedules(){
     schedules = snap.val() || {};
     if(S.view==='order' && S.orderTab==='horarios') render();
     if(S.view==='admin' && S.adminTab==='horarios') renderAdminContent();
+  });
+}
+
+// ── Productos favoritos por local ────────────────────────────────────────────
+function _listenFavorites(){
+  fbDb.ref('favorites').on('value', snap => {
+    favorites = snap.val() || {};
+    if(S.view==='order' && S.orderTab==='new'){ const _sv=window.scrollY; render(); requestAnimationFrame(()=>window.scrollTo(0,_sv)); }
   });
 }
 

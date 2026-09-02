@@ -1,6 +1,17 @@
 /* ═══════════════ ORDER ACTIONS ═══════════════ */
 function setSup(id){ S.supId=id;S.prodSearch='';render(); }
 
+// ── Favoritos por local ──────────────────────────────────────────────────────
+function isFavorite(supId,prodId){
+  return !!((favorites[restKey(S.session.restaurant)]||{})[supId]||{})[prodId];
+}
+function toggleFavorite(supId,prodId){
+  if(!fbDb) return;
+  const path='favorites/'+restKey(S.session.restaurant)+'/'+supId+'/'+prodId;
+  if(isFavorite(supId,prodId)) fbDb.ref(path).remove();
+  else fbDb.ref(path).set(true);
+}
+
 function setUnit(pid,unit){
   const sup=suppliers[S.supId];if(!sup)return;
   const prod=(sup.products||[]).find(p=>p.id===pid);
