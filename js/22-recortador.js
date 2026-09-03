@@ -217,8 +217,10 @@ function _mistralDataUri(){
 }
 
 // Construye el prompt de extracción (con o sin catálogo del proveedor).
-function _mistralPrompt(){
-  const _sup=suppliers[S.albSupId]||{};
+// supIdOverride: usado por la importación por lotes (js/48-import-dia.js),
+// donde cada borrador tiene su propio proveedor y no hay uno "activo" en S.
+function _mistralPrompt(supIdOverride){
+  const _sup=suppliers[supIdOverride||S.albSupId]||{};
   const _cat=(Array.isArray(_sup.products)?_sup.products:Object.values(_sup.products||{}))
     .map(p=>({code:String(p.code||''),name:p.name,unit:p.unit||'UN',price:parseFloat(p.price||0)}));
   const catalogBlock=_cat.length
@@ -363,6 +365,132 @@ async function _runOCRMistralPDF(mistralKey, showProg){
   _publishOCRItems(parsed, catalogSize, markdown, rawContent);
 }
 
+// ── Importación por lotes: 1 PDF con los albaranes de todo el día ──────────
+// (UI en js/48-import-dia.js). Reutiliza el mismo proxy/Worker y las mismas
+// funciones de extracción de arriba; solo añade un paso de OCR de todo el
+// PDF + un paso de "split" que agrupa las páginas por albarán antes de
+// extraer las líneas de cada uno.
+
+// Paso 1: OCR de TODO el PDF de una vez, devuelve el markdown por página.
+async function _mistralOcrPagesFromDataUri(dataUri){
+  const proxyBase=_mistralProxyUrl();
+  if(!proxyBase) throw new Error('Proxy OCR no configurado. Ve a Admin → Configuración → OCR.');
+  if(!fbAuth||!fbAuth.currentUser) throw new Error('Sesión Firebase requerida para usar el OCR.');
+  const idToken=await fbAuth.currentUser.getIdToken();
+  const ocrResp=await fetch(proxyBase+'/mistral/ocr',{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+idToken,'Content-Type':'application/json'},
+    body:JSON.stringify({model:'mistral-ocr-latest',document:{type:'document_url',document_url:dataUri}})
+  });
+  if(!ocrResp.ok){ const err=await ocrResp.json().catch(()=>({})); throw new Error(err?.detail||err?.error||err?.message||'Error Mistral OCR ('+ocrResp.status+')'); }
+  const ocrData=await ocrResp.json();
+  return (ocrData.pages||[]).map(p=>p.markdown||'');
+}
+
+// Paso 2: agrupar páginas por albarán/proveedor con un prompt de texto.
+function _batchSplitPrompt(pages){
+  const pagesBlock=pages.map((md,i)=>`--- PÁGINA ${i} ---\n${md}`).join('\n\n');
+  return `Eres un asistente que separa un PDF con VARIOS albaranes de proveedor distintos (escaneados uno detrás de otro) en bloques.
+Cada página pertenece a un único albarán. Varias páginas SEGUIDAS pueden ser el mismo albarán si la tabla de productos continúa de una página a otra.
+Agrupa las páginas por albarán, respetando el orden en que aparecen. No mezcles páginas de distintos proveedores en el mismo bloque.
+Responde ÚNICAMENTE con un JSON, sin texto adicional, con esta forma:
+{"albaranes":[{"paginas":[0,1],"proveedor":"nombre del proveedor tal como aparece en la cabecera del albarán","numero":"nº de albarán si aparece, si no \\"\\""}]}
+
+${pagesBlock}`;
+}
+async function _mistralSplitPages(pages, mistralKey){
+  if(pages.length<=1) return [{paginas:[0],proveedor:'',numero:''}];
+  const chatBody={
+    model:'mistral-medium-latest',
+    messages:[{role:'user',content:_batchSplitPrompt(pages)}],
+    response_format:{type:'json_object'}
+  };
+  try{
+    const raw=await _mistralChat(mistralKey, chatBody);
+    console.log('[OCR lote] Respuesta de split:\n',raw);
+    const obj=JSON.parse(raw);
+    const arr=Array.isArray(obj)?obj:(obj.albaranes||obj.items||Object.values(obj).find(v=>Array.isArray(v))||[]);
+    const groups=arr.map(g=>({
+      paginas:(g.paginas||g.pages||[]).map(n=>parseInt(n)).filter(n=>!isNaN(n)&&n>=0&&n<pages.length),
+      proveedor:String(g.proveedor||g.supplier||'').trim(),
+      numero:String(g.numero||g.numero_albaran||'').trim()
+    })).filter(g=>g.paginas.length);
+    if(!groups.length) throw new Error('sin grupos');
+    return groups;
+  }catch(e){
+    console.warn('[OCR lote] No se pudo separar por proveedor, se trata cada página como un albarán aparte:',e);
+    return pages.map((_,i)=>({paginas:[i],proveedor:'',numero:''}));
+  }
+}
+
+// Empareja el nombre de proveedor detectado por la IA con uno ya dado de
+// alta (por nombre normalizado, exacto o por inclusión). Vacío si no hay match.
+function _matchSupplierByName(name){
+  if(!name) return '';
+  const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();
+  const target=norm(name);
+  if(!target) return '';
+  const list=supList();
+  let hit=list.find(s=>norm(s.name)===target);
+  if(hit) return hit.id;
+  hit=list.find(s=>norm(s.name).includes(target)||target.includes(norm(s.name)));
+  return hit?hit.id:'';
+}
+
+// Paso 3: extraer las líneas de un bloque de páginas (mismo prompt/parser
+// que la extracción individual, aquí con supId explícito).
+async function _extractDraftItems(markdown, supId, mistralKey){
+  const { promptText, catalogSize } = _mistralPrompt(supId);
+  const chatBody={
+    model:'mistral-medium-latest',
+    messages:[{role:'user',content:`${promptText}\n\nTEXTO DEL ALBARÁN:\n${markdown}`}],
+    response_format:{type:'json_object'}
+  };
+  const rawContent=await _mistralChat(mistralKey, chatBody);
+  return { items:_mistralParseItems(rawContent), catalogSize };
+}
+
+// Orquestador: OCR del PDF completo → split por albarán → extracción de
+// líneas de cada uno → deja los resultados en S.albBatchDrafts para revisar.
+async function runAlbaranBatchImport(){
+  if(!S.albBatchFile){ toast('Sube un PDF primero','#dc2626'); return; }
+  const mistralKey=cfg.mistralKey||'';
+  if(!mistralKey){ toast('Configura tu clave de Mistral en Admin → Configuración → OCR','#dc2626',6000); return; }
+  S.albBatchProcessing=true; S.albBatchProgress='Leyendo el PDF...'; render();
+  try{
+    const pages=await _mistralOcrPagesFromDataUri(S.albBatchFile);
+    if(!pages.length||!pages.join('').trim()){
+      toast('No se pudo leer texto del PDF. Prueba con otro escaneo.','#d97706',6000);
+      S.albBatchProcessing=false; render(); return;
+    }
+    S.albBatchProgress=pages.length>1?`Separando ${pages.length} páginas por albarán...`:'Extrayendo productos...';
+    render();
+    const groups=await _mistralSplitPages(pages, mistralKey);
+    const drafts=[];
+    for(let i=0;i<groups.length;i++){
+      const g=groups[i];
+      S.albBatchProgress=`Extrayendo albarán ${i+1}/${groups.length}...`; render();
+      const md=g.paginas.map(p=>pages[p]||'').join('\n');
+      const supId=_matchSupplierByName(g.proveedor);
+      let items=[];
+      try{
+        const res=await _extractDraftItems(md, supId, mistralKey);
+        items=res.items;
+      }catch(e){ console.error('[OCR lote] Error extrayendo albarán '+i,e); }
+      drafts.push({ id:uid(), pages:g.paginas, supNameRaw:g.proveedor, numero:g.numero, supId, items });
+    }
+    S.albBatchDrafts=drafts;
+    S.albBatchProcessing=false;
+    const nMatched=drafts.filter(d=>d.supId).length;
+    toast(`${drafts.length} albarán${drafts.length!==1?'es':''} detectado${drafts.length!==1?'s':''} · ${nMatched} proveedor${nMatched!==1?'es':''} reconocido${nMatched!==1?'s':''}. Revisa antes de guardar.`,'#16a34a',6000);
+    render();
+  }catch(e){
+    console.error(e);
+    toast('Error al procesar el PDF: '+e.message,'#dc2626',6000);
+    S.albBatchProcessing=false; render();
+  }
+}
+
 // Rama 3: fallback OCR.space cuando no hay clave Mistral. Menos preciso — el
 // parser local `parseOCRText` intenta extraer los productos de las líneas.
 async function _runOCRSpaceFallback(showProg){
@@ -478,13 +606,15 @@ function parseOCRText(text){
   return items.slice(0,50);
 }
 
-function saveAlbaran(){
-  const rest=S.session&&!S.session.isAdmin?S.session.restaurant:(document.getElementById('alb-rest')?.value||S.albRestaurant);
-  const supId=document.getElementById('alb-sup')?.value||S.albSupId;
-  const date=document.getElementById('alb-date')?.value||S.albDate;
-  if(!rest){toast('Selecciona el restaurante','#dc2626');return;}
-  const valid=S.albItems.filter(it=>it.name&&it.qty>0).map(it=>({...it,iva:albLineIva(it)}));
-  if(!valid.length){toast('Añade al menos un producto con nombre y cantidad','#dc2626');return;}
+// Crea un albarán: vincula/añade productos al catálogo del proveedor y lo
+// guarda. La usan tanto el alta individual (saveAlbaran) como la revisión
+// de la importación por lotes (js/48-import-dia.js, draftConfirm).
+// Devuelve {ok:false,msg} si faltan datos, o {ok:true,nuevos,vinculados,actualizados}.
+function commitAlbaran({restaurant,supId,date,items,photo,totalManual}){
+  if(!restaurant) return {ok:false,msg:'Selecciona el restaurante'};
+  if(!supId) return {ok:false,msg:'Selecciona el proveedor'};
+  const valid=(items||[]).filter(it=>it.name&&it.qty>0).map(it=>({...it,iva:lineIvaFor(it,supId)}));
+  if(!valid.length) return {ok:false,msg:'Añade al menos un producto con nombre y cantidad'};
   // Vincular/añadir productos del albarán al catálogo del proveedor por código
   let nuevos=0, vinculados=0, actualizados=0;
   const sup=suppliers[supId];
@@ -494,7 +624,7 @@ function saveAlbaran(){
     valid.forEach(it=>{
       const code=String(it.code||'').trim();
       const nuevoPrecio=parseFloat(it.price||0)||0;
-      const nuevoIva=albLineIva(it);
+      const nuevoIva=lineIvaFor(it,supId);
       // 1º intentar casar por código; si no, por nombre
       let prod=code?sup.products.find(p=>String(p.code||'').trim()===code):null;
       if(!prod) prod=sup.products.find(p=>norm(p.name)===norm(it.name));
@@ -519,12 +649,21 @@ function saveAlbaran(){
     });
     if(nuevos>0||vinculados>0||actualizados>0) saveSups(supId);
   }
-  const a={id:uid(),restaurant:rest,supId,date,photo:S.albPhoto,items:valid,createdAt:new Date().toISOString(),...(S.albTotalManual!==null?{totalManual:S.albTotalManual}:{})};
+  const a={id:uid(),restaurant,supId,date,photo:photo||null,items:valid,createdAt:new Date().toISOString(),...(totalManual!=null?{totalManual}:{})};
   saveAlb(a);
+  return {ok:true,nuevos,vinculados,actualizados};
+}
+
+function saveAlbaran(){
+  const rest=S.session&&!S.session.isAdmin?S.session.restaurant:(document.getElementById('alb-rest')?.value||S.albRestaurant);
+  const supId=document.getElementById('alb-sup')?.value||S.albSupId;
+  const date=document.getElementById('alb-date')?.value||S.albDate;
+  const res=commitAlbaran({restaurant:rest,supId,date,items:S.albItems,photo:S.albPhoto,totalManual:S.albTotalManual});
+  if(!res.ok){ toast(res.msg,'#dc2626'); return; }
   const msgParts=[];
-  if(nuevos>0) msgParts.push(`${nuevos} nuevo${nuevos!==1?'s':''}`);
-  if(vinculados>0) msgParts.push(`${vinculados} vinculado${vinculados!==1?'s':''} por código`);
-  if(actualizados>0) msgParts.push(`${actualizados} precio${actualizados!==1?'s':''} actualizado${actualizados!==1?'s':''}`);
+  if(res.nuevos>0) msgParts.push(`${res.nuevos} nuevo${res.nuevos!==1?'s':''}`);
+  if(res.vinculados>0) msgParts.push(`${res.vinculados} vinculado${res.vinculados!==1?'s':''} por código`);
+  if(res.actualizados>0) msgParts.push(`${res.actualizados} precio${res.actualizados!==1?'s':''} actualizado${res.actualizados!==1?'s':''}`);
   toast(msgParts.length?`Albarán guardado · ${msgParts.join(' · ')} en catálogo`:'Albarán guardado','#16a34a');
   if(S.session&&S.session.isAdmin){ S.adminTab='albaranes';goAdmin(); } else goOrder();
 }

@@ -83,7 +83,8 @@ function exportComprasExcel(){
 }
 
 function vAlbaranes(){
-  const btn=`<button class="btn btn-pri btn-sm" onclick="goAlbaranAdmin()" style="margin-bottom:14px">+ Nuevo albarán</button>`;
+  const btn=`<button class="btn btn-pri btn-sm" onclick="goAlbaranAdmin()" style="margin-bottom:14px">+ Nuevo albarán</button>
+  <button class="btn btn-blue btn-sm" onclick="goAlbaranBatch()" style="margin-bottom:14px;margin-left:8px" title="Sube un único PDF con todos los albaranes del día, de uno o varios proveedores">📄 Importar PDF del día</button>`;
   const importCard=`<div class="card" style="margin-bottom:14px">
     <div class="card-t">Importar albaranes históricos desde Excel</div>
     <div style="font-size:12px;color:var(--mut);margin-bottom:10px">Sube un .xlsx/.csv con columnas: Local, Proveedor, Nº Albarán, Día, Código, Artículo, Cantidad, Importe. Se crean los albaranes agrupados y se actualiza el código/precio de cada artículo en su proveedor. Las líneas cuyo proveedor o código no se reconozcan van a la cola de revisión.</div>

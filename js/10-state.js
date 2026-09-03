@@ -8,6 +8,9 @@ let S={
   editUserId:null, editSupId:null, openSupId:null,
   editOrderId:null, editItems:[], chatOpen:null,
   albView:'list', albItems:[], albRestaurant:'', albSupId:'', albDate:new Date().toISOString().split('T')[0], albPhoto:null,
+  // Importación por lotes de un PDF con los albaranes de todo el día (js/48-import-dia.js)
+  albBatchRestaurant:'', albBatchDate:new Date().toISOString().split('T')[0], albBatchFile:null, albBatchFileName:null,
+  albBatchProcessing:false, albBatchProgress:'', albBatchDrafts:[],
   fcPeriod:'month', fcDate:new Date().toISOString().split('T')[0],
   foodcostMonth:new Date().toISOString().slice(0,7), foodcostLocalId:'u1',
   showSaveTemplate:false,

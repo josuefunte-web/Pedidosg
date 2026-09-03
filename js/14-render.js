@@ -9,6 +9,7 @@ function render(){
     if(S.adminTab==='sup-visibility') setTimeout(initSupVisibility,50);
   }
   else if(S.view==='albaran-new') app.innerHTML=vAlbaranNew();
+  else if(S.view==='albaran-batch') app.innerHTML=vAlbaranBatch();
   try{ _updatePendingBadge(); }catch(e){}
 }
 

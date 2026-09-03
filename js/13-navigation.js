@@ -9,6 +9,7 @@ function showHdr(isAdmin){
   // (admin3 en adelante), sea cual sea el flag isAdmin de la sesión.
   document.getElementById('btn-np').style.display=(!isAdmin&&can('canCreateOrders'))?'':'none';
   document.getElementById('btn-alb-r').style.display=(!isAdmin&&can('canCreateAlbaran'))?'':'none';
+  document.getElementById('btn-alb-batch').style.display=(!isAdmin&&can('canCreateAlbaran'))?'':'none';
   document.getElementById('btn-adm').style.display=(isAdmin||hasAdminAccess())?'':'none';
 }
 function handleLogo(){ if(S.session){S.session.isAdmin?goAdmin():goOrder();} }
@@ -70,4 +71,18 @@ function goOrderAsAdmin(rest){
   showHdr(false);render();
 }
 function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=visibleSups()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];S.albTotalManual=null;showHdr(false);render(); }
+// goAlbaranBatch: importación de un único PDF con los albaranes de todo el
+// día (varios proveedores). La IA separa el PDF por albarán y genera
+// borradores que se revisan en vAlbaranBatchReview antes de guardarlos.
+function goAlbaranBatch(){
+  const isAdmin=S.session&&S.session.isAdmin;
+  S.view='albaran-batch';
+  S.albBatchRestaurant=S.session&&!isAdmin?S.session.restaurant:'';
+  S.albBatchDate=new Date().toISOString().split('T')[0];
+  S.albBatchFile=null;S.albBatchFileName=null;
+  S.albBatchProcessing=false;S.albBatchProgress='';
+  S.albBatchDrafts=[];
+  if(!isAdmin) showHdr(false);
+  render();
+}
 function setTabSb(t){ S.adminTab=t;S.sidebarOpen=false;render(); }
