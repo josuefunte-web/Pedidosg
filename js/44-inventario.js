@@ -431,7 +431,6 @@ function resolvePendingReview(reviewId){
   const sup=suppliers[supId];
   if(!sup){ toast('Proveedor no encontrado','#dc2626'); return; }
   if(!Array.isArray(sup.products)) sup.products=Object.values(sup.products||{});
-  if(sup.products.some(pp=>pp.code===code)){ toast('Ese código ya lo usa otro producto de este proveedor','#dc2626'); return; }
   sup.products.push({id:'p'+uid(),name:p.name,unit:p.unit||'KG',price:parseFloat(p.price)||0,category:'Otros',code});
   saveSups(supId);
   if(fbDb && p.invItemId && p.restaurant){

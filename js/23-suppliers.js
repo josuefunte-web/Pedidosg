@@ -631,11 +631,6 @@ function editProdCode(sid,pid,val){
     renderAdminContent();
     return;
   }
-  if(suppliers[sid].products.some(p=>p!==prod && p.code===code)){
-    toast('Ese código ya lo usa otro producto de este proveedor','#dc2626');
-    renderAdminContent();
-    return;
-  }
   prod.code=code;
   saveSups(sid);
   toast('Código actualizado','#16a34a');
@@ -676,7 +671,6 @@ function addProd(sid){
   const pesoGr=grRaw&&!isNaN(parseInt(grRaw))?parseInt(grRaw):undefined;
   if(!name||isNaN(price)||price<0){toast('Nombre y precio obligatorios','#dc2626');return;}
   if(!code){toast('El código de producto del proveedor es obligatorio','#dc2626');return;}
-  if((suppliers[sid].products||[]).some(p=>p.code===code)){toast('Ese código ya lo usa otro producto de este proveedor','#dc2626');return;}
   const prod={id:'p'+uid(),name,unit:unit||'KG',price,category,code};
   if(pesoGr!==undefined) prod.pesoGr=pesoGr;
   if(!Array.isArray(suppliers[sid].products)) suppliers[sid].products=Object.values(suppliers[sid].products||{});
