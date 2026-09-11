@@ -62,8 +62,8 @@ window.addEventListener('DOMContentLoaded',()=>{
 
     // 3. Manifest
     const manifest={
-      name:'Provea — Gestión de Pedidos',
-      short_name:'Provea',
+      name:'Provea TEST — Gestión de Pedidos',
+      short_name:'Provea TEST',
       description:'Gestión de compras del grupo O\'Carro',
       start_url:'./',
       display:'standalone',
