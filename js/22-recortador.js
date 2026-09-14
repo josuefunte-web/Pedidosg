@@ -184,7 +184,7 @@ async function runOCR(){
   const hideProg=()=>{ if(prog) prog.style.display='none'; };
 
   const mistralKey=cfg.mistralKey||'';
-  if(mistralKey){
+  if(_mistralProxyUrl()||mistralKey){
     try{
       const isPdf=S.albFileType==='pdf';
       if(isPdf) await _runOCRMistralPDF(mistralKey, showProg);
