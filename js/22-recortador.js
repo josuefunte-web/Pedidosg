@@ -282,7 +282,7 @@ async function _mistralChat(_ignoredKey, chatBody){
   if(!fbAuth || !fbAuth.currentUser){
     throw new Error('Sesión Firebase requerida para usar el OCR.');
   }
-  const idToken = await fbAuth.currentUser.getIdToken();
+  const idToken = await fbAuth.currentUser.getIdToken(true);
   const resp = await fetch(proxyBase + '/mistral/chat/completions', {
     method: 'POST',
     headers: {
@@ -340,7 +340,7 @@ async function _runOCRMistralPDF(mistralKey, showProg){
   const proxyBase = _mistralProxyUrl();
   if(!proxyBase) throw new Error('Proxy OCR no configurado.');
   if(!fbAuth || !fbAuth.currentUser) throw new Error('Sesión Firebase requerida.');
-  const idToken = await fbAuth.currentUser.getIdToken();
+  const idToken = await fbAuth.currentUser.getIdToken(true);
   const ocrResp=await fetch(proxyBase+'/mistral/ocr',{
     method:'POST',
     headers:{'Authorization':'Bearer '+idToken,'Content-Type':'application/json'},
