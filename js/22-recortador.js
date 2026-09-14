@@ -283,6 +283,10 @@ async function _mistralChat(_ignoredKey, chatBody){
     throw new Error('Sesión Firebase requerida para usar el OCR.');
   }
   const idToken = await fbAuth.currentUser.getIdToken(true);
+  try{
+    const payload=JSON.parse(atob(idToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    console.log('[OCR][debug] token iss/aud/exp:',payload.iss,payload.aud,new Date(payload.exp*1000).toISOString(),'user:',payload.email);
+  }catch(e){ console.log('[OCR][debug] no se pudo decodificar el token:',e.message); }
   const resp = await fetch(proxyBase + '/mistral/chat/completions', {
     method: 'POST',
     headers: {
