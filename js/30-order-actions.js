@@ -108,8 +108,10 @@ function filterProds(val){
     const q=(S.cart[S.supId]||{})[p.id]||0;
     const selUnit=(S.cartUnits[S.supId]||{})[p.id]||p.unit;
     const unitBtns=_prodUnits(p).map(u=>`<button class="ubt${selUnit===u?' ubt-on':''}" onclick="setUnit('${p.id}','${u}');event.stopPropagation()">${u}</button>`).join('');
+    const fav=isFavorite(S.supId,p.id);
+    const favBtn=`<button class="fav-bt" title="${fav?'Quitar de favoritos':'Marcar como favorito'}" onclick="toggleFavorite('${S.supId}','${p.id}');event.stopPropagation()" style="background:none;border:none;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;color:${fav?'#f59e0b':'var(--mut)'}">${fav?'★':'☆'}</button>`;
     return `<div class="pi ${q>0?'ic':''}" id="pi-${p.id}">
-      <div class="pi-i"><div class="pi-n">${p.name}</div><div class="pi-p">${pkgLabel(p)}</div></div>
+      <div class="pi-i"><div class="pi-n">${favBtn} ${p.name}</div><div class="pi-p">${pkgLabel(p)}</div></div>
       <div class="qc">
         <button class="qb" onclick="chgQ('${p.id}',-1)">−</button>
         <div class="qd" id="qd-${p.id}">${q}</div>
@@ -118,16 +120,23 @@ function filterProds(val){
       ${q>0?`<div class="urow" id="ur-${p.id}">${unitBtns}</div>`:`<div class="urow" id="ur-${p.id}" style="display:none">${unitBtns}</div>`}
     </div>`;
   }
+  const favProds=filtered.filter(p=>isFavorite(S.supId,p.id));
+  const restProds=filtered.filter(p=>!isFavorite(S.supId,p.id));
+  const favSection=favProds.length?`
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;padding:5px 2px 6px;border-bottom:2px solid #f59e0b40;margin-bottom:8px;display:flex;align-items:center;gap:5px;color:#f59e0b">★ Favoritos</div>
+      <div class="pgrid">${favProds.map(mkCard).join('')}</div>
+    </div>`:'';
   let html='';
   if(term){
-    html=filtered.length?`<div class="pgrid">${filtered.map(mkCard).join('')}</div>`:`<div class="empty"><div class="ei"></div><div class="et">Sin resultados para "${val}"</div></div>`;
+    html=filtered.length?favSection+`<div class="pgrid">${restProds.map(mkCard).join('')}</div>`:`<div class="empty"><div class="ei"></div><div class="et">Sin resultados para "${val}"</div></div>`;
   } else {
     const byCat={};
-    filtered.forEach(p=>{ const c=p.category||'Otros'; if(!byCat[c])byCat[c]=[]; byCat[c].push(p); });
+    restProds.forEach(p=>{ const c=p.category||'Otros'; if(!byCat[c])byCat[c]=[]; byCat[c].push(p); });
     const cats=[...PROD_CATS,...Object.keys(byCat).filter(c=>!PROD_CATS.includes(c))].filter(c=>byCat[c]);
     html=cats.length<=1
-      ?`<div class="pgrid">${filtered.map(mkCard).join('')}</div>`
-      :cats.map(cat=>`<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);padding:6px 2px 6px;border-bottom:1px solid var(--brd);margin-bottom:8px">${cat}</div><div class="pgrid">${byCat[cat].map(mkCard).join('')}</div></div>`).join('');
+      ?favSection+`<div class="pgrid">${restProds.map(mkCard).join('')}</div>`
+      :favSection+cats.map(cat=>`<div style="margin-bottom:14px"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);padding:6px 2px 6px;border-bottom:1px solid var(--brd);margin-bottom:8px">${cat}</div><div class="pgrid">${byCat[cat].map(mkCard).join('')}</div></div>`).join('');
   }
   const wrap=document.getElementById('prod-grid-wrap');
   if(wrap) wrap.innerHTML=html;
