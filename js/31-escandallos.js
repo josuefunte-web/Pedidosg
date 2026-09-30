@@ -2,7 +2,7 @@
 let _escEditId=null, _escIngs=[], _escAllData={}, _escSupsCache={}, _escInit=false;
 let _escElab={texto:'',pasos:[]};
 let _escTemporada=[], _escSecciones=[];
-let _menAllData={}, _menEditId=null, _menEscIds=[], _menInit=false;
+let _menAllData={}, _menEditId=null, _menInit=false;
 
 function vEscandallos(){
   const escTab=S._escSubTab||'escandallos';
@@ -27,6 +27,7 @@ function vEscandallos(){
     <input type="text" id="men-search" placeholder="Buscar menú..." oninput="menRender()" />
     <select id="men-local-filter" onchange="menRender()"><option value="">Todos los locales</option>${cfg.users.map(u=>`<option>${u.restaurant}</option>`).join('')}</select>
   </div>
+  <div id="men-legacy-bar"></div>
   <div id="men-grid" class="men-grid"><p style="color:var(--mut)">Cargando...</p></div>
   `:
   `<div id="esc-detail-wrap" style="display:none"></div>
@@ -54,26 +55,34 @@ function vEscandallos(){
 
   <!-- MODAL MENÚ -->
   <div class="overlay" id="men-modal-ov" style="display:none" onclick="if(event.target===this)menCloseModal()">
-    <div class="esc-modal-box" style="max-width:780px">
+    <div class="esc-modal-box" style="max-width:960px">
       <div class="esc-modal-hd">
         <h3 id="men-modal-title">Nuevo menú</h3>
         <button class="btn btn-ghost btn-sm" onclick="menCloseModal()">✕</button>
       </div>
       <div style="padding:0 24px 16px;overflow-y:auto">
-        <div class="fg"><label>Nombre del menú</label><input type="text" id="men-nombre" placeholder="Ej: Menú degustación"/></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div class="fg"><label>Local</label><select id="men-local"><option value="global">Global (todos)</option>${cfg.users.map(u=>`<option value="${u.restaurant}">${u.restaurant}</option>`).join('')}</select></div>
-          <div class="fg"><label>PVP del menú €</label><input type="number" id="men-pvp" min="0" step="0.01" placeholder="0.00"/></div>
+        <div class="fg"><label>Nombre del menú</label><input type="text" id="men-nombre" placeholder="Ej: Menú grupo 25 €" oninput="menField('nombre',this.value)"/></div>
+        <div class="men-top-grid">
+          <div class="fg"><label>Local</label><select id="men-local" onchange="menField('restaurante',this.value)"><option value="global">Global (todos)</option>${cfg.users.map(u=>`<option value="${u.restaurant}">${u.restaurant}</option>`).join('')}</select></div>
+          <div class="fg"><label>Precio por persona €</label><input type="number" id="men-pvp" min="0" step="0.01" placeholder="0.00" oninput="menField('pvp',this.value)"/></div>
+          <div class="fg"><label>Food cost objetivo %</label><input type="number" id="men-fcobj" min="1" max="100" step="1" value="30" oninput="menField('fcObj',this.value)"/></div>
+          <div class="fg"><label>Comensales de referencia</label><input type="number" id="men-personas" min="1" step="1" value="10" oninput="menField('personas',this.value)"/></div>
         </div>
         <div class="fg"><label>Notas</label><textarea id="men-notas" rows="2" placeholder="Descripción, alérgenos..."></textarea></div>
-        <div style="font-weight:700;font-size:13px;margin:14px 0 8px;color:var(--pri)">Platos del menú</div>
-        <div id="men-esc-selector" class="men-sel-cols"></div>
+        <div style="font-weight:700;font-size:13px;margin:14px 0 8px;color:var(--pri)">Estructura del menú</div>
+        <div id="men-bloques"></div>
+        <div class="men-presets">
+          <span class="pk-mut" style="font-size:12px">Añadir bloque:</span>
+          <button class="btn btn-ghost btn-sm" onclick="menAddBloque('compartir','Primeros')">🍽 Primeros a compartir</button>
+          <button class="btn btn-ghost btn-sm" onclick="menAddBloque('escoger','Segundos')">🔀 Segundos a escoger</button>
+          <button class="btn btn-ghost btn-sm" onclick="menAddBloque('escoger','Postres')">🔀 Postres a escoger</button>
+          <button class="btn btn-ghost btn-sm" onclick="menAddBloque('fijo','Bebida')">👤 Para todos</button>
+        </div>
+        <div class="men-resumen" id="men-resumen" style="margin-top:14px"></div>
       </div>
       <div class="esc-modal-ft">
         <div style="display:flex;align-items:center;gap:12px">
           <button class="btn btn-no btn-sm" id="men-btn-del" style="display:none" onclick="menDelete()">Eliminar</button>
-          <span style="font-size:13px;color:var(--mut)">Coste total</span>
-          <strong id="men-coste-total" style="font-size:16px;color:var(--pri)">0,00 €</strong>
         </div>
         <div class="esc-modal-ft-r">
           <button class="btn btn-ghost btn-sm" onclick="menExportPDF()">PDF</button>
@@ -86,7 +95,7 @@ function vEscandallos(){
 
   <!-- MODAL CALCULADORA DE MENÚ DE GRUPO -->
   <div class="overlay" id="men-group-ov" style="display:none" onclick="if(event.target===this)menGroupClose()">
-    <div class="esc-modal-box" style="max-width:640px">
+    <div class="esc-modal-box" style="max-width:680px">
       <div class="esc-modal-hd">
         <h3>👥 Menú para grupo</h3>
         <button class="btn btn-ghost btn-sm" onclick="menGroupClose()">✕</button>
@@ -150,36 +159,11 @@ function vEscandallos(){
         </div>
         <div class="esc-right">
           <h4>Ingredientes</h4>
-          <div class="esc-add-ing" style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-            <select id="esc-sel-prov" onchange="escLoadProds()" style="grid-column:1/3">
-              <option value="">-- Proveedor (opcional) --</option>
-            </select>
-            <input type="text" id="esc-prod-search" placeholder="Buscar producto del proveedor..." style="grid-column:1/3;display:none;padding:7px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:13px;background:var(--card);color:var(--txt);outline:none" oninput="escFilterProdsSearch(this.value)" onfocus="this.style.borderColor='var(--pri)'" onblur="this.style.borderColor='var(--brd)'"/>
-            <select id="esc-sel-prod" style="grid-column:1/3"><option value="">-- Producto del proveedor --</option></select>
-            <div id="esc-new-prod-wrap" style="display:none;grid-column:1/3;background:var(--srf);border:1.5px solid var(--brd);border-radius:9px;padding:10px;display:none">
-              <div style="font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Crear nuevo producto en este proveedor</div>
-              <div style="display:grid;grid-template-columns:2fr 1fr 1fr 80px;gap:6px;margin-bottom:8px">
-                <input type="text" id="esc-np-name" placeholder="Nombre del producto"/>
-                <select id="esc-np-unit"><option>KG</option><option>g</option><option>UN</option><option>L</option><option>Caja</option></select>
-                <input type="number" id="esc-np-price" placeholder="€/u." step="0.01" min="0"/>
-                <input type="number" id="esc-np-gr" placeholder="gr" step="1" min="0" title="Peso en gramos"/>
-              </div>
-              <div style="display:flex;gap:6px">
-                <button class="btn btn-ok btn-sm" onclick="escCrearProd()">✓ Crear y seleccionar</button>
-                <button class="btn btn-ghost btn-sm" onclick="escToggleNewProd(false)">Cancelar</button>
-              </div>
-            </div>
-            <button id="esc-btn-new-prod" class="btn btn-ghost btn-sm" style="display:none;grid-column:1/3;font-size:12px" onclick="escToggleNewProd(true)">+ Crear nuevo producto en este proveedor</button>
-            <input type="text" id="esc-libre-nombre" placeholder="O escribe ingrediente libre" style="grid-column:1/3;padding:6px 9px;border:1.5px solid var(--brd);border-radius:7px;font-size:13px;background:var(--card);color:var(--txt)"/>
-            <div style="display:flex;gap:4px;align-items:center">
-              <input type="number" id="esc-sel-qty" placeholder="Cant." min="0" step="0.001" style="flex:1"/>
-              <input type="number" id="esc-libre-precio" placeholder="€/u." min="0" step="0.01" style="flex:1"/>
-            </div>
-            <div style="display:flex;gap:4px;align-items:center">
-              <input type="number" id="esc-sel-merma" placeholder="Merma %" min="0" max="99" step="1" style="flex:1" title="% de merma/desperdicio"/>
-              <button class="btn btn-ghost btn-sm" onclick="escAddIng()" style="flex:1">+ Añadir</button>
-            </div>
+          <div class="pk-wrap">
+            <input type="text" id="esc-pick-q" class="pk-input" autocomplete="off" placeholder="🔎 Buscar ingrediente en todos los proveedores…" oninput="escPickInput(this.value)" onfocus="escPickFocus()" onblur="escPickBlur()" onkeydown="escPickKey(event)"/>
+            <div id="esc-pick-dd" class="pk-dd" style="display:none"></div>
           </div>
+          <div id="esc-pick-stage" class="pk-stage" style="display:none"></div>
           <div id="esc-ing-list" class="esc-ing-list"><p style="color:var(--mut);font-size:13px">Sin ingredientes</p></div>
           <div class="esc-calcs">
             <div class="esc-calc-r"><span>Coste total</span><strong id="ec-coste">0,00 €</strong></div>
@@ -398,20 +382,7 @@ function escOpenModal(id=null){
     _escTemporada=[];
     _escSecciones=[];
   }
-  // Limpiar campos de añadir ingrediente
-  ['esc-sel-qty','esc-sel-merma','esc-libre-nombre','esc-libre-precio'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  // Poblar proveedores
-  const sel=document.getElementById('esc-sel-prov');
-  sel.innerHTML='<option value="">-- Proveedor (opcional) --</option>';
-  // Opción sub-elaboración
-  const subOpt=document.createElement('option');
-  subOpt.value='__subesc__'; subOpt.textContent='🔗 Sub-elaboración (otro escandallo)';
-  sel.appendChild(subOpt);
-  Object.entries(_escSupsCache).forEach(([pid,prov])=>{
-    const o=document.createElement('option');
-    o.value=pid; o.textContent=(prov.emoji||'')+(prov.name||pid);
-    sel.appendChild(o);
-  });
+  escPickReset();
   escRenderIngs(); escRecalc();
   document.getElementById('esc-modal-ov').style.display='block';
   window.scrollTo(0,0);

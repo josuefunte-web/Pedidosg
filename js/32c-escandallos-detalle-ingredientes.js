@@ -1,132 +1,4 @@
 /* ═══════════════ ESCANDALLOS: INGREDIENTES, CÁLCULO DE COSTE Y GUARDADO ═══════════════ */
-function escLoadProds(){
-  const pid=document.getElementById('esc-sel-prov').value;
-  const sel=document.getElementById('esc-sel-prod');
-  const srch=document.getElementById('esc-prod-search');
-  const btnNew=document.getElementById('esc-btn-new-prod');
-  const wrapNew=document.getElementById('esc-new-prod-wrap');
-  sel.innerHTML='<option value="">-- Producto --</option>';
-  if(wrapNew) wrapNew.style.display='none';
-  if(pid==='__subesc__'){
-    if(srch){srch.value='';srch.style.display='none';}
-    if(btnNew) btnNew.style.display='none';
-    sel.innerHTML='<option value="">-- Selecciona escandallo --</option>';
-    Object.entries(_escAllData).filter(([id])=>id!==_escEditId).sort((a,b)=>(a[1].nombre||'').localeCompare(b[1].nombre||'','es')).forEach(([id,e])=>{
-      const o=document.createElement('option');
-      o.value=id; o.textContent=(e.nombre||'Sin nombre')+' ['+escFmt(escCosteTotal(e))+'/rac.]';
-      o.dataset.name=e.nombre||'Sin nombre'; o.dataset.unit='rac.'; o.dataset.price='0';
-      sel.appendChild(o);
-    });
-    return;
-  }
-  if(srch){srch.value='';srch.style.display=pid?'block':'none';}
-  if(btnNew) btnNew.style.display=pid?'block':'none';
-  if(!pid||!_escSupsCache[pid]) return;
-  const prods=(Array.isArray(_escSupsCache[pid].products)?_escSupsCache[pid].products:Object.values(_escSupsCache[pid].products||[]));
-  // Agrupar por categoría
-  const byCat={};
-  prods.forEach(p=>{ const c=p.category||'Otros'; if(!byCat[c])byCat[c]=[]; byCat[c].push(p); });
-  const cats=[...PROD_CATS,...Object.keys(byCat).filter(c=>!PROD_CATS.includes(c))].filter(c=>byCat[c]);
-  cats.forEach(cat=>{
-    const grp=document.createElement('optgroup');
-    grp.label=cat;
-    byCat[cat].forEach(p=>{
-      const o=document.createElement('option');
-      o.value=p.id||p.name;
-      const grInfo=p.pesoGr?` · ${p.pesoGr}gr`:'';
-      o.textContent=`${p.name} (${parseFloat(p.price||0).toFixed(2)}€/${p.unit||'u.'}${grInfo})`;
-      o.dataset.price=p.price||0; o.dataset.unit=p.unit||'u.'; o.dataset.name=p.name||''; o.dataset.gr=p.pesoGr||''; o.dataset.cat=cat;
-      grp.appendChild(o);
-    });
-    sel.appendChild(grp);
-  });
-}
-function escFilterProdsSearch(term){
-  const sel=document.getElementById('esc-sel-prod');
-  if(!sel)return;
-  const q=term.toLowerCase().trim();
-  Array.from(sel.options).forEach(o=>{
-    if(!o.value){o.style.display='';return;}
-    o.style.display=(!q||o.dataset.name.toLowerCase().includes(q))?'':'none';
-  });
-  // Auto-select if only one match
-  const visible=Array.from(sel.options).filter(o=>o.value&&o.style.display!=='none');
-  if(visible.length===1) sel.value=visible[0].value;
-}
-function escToggleNewProd(show){
-  const wrap=document.getElementById('esc-new-prod-wrap');
-  const btn=document.getElementById('esc-btn-new-prod');
-  if(!wrap)return;
-  wrap.style.display=show?'block':'none';
-  if(btn) btn.style.display=show?'none':'block';
-  if(show){
-    const srch=document.getElementById('esc-prod-search');
-    if(srch) document.getElementById('esc-np-name').value=srch.value||'';
-    setTimeout(()=>document.getElementById('esc-np-name')?.focus(),50);
-  }
-}
-function escCrearProd(){
-  const pid=document.getElementById('esc-sel-prov').value;
-  if(!pid){toast('Selecciona primero un proveedor','#dc2626');return;}
-  const name=(document.getElementById('esc-np-name')?.value||'').trim();
-  const unit=document.getElementById('esc-np-unit')?.value||'KG';
-  const price=parseFloat(document.getElementById('esc-np-price')?.value)||0;
-  const grRaw=document.getElementById('esc-np-gr')?.value;
-  const pesoGr=grRaw&&!isNaN(parseInt(grRaw))?parseInt(grRaw):undefined;
-  if(!name){toast('Escribe el nombre del producto','#dc2626');return;}
-  if(!suppliers[pid]) suppliers[pid]=_escSupsCache[pid];
-  if(!Array.isArray(suppliers[pid].products)) suppliers[pid].products=Object.values(suppliers[pid].products||{});
-  const newId='p'+uid();
-  const prod={id:newId,name,unit,price};
-  if(pesoGr!==undefined) prod.pesoGr=pesoGr;
-  suppliers[pid].products.push(prod);
-  _escSupsCache[pid]=suppliers[pid];
-  saveSups(pid);
-  // Reload product list and select the new product
-  escLoadProds();
-  setTimeout(()=>{
-    const sel=document.getElementById('esc-sel-prod');
-    if(sel) sel.value=newId;
-    escToggleNewProd(false);
-    toast(`Producto "${name}" creado y seleccionado`,'#16a34a');
-  },100);
-}
-
-function escAddIng(){
-  const pid=document.getElementById('esc-sel-prov').value;
-  const sel=document.getElementById('esc-sel-prod');
-  const prodId=sel.value;
-  const qty=parseFloat(document.getElementById('esc-sel-qty').value);
-  const merma=parseFloat(document.getElementById('esc-sel-merma').value)||0;
-  const libreNombre=(document.getElementById('esc-libre-nombre').value||'').trim();
-  const librePrice=parseFloat(document.getElementById('esc-libre-precio').value)||0;
-  if(!qty||qty<=0){toast('Introduce una cantidad válida','#dc2626');return;}
-
-  if(pid==='__subesc__'){
-    // Sub-elaboración
-    if(!prodId){toast('Selecciona un escandallo','#dc2626');return;}
-    const opt=sel.options[sel.selectedIndex];
-    _escIngs.push({type:'subesc',escId:prodId,proveedorId:null,proveedorNombre:'Sub-elaboración',productoId:prodId,nombre:opt.dataset.name||opt.textContent.split(' [')[0],cantidad:qty,unidad:'rac.',precioUnitario:0,merma});
-  } else if(libreNombre){
-    // Ingrediente libre (sin proveedor)
-    _escIngs.push({proveedorId:null,proveedorNombre:'Libre',productoId:null,nombre:libreNombre,cantidad:qty,unidad:'u.',precioUnitario:librePrice,merma});
-  } else {
-    // Ingrediente de proveedor
-    if(!pid){toast('Selecciona un proveedor, un sub-escandallo o escribe un ingrediente libre','#dc2626');return;}
-    if(!prodId){toast('Selecciona un producto','#dc2626');return;}
-    const opt=sel.options[sel.selectedIndex];
-    const prov=_escSupsCache[pid];
-    _escIngs.push({proveedorId:pid,proveedorNombre:(prov?.name||pid),productoId:prodId,nombre:opt.dataset.name||opt.textContent,cantidad:qty,unidad:opt.dataset.unit||'u.',precioUnitario:parseFloat(opt.dataset.price)||0,merma});
-  }
-  document.getElementById('esc-sel-prov').value='';
-  document.getElementById('esc-sel-prod').innerHTML='<option value="">-- Producto del proveedor --</option>';
-  document.getElementById('esc-sel-qty').value='';
-  document.getElementById('esc-sel-merma').value='';
-  document.getElementById('esc-libre-nombre').value='';
-  document.getElementById('esc-libre-precio').value='';
-  escRenderIngs(); escRecalc();
-}
-
 function escQuitarIng(i){ _escIngs.splice(i,1); escRenderIngs(); escRecalc(); }
 function escSetIngQty(i,val){ if(!_escIngs[i])return; const v=parseFloat(val); _escIngs[i].cantidad=isNaN(v)?0:v; escRenderIngs(); escRecalc(); }
 function escSetIngMerma(i,val){ if(!_escIngs[i])return; let v=parseFloat(val); if(isNaN(v))v=0; v=Math.max(0,Math.min(99,v)); _escIngs[i].merma=v; escRenderIngs(); escRecalc(); }
@@ -175,10 +47,25 @@ function escFraccionTexto(val){
   return String(Math.round(n*1000)/1000);
 }
 
+function escRowView(ing){
+  // Cantidad "amigable": 0,25 KG se muestra como 250 g
+  const opts=escUnitOpts(ing.unidad);
+  const q=parseFloat(ing.cantidad)||0;
+  const o=(opts.length>1&&opts[1].f<1&&q>0&&q<1)?opts[1]:opts[0];
+  return {opts,cur:o,val:escFmtQty(q/o.f)};
+}
+function escRowQty(i){
+  const ing=_escIngs[i]; if(!ing) return;
+  const v=parseFloat(document.getElementById('ei-q-'+i)?.value);
+  const f=parseFloat(document.getElementById('ei-u-'+i)?.value)||1;
+  ing.cantidad=isNaN(v)?0:v*f;
+  escRenderIngs(); escRecalc();
+}
+
 function escRenderIngs(){
   const cont=document.getElementById('esc-ing-list');
   if(!cont) return;
-  if(!_escIngs.length){cont.innerHTML='<p style="color:var(--mut);font-size:13px">Sin ingredientes aún</p>';return;}
+  if(!_escIngs.length){cont.innerHTML='<p style="color:var(--mut);font-size:13px">Sin ingredientes aún. Usa el buscador de arriba.</p>';return;}
   const totalCoste=_escIngs.reduce((s,ing)=>s+escCosteFactor(ing),0);
   cont.innerHTML=_escIngs.map((ing,i)=>{
     const liveP=escLivePrice(ing);
@@ -187,23 +74,45 @@ function escRenderIngs(){
     const pct=totalCoste>0?(costeReal/totalCoste*100):0;
     const pctColor=pct>=40?'#dc2626':pct>=20?'#d97706':'#64748b';
     const changed=ing.proveedorId!==null&&Math.abs(liveP-(parseFloat(ing.precioUnitario)||0))>0.001;
-    const priceTag=changed?`<span style="color:#d97706;font-size:10px" title="Precio actualizado desde tarifa">${escFmt(liveP)}</span>`:`${escFmt(liveP)}`;
-    const mermaTag=merma>0?`<span style="color:#7c3aed;font-size:10px;margin-left:4px" title="Con merma del ${merma}%">${merma}%</span>`:'';
+    const priceTag=changed?`<span style="color:#d97706" title="Precio actualizado desde tarifa">${escFmt(liveP)}</span>`:escFmt(liveP);
     const fracTexto=ing.type==='fracsubesc'?escFraccionTexto(ing.fraccion||ing.cantidad):'';
-    const subEscTag=ing.type==='subesc'?'<span style="font-size:10px;color:#7c3aed;margin-left:4px;font-weight:700">[sub-elaboración]</span>'
-      :ing.type==='fracsubesc'?`<span style="font-size:10px;color:#6366f1;margin-left:4px;font-weight:700">[${fracTexto} del escandallo]</span>`
-      :'';
-    const libre=(!ing.type&&ing.proveedorId===null)?'<span style="font-size:10px;color:#6b7280;margin-left:4px">[libre]</span>':'';
-    const qtyCell=ing.type==='fracsubesc'
-      ? `${fracTexto} × ${priceTag} total`
-      : `<input type="number" value="${ing.cantidad}" min="0" step="0.001" onchange="escSetIngQty(${i},this.value)" onclick="event.stopPropagation()" style="width:64px;padding:3px 6px;border:1.5px solid var(--brd);border-radius:6px;font-size:12px;background:var(--card);color:var(--txt);text-align:right"/> ${ing.unidad} × ${priceTag}`;
-    const mermaCell=`<input type="number" value="${ing.merma||0}" min="0" max="99" step="1" onchange="escSetIngMerma(${i},this.value)" onclick="event.stopPropagation()" title="% merma" style="width:46px;padding:3px 5px;border:1.5px solid var(--brd);border-radius:6px;font-size:11px;background:var(--card);color:var(--txt);text-align:right"/>%`;
-    return `<div class="esc-ing-row">
-      <span class="in">${ing.nombre}${subEscTag}${libre}</span>
-      <span class="id">${qtyCell} <span style="margin-left:6px;color:var(--mut)">merma</span> ${mermaCell}</span>
+    const tag=ing.type==='subesc'?'<span class="pk-chip pk-sub">sub-elaboración</span>'
+      :ing.type==='fracsubesc'?`<span class="pk-chip pk-sub">${fracTexto} del escandallo</span>`
+      :ing.proveedorId?`<span class="pk-chip">${escHtml(ing.proveedorNombre||'')}</span>`
+      :'<span class="pk-chip">libre</span>';
+    let qtyCell;
+    if(ing.type==='fracsubesc'){
+      qtyCell=`${fracTexto} × ${priceTag}`;
+    } else {
+      const v=escRowView(ing);
+      const unitSel=v.opts.length>1
+        ?`<select id="ei-u-${i}" onchange="escRowQty(${i})">${v.opts.map(o=>`<option value="${o.f}"${o===v.cur?' selected':''}>${escHtml(o.l)}</option>`).join('')}</select>`
+        :`<input type="hidden" id="ei-u-${i}" value="1"/><span class="pk-mut">${escHtml(ing.unidad||'')}</span>`;
+      qtyCell=`<input type="number" id="ei-q-${i}" value="${v.val}" min="0" step="0.001" onchange="escRowQty(${i})" onclick="event.stopPropagation()" class="ei-qty"/>${unitSel}<span class="pk-mut">× ${priceTag}/${escHtml(ing.unidad||'')}</span>`;
+    }
+    // ¿Hay el mismo producto más barato en otro proveedor?
+    let altHint='', altPanel='';
+    const alts=escAltsFor(ing);
+    if(alts.length){
+      const best=alts[0];
+      if(best.price>0&&liveP>0&&best.price<liveP*0.98){
+        altHint=`<button class="pk-alt-hint" onclick="escAltToggle(${i})" title="Ver alternativas">💡 −${Math.round((1-best.price/liveP)*100)}% en ${escHtml(best.sname)}</button>`;
+      } else {
+        altHint=`<button class="btn btn-ghost btn-xs" onclick="escAltToggle(${i})" title="Cambiar de proveedor">⇄</button>`;
+      }
+      if(_escPick.alt===i){
+        altPanel=`<div class="pk-alt-panel">${alts.map((a,j)=>`<div class="pk-row" onclick="escAltSwap(${i},${j})"><span class="pk-name">${escHtml(a.name)}</span><span class="pk-chip">${escHtml((a.emoji||'')+a.sname)}</span><span class="pk-price">${escFmt(a.price)}/${escHtml(a.unit)}</span></div>`).join('')}</div>`;
+      }
+    }
+    const mermaCell=`<input type="number" value="${ing.merma||0}" min="0" max="99" step="1" onchange="escSetIngMerma(${i},this.value)" onclick="event.stopPropagation()" title="% merma" class="ei-merma"/>%`;
+    return `<div class="esc-ing-row" style="flex-wrap:wrap">
+      <span class="in">${escHtml(ing.nombre)} ${tag}</span>
+      <span class="id">${qtyCell} <span class="pk-mut">merma</span> ${mermaCell}</span>
       <span class="ic">${escFmt(costeReal)}</span>
       <span style="font-size:11px;font-weight:700;min-width:38px;text-align:right;color:${pctColor}">${pct.toFixed(1)}%</span>
+      ${altHint}
       <button onclick="escQuitarIng(${i})" title="Eliminar">✕</button>
+      ${altPanel}
     </div>`;
   }).join('');
 }
