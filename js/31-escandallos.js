@@ -362,7 +362,12 @@ function escOpenModal(id=null){
     const rendEl=document.getElementById('esc-rend');
     const rendUEl=document.getElementById('esc-rend-unit');
     if(rendEl) rendEl.value=e.rendimiento||1;
-    if(rendUEl) rendUEl.value=e.rendimientoUnidad||'rac.';
+    if(rendUEl){
+      const u=e.rendimientoUnidad||'rac.';
+      // Unidad fuera del desplegable (p.ej. importada): añadirla para no perderla al guardar
+      if(![...rendUEl.options].some(o=>o.value===u)) rendUEl.add(new Option(u,u));
+      rendUEl.value=u;
+    }
     if(selLocal) selLocal.value=e.restaurante||'global';
     const tiempoEl=document.getElementById('esc-tiempo');
     if(tiempoEl) tiempoEl.value=e.tiempoElaboracion||'';
