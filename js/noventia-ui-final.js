@@ -5,8 +5,10 @@
   var body=document.body;
   function isVisible(el){
     if(!el) return false;
-    if(el.style && el.style.display==='block') return true;
-    try{ return getComputedStyle(el).display==='block'; }catch(e){ return false; }
+    // Solo el estilo en línea: el CSS fuerza display:block!important mientras
+    // la clase está puesta, así que getComputedStyle nunca dejaría de ser
+    // 'block' y el editor no se cerraría tras guardar.
+    return !!(el.style && el.style.display==='block');
   }
   function sync(){
     var editor=document.getElementById('esc-modal-ov');
