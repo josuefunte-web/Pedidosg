@@ -152,7 +152,7 @@ function vLocalEscandallos(){
     html+='<div class="card"><div class="card-t">Mis menús</div>';
     html+=myMenus.map(([,m])=>{
       const escs=(m.escandallos||[]).map(eid=>_escAllData[eid]).filter(Boolean);
-      const costeTotal=escs.reduce((s,e)=>s+escCosteTotal(e),0);
+      const costeTotal=menCalc(menNormalize(m),parseInt(m.personas)||10).avgPP; // coste medio por persona
       const pvp=parseFloat(m.pvp)||0;
       const margen=pvp>0?(pvp-costeTotal):null;
       return `<div style="border:1.5px solid var(--brd);border-radius:10px;padding:12px;margin-bottom:8px">
