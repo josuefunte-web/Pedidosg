@@ -17,6 +17,11 @@ function renderAdminContent(){
   if(!tc) return;
   // No interrumpir modales abiertos
   if(S.adminTab==='escandallos' && document.getElementById('esc-modal-ov')?.style.display==='block') return;
+  // Editor de menús y calculadora de grupo abiertos (usan display:flex): un re-render
+  // por un pedido o cambio de proveedor los borraría con lo que se está escribiendo
+  if(S.adminTab==='escandallos' && ['men-modal-ov','men-group-ov'].some(id=>{
+    const d=document.getElementById(id)?.style.display; return d&&d!=='none';
+  })) return;
   if(S.adminTab==='escandallos' && S._escDetailId && document.getElementById('esc-detail-wrap')?.style.display==='block') return;
   if(S.adminTab==='inventario'  && S.invEditId) return; // formulario inline abierto
   const _sv=window.scrollY;

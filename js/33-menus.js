@@ -137,7 +137,12 @@ function menOpenModal(id=null){
     nombre:src.nombre||'',restaurante:src.restaurante||'global',pvp:src.pvp||'',notas:src.notas||'',
     personas:parseInt(src.personas)||10,fcObj:parseFloat(src.fcObj)||30,
     bloques:JSON.parse(JSON.stringify(src.bloques||[]))
-  }:{nombre:'',restaurante:'global',pvp:'',notas:'',personas:10,fcObj:30,bloques:[]};
+  }:{nombre:'',restaurante:'global',pvp:'',notas:'',personas:10,fcObj:30,bloques:[
+    // Estructura habitual de menú de grupo: primeros al centro, segundos y postres a escoger
+    {id:uid(),tipo:'compartir',titulo:'Primeros',porCada:4,opciones:[]},
+    {id:uid(),tipo:'escoger',titulo:'Segundos',porCada:4,opciones:[]},
+    {id:uid(),tipo:'escoger',titulo:'Postres',porCada:4,opciones:[]}
+  ]};
   document.getElementById('men-modal-title').textContent=id?'Editar menú':'Nuevo menú';
   document.getElementById('men-btn-del').style.display=id?'':'none';
   document.getElementById('men-nombre').value=_menDraft.nombre;
