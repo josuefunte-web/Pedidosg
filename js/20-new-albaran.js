@@ -10,6 +10,7 @@ function vAlbaranNew(){
   const itemsHtml=S.albItems.map((it,i)=>`
     <div class="item-entry">
       <button class="item-del" onclick="albDelItem(${i})">✕</button>
+      ${it.ocrNote?`<div style="font-size:12px;color:#b45309;background:#fffbeb;border-radius:6px;padding:4px 8px;margin:0 28px 8px 0">⚠ ${_e(it.ocrNote)}</div>`:''}
       <div class="three-col">
         <div class="fg" style="margin-bottom:6px"><label>Producto</label><input type="text" value="${it.name}" onchange="S.albItems[${i}].name=this.value" placeholder="Entrecot..."/></div>
         <div class="fg" style="margin-bottom:6px"><label>Código</label><input type="text" value="${it.code||''}" onchange="S.albItems[${i}].code=this.value" placeholder="B001"/></div>
@@ -41,6 +42,7 @@ function vAlbaranNew(){
                ?`<div style="display:flex;align-items:center;gap:10px;padding:12px;background:var(--srf);border-radius:10px;margin-top:8px;border:1px solid var(--brd)"><span style="font-size:20px;color:var(--mut)">PDF</span><div><div style="font-weight:600;font-size:14px;color:var(--txt)">${S.albFileName||'documento.pdf'}</div><div style="font-size:12px;color:var(--mut)">PDF listo para analizar con IA</div></div></div>`
                :`<img id="alb-img-preview" class="img-preview" style="display:none" src=""/>`}
              <div id="ocr-progress" class="ocr-progress">Reconociendo texto...</div>
+             ${S.albOcrMsg?`<div style="margin-top:8px;padding:10px 12px;border-radius:8px;font-size:13px;background:${S.albOcrMsg.kind==='err'?'#fef2f2':S.albOcrMsg.kind==='warn'?'#fffbeb':'#f0fdf4'};color:${S.albOcrMsg.kind==='err'?'#991b1b':S.albOcrMsg.kind==='warn'?'#92400e':'#166534'}"><strong>${_e(S.albOcrMsg.text)}</strong>${(S.albOcrMsg.details||[]).map(d=>`<div style="margin-top:4px">${_e(d)}</div>`).join('')}</div>`:''}
              ${S.albPhoto?`<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
                ${S.albFileType==='image'?`<button class="btn btn-ghost btn-sm" onclick="showCropUI()">Recortar imagen</button>`:''}
                <button class="btn btn-blue btn-sm" onclick="runOCR()">Reconocer con OCR</button>

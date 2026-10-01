@@ -67,32 +67,14 @@ function vSettings(){
         </div>
       </div>
     </div>
-    <div class="card-t" style="margin-top:20px">OCR para albaranes — Mistral OCR</div>
+    <div class="card-t" style="margin-top:20px">OCR de albaranes</div>
     <div class="fg">
-      <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:12px;margin-bottom:12px;font-size:13px">
-        <strong>OCR con IA — Mistral OCR</strong> (recomendado)
-        <ol style="margin:8px 0 0 16px;padding:0;line-height:1.8">
-          <li>Ve a <a href="https://console.mistral.ai" target="_blank" style="color:var(--pri)">console.mistral.ai</a> → Claves API</li>
-          <li>Crea una clave y pégala aquí</li>
-          <li>~2€ por cada 1.000 albaranes escaneados</li>
-        </ol>
-      </div>
-      <label>URL del proxy OCR (Cloudflare Worker)</label>
-      <input type="url" value="${cfg.mistralProxyUrl||''}" placeholder="https://provea-mistral-proxy.tucuenta.workers.dev" onchange="cfg.mistralProxyUrl=this.value.trim();saveCfg()"/>
-      <div style="font-size:12px;color:${cfg.mistralProxyUrl?'#16a34a':'#dc2626'};margin-top:4px">${cfg.mistralProxyUrl?'✓ Proxy configurado — el OCR pasará por tu Worker autenticado':'Sin configurar — el OCR con IA no funcionará (se caerá a OCR.space básico)'}</div>
-      <div style="font-size:11px;color:var(--mut);margin-top:4px">La API key de Mistral se guarda como secret en tu Worker. NUNCA se expone al navegador.</div>
-      <!-- Legacy: la key en cliente se mantiene solo por si tu Worker no está desplegado todavía.
-           Cuando el proxy esté funcionando, borra la key de aquí. -->
-      <label style="margin-top:12px;display:block">API Key de Mistral <span style="color:#dc2626">(legacy, en desuso)</span></label>
-      <input type="password" value="${cfg.mistralKey||''}" placeholder="Solo para fallback" onchange="cfg.mistralKey=this.value.trim();saveCfg()"/>
-      <div style="font-size:12px;color:${cfg.mistralKey?'#16a34a':'var(--mut)'};margin-top:4px">${cfg.mistralKey?'✓ Configurada — el OCR usará Mistral OCR (IA)':'Sin configurar — se usará OCR.space como alternativa'}</div>
-    </div>
-    <div class="card-t" style="margin-top:20px">OCR alternativo — OCR.space</div>
-    <div class="fg">
-      <div style="font-size:12px;color:var(--mut);margin-bottom:8px">Se usa solo si no hay clave Mistral configurada.</div>
-      <label>API Key de OCR.space</label>
-      <input type="password" value="${cfg.ocrSpaceKey||''}" placeholder="helloworld" onchange="cfg.ocrSpaceKey=this.value.trim();saveCfg()"/>
-      <div style="font-size:12px;color:var(--mut);margin-top:4px">${cfg.ocrSpaceKey?'Configurada':'Usando clave demo (limitada)'}</div>
+      <label>URL del Worker de OCR (Cloudflare)</label>
+      <input type="url" value="${_a(cfg.mistralProxyUrl||'')}" placeholder="https://provea-mistral-proxy.tucuenta.workers.dev" onchange="cfg.mistralProxyUrl=this.value.trim();saveCfg();renderAdminContent()"/>
+      <div style="font-size:12px;color:${cfg.mistralProxyUrl?'#16a34a':'#dc2626'};margin-top:4px">${cfg.mistralProxyUrl?'✓ URL guardada. Pulsa "Probar OCR" para comprobar que todo funciona.':'Sin configurar: el OCR no funcionará hasta que pongas la URL del Worker. Pasos en OCR_SETUP.md.'}</div>
+      <div style="font-size:11px;color:var(--mut);margin-top:4px">La clave de Mistral vive solo como secret del Worker; nunca llega al navegador.</div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="ocrSelfTest('ocr-test-result')">Probar OCR</button>
+      <div id="ocr-test-result"></div>
     </div>
     <div class="card-t" style="margin-top:20px">Firebase</div>
     <div class="banner green">Conectado a Firebase — los pedidos se sincronizan en tiempo real entre todos los dispositivos.</div>

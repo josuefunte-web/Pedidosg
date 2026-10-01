@@ -69,5 +69,5 @@ function goOrderAsAdmin(rest){
   const sl=visibleSups();if(sl.length)S.supId=sl[0].id;
   showHdr(false);render();
 }
-function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=visibleSups()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];S.albTotalManual=null;showHdr(false);render(); }
+function goAlbaran(){ S.view='albaran-new';S.albItems=[];S.albRestaurant=S.session?S.session.restaurant:'';S.albSupId=visibleSups()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];S.albTotalManual=null;S.albOcrMsg=null;showHdr(false);render(); }
 function setTabSb(t){ S.adminTab=t;S.sidebarOpen=false;render(); }
