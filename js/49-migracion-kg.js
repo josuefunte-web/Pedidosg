@@ -1,0 +1,44 @@
+/* ═══════════════ MIGRACIÓN: TODOS LOS PRODUCTOS A KG ═══════════════
+   Solo admin. Descarga antes una copia de seguridad de los proveedores.
+   - Productos en g: precio ×1000 (equivalente exacto en KG).
+   - Resto (UN, UD, Caja...): unidad → KG manteniendo el precio tal cual.
+   - Litros (L/ml) no se tocan: no hay equivalencia a kg sin densidad.
+   La unidad anterior se guarda en unitOrig para poder revertir. */
+function _kgMigPlan(){
+  const plan=[];
+  Object.entries(suppliers||{}).forEach(([sid,sup])=>{
+    if(!sup||!sup.products) return;
+    const arr=Array.isArray(sup.products)?sup.products:Object.values(sup.products);
+    arr.forEach(p=>{
+      if(!p) return;
+      const u=String(p.unit||'').trim().toLowerCase().replace(/\./g,'');
+      if(u==='kg'||u==='kgs'||['l','lt','litro','litros','ml','cl'].includes(u)) return;
+      plan.push({sid,p,g:['g','gr','gramo','gramos'].includes(u)});
+    });
+  });
+  return plan;
+}
+function migrarProductosAKg(){
+  if(!S.session||!S.session.isAdmin){ toast('Solo el administrador puede hacer esto','#dc2626'); return; }
+  const plan=_kgMigPlan();
+  if(!plan.length){ toast('Todos los productos ya están en KG','#16a34a'); return; }
+  const nG=plan.filter(x=>x.g).length;
+  if(!confirm(`Se cambiarán ${plan.length} productos a KG (${nG} en gramos con precio ×1000; el resto conserva su precio).\n\nSe descargará antes una copia de seguridad. ¿Continuar?`)) return;
+  try{
+    const blob=new Blob([JSON.stringify(suppliers,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+    a.download='backup-proveedores-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ toast('No se pudo crear la copia de seguridad; cancelado','#dc2626'); return; }
+  const sids=new Set();
+  plan.forEach(({sid,p,g})=>{
+    p.unitOrig=p.unit;
+    if(g) p.price=Math.round((parseFloat(p.price)||0)*1000*10000)/10000;
+    p.unit='KG';
+    sids.add(sid);
+  });
+  sids.forEach(sid=>saveSups(sid));
+  if(typeof escPickIndex==='function') escPickIndex(true);
+  toast(`${plan.length} productos pasados a KG`,'#16a34a',6000);
+  if(typeof renderAdminContent==='function') renderAdminContent();
+}

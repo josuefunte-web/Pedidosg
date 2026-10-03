@@ -87,6 +87,9 @@ function vSettings(){
       <span style="font-size:12px;color:var(--mut)">Útil tras subir cambios a GitHub — espera ~1 min a que se publique</span>
     </div>
     <div id="force-update-status" style="font-size:12px;color:var(--mut);margin-top:6px"></div>
+    <div class="card-t" style="margin-top:20px">Unidades</div>
+    <div style="font-size:13px;color:var(--mut);margin-bottom:10px">Pasa todos los productos de todos los proveedores a KG (descarga antes una copia de seguridad). Los productos en gramos se convierten con su precio; el resto mantiene el precio. Los litros no se tocan.</div>
+    <button class="btn btn-pri btn-sm" onclick="migrarProductosAKg()">Pasar todos los productos a KG</button>
     <div class="card-t" style="margin-top:20px">Datos</div>
     <div style="font-size:12px;color:var(--mut);padding:10px;background:var(--srf);border-radius:8px;border:1px solid var(--brd)">
       Las operaciones de borrado masivo (pedidos, albaranes) se han retirado del
