@@ -22,7 +22,14 @@ function escLivePrice(ing, depth=0){
   const sup=suppliers[ing.proveedorId];
   if(sup&&sup.products){
     const prod=(Array.isArray(sup.products)?sup.products:Object.values(sup.products)).find(p=>p.id===ing.productoId);
-    if(prod) return parseFloat(prod.price)||0;
+    if(prod){
+      // Ingrediente guardado en KG: precio normalizado a KG (g, pesoGr, conversión)
+      if(String(ing.unidad||'').toLowerCase()==='kg'&&typeof escKgPrice==='function'){
+        const kg=escKgPrice(prod);
+        if(kg.unit==='KG') return kg.price;
+      }
+      return parseFloat(prod.price)||0;
+    }
   }
   return parseFloat(ing.precioUnitario)||0;
 }

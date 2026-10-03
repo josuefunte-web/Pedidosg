@@ -13,6 +13,21 @@ function escProdsOf(sup){
   return Array.isArray(sup.products)?sup.products:Object.values(sup.products);
 }
 // Índice plano de productos de todos los proveedores
+// Los escandallos se calculan siempre en KG: g, productos con peso declarado
+// (pesoGr) y unidades con conversión a KG se pasan a precio por KG. Si no hay
+// equivalencia fiable (UN sin peso, L...) se deja la unidad original.
+function escKgPrice(p){
+  const price=parseFloat(p.price)||0;
+  const unit=String(p.unit||'u.').trim();
+  const u=unit.toLowerCase().replace(/\./g,'');
+  if(['kg','kgs','kilo','kilos'].includes(u)) return {price,unit:'KG'};
+  if(['g','gr','gramo','gramos'].includes(u)) return {price:price*1000,unit:'KG'};
+  const grams=parseFloat(p.pesoGr);
+  if(grams>0) return {price:price/grams*1000,unit:'KG'};
+  const conv=(p.conversions||[]).find(c=>String(c.fromUnit||'').toLowerCase()==='kg'&&parseFloat(c.factor)>0);
+  if(conv) return {price:price*parseFloat(conv.factor),unit:'KG'};
+  return {price,unit};
+}
 function escPickIndex(force){
   if(_escIdxCache&&!force) return _escIdxCache;
   const out=[];
@@ -20,9 +35,10 @@ function escPickIndex(force){
     if(!sup) return;
     escProdsOf(sup).forEach(p=>{
       if(!p||!p.name) return;
+      const kg=escKgPrice(p);
       out.push({kind:'prod',pid,sname:sup.name||pid,emoji:sup.emoji||'',prodId:p.id||p.name,prod:p,
         name:p.name,key:escNorm(p.name),snorm:escNorm(sup.name||pid),
-        price:parseFloat(p.price)||0,unit:p.unit||'u.',gr:p.pesoGr||''});
+        price:kg.price,unit:kg.unit,gr:p.pesoGr||''});
     });
   });
   _escIdxCache=out;
