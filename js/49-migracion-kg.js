@@ -18,18 +18,26 @@ function _kgMigPlan(){
   });
   return plan;
 }
+function _kgStatus(msg,col){
+  console.log('[migración KG]',msg);
+  const el=document.getElementById('kg-mig-status');
+  if(el){ el.textContent=msg; el.style.color=col||'var(--mut)'; }
+  toast(msg,col||'#222',9000);
+}
 function migrarProductosAKg(){
-  if(!S.session||!S.session.isAdmin){ toast('Solo el administrador puede hacer esto','#dc2626'); return; }
+  _kgStatus('Revisando productos...');
+  if(!S.session||!S.session.isAdmin){ _kgStatus('Solo el administrador puede hacer esto','#dc2626'); return; }
   const plan=_kgMigPlan();
-  if(!plan.length){ toast('Todos los productos ya están en KG','#16a34a'); return; }
+  if(!plan.length){ _kgStatus('Todos los productos (salvo litros) ya están en KG','#16a34a'); return; }
   const nG=plan.filter(x=>x.g).length;
+  _kgStatus(`${plan.length} productos por cambiar...`);
   if(!confirm(`Se cambiarán ${plan.length} productos a KG (${nG} en gramos con precio ×1000; el resto conserva su precio).\n\nSe descargará antes una copia de seguridad. ¿Continuar?`)) return;
   try{
     const blob=new Blob([JSON.stringify(suppliers,null,2)],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
     a.download='backup-proveedores-'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(a); a.click(); a.remove();
-  }catch(e){ toast('No se pudo crear la copia de seguridad; cancelado','#dc2626'); return; }
+  }catch(e){ _kgStatus('No se pudo crear la copia de seguridad; cancelado','#dc2626'); return; }
   const sids=new Set();
   plan.forEach(({sid,p,g})=>{
     p.unitOrig=p.unit;
@@ -42,10 +50,11 @@ function migrarProductosAKg(){
     if(typeof escPickIndex==='function') escPickIndex(true);
     if(typeof renderAdminContent==='function') renderAdminContent();
   };
-  if(!fbDb){ toast('Sin conexión con Firebase: el cambio NO se ha guardado en la nube','#dc2626',9000); done(); return; }
+  if(!fbDb){ done(); _kgStatus('Sin conexión con Firebase: el cambio NO se ha guardado en la nube','#dc2626'); return; }
+  _kgStatus('Guardando en Firebase...');
   Promise.all([...sids].map(sid=>fbDb.ref('suppliers/'+sid).set(suppliers[sid]))).then(()=>{
-    toast(`${plan.length} productos pasados a KG y guardados en Firebase`,'#16a34a',6000); done();
+    done(); _kgStatus(`${plan.length} productos pasados a KG y guardados en Firebase`,'#16a34a');
   }).catch(err=>{
-    toast('Firebase rechazó el guardado ('+(err&&err.code||err)+'). Hace falta rol admin1/admin2. Nada guardado en la nube.','#dc2626',12000); done();
+    console.error(err); done(); _kgStatus('Firebase rechazó el guardado ('+(err&&err.code||err)+'). Hace falta rol admin1/admin2. Nada guardado en la nube.','#dc2626');
   });
 }
