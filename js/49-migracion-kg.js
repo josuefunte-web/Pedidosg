@@ -37,8 +37,15 @@ function migrarProductosAKg(){
     p.unit='KG';
     sids.add(sid);
   });
-  sids.forEach(sid=>saveSups(sid));
-  if(typeof escPickIndex==='function') escPickIndex(true);
-  toast(`${plan.length} productos pasados a KG`,'#16a34a',6000);
-  if(typeof renderAdminContent==='function') renderAdminContent();
+  try{ localStorage.setItem('oc_suppliers',JSON.stringify(suppliers)); }catch(e){}
+  const done=()=>{
+    if(typeof escPickIndex==='function') escPickIndex(true);
+    if(typeof renderAdminContent==='function') renderAdminContent();
+  };
+  if(!fbDb){ toast('Sin conexión con Firebase: el cambio NO se ha guardado en la nube','#dc2626',9000); done(); return; }
+  Promise.all([...sids].map(sid=>fbDb.ref('suppliers/'+sid).set(suppliers[sid]))).then(()=>{
+    toast(`${plan.length} productos pasados a KG y guardados en Firebase`,'#16a34a',6000); done();
+  }).catch(err=>{
+    toast('Firebase rechazó el guardado ('+(err&&err.code||err)+'). Hace falta rol admin1/admin2. Nada guardado en la nube.','#dc2626',12000); done();
+  });
 }
