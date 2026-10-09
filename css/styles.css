@@ -840,3 +840,12 @@ input.men-porcada{flex:none;width:52px;padding:2px 6px;border:1.5px solid var(--
 label.men-gopt{text-transform:none;letter-spacing:0;font-size:13px!important;color:var(--txt)!important;font-weight:400!important;margin:0}
 .men-gopt input[type=checkbox]{width:auto;padding:0;flex:none}
 .men-opt .btn,.men-bloque-hd .btn{flex:none}
+
+/* Escandallos: fila de ingrediente con IVA — en móvil se apila y permite saltos de línea */
+input.ei-iva{width:46px}
+@media(max-width:640px){
+  .esc-ing-row .id{white-space:normal;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;flex-basis:100%;order:3}
+  .esc-ing-row .in{flex-basis:calc(100% - 90px)}
+  .esc-ing-row .ic{min-width:0}
+  input.ei-qty{width:64px}
+}

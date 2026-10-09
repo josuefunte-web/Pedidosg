@@ -100,10 +100,8 @@ function vLocalEscandallos(){
       const recetaScreen=escRecetaScreenHTML(e);
       const hasReceta=!!recetaScreen;
       const ingRows=ings.map(ing=>{
-        const liveP=escLivePrice(ing);
         const merma=parseFloat(ing.merma)||0;
-        const factor=1+(merma/100);
-        const costeIng=liveP*(parseFloat(ing.cantidad)||0)*factor;
+        const costeIng=escCosteFactor(ing);
         return `<tr>
           <td style="padding:4px 6px;font-size:12px">${ing.nombre||'—'}</td>
           <td style="padding:4px 6px;font-size:12px;text-align:right">${ing.cantidad} ${ing.unidad||'u.'}</td>

@@ -38,7 +38,7 @@ function escExportExcel(){
   const coste=_escIngs.reduce((s,i)=>s+escCosteFactor(i),0);
   const fcReal=pvp>0?(coste/pvp*100):null;
 
-  const rows=[['Ingrediente','Proveedor','Cantidad','Unidad','Merma %','Precio/u. €','Coste real €']];
+  const rows=[['Ingrediente','Proveedor','Cantidad','Unidad','Merma %','IVA %','Precio/u. € (sin IVA)','Coste real € (con IVA)']];
   _escIngs.forEach(ing=>{
     rows.push([
       ing.nombre,
@@ -46,16 +46,17 @@ function escExportExcel(){
       ing.cantidad,
       ing.unidad,
       parseFloat(ing.merma)||0,
+      escIngIva(ing),
       escLivePrice(ing),
       +escCosteFactor(ing).toFixed(4)
     ]);
   });
   rows.push([]);
-  rows.push(['','','','','Coste total',coste,'']);
-  rows.push(['','','','','PVP',pvp,'']);
-  rows.push(['','','','','Food cost %',fcReal!==null?+(fcReal.toFixed(2)):'','']);
-  rows.push(['','','','','FC objetivo %',fcObj,'']);
-  rows.push(['','','','','Margen €',pvp>0?+(pvp-coste).toFixed(4):0,'']);
+  rows.push(['','','','','','Coste total',coste,'']);
+  rows.push(['','','','','','PVP',pvp,'']);
+  rows.push(['','','','','','Food cost %',fcReal!==null?+(fcReal.toFixed(2)):'','']);
+  rows.push(['','','','','','FC objetivo %',fcObj,'']);
+  rows.push(['','','','','','Margen €',pvp>0?+(pvp-coste).toFixed(4):0,'']);
 
   const ws=XLSX.utils.aoa_to_sheet(rows);
   const wb=XLSX.utils.book_new();

@@ -315,7 +315,7 @@ function escCosteTotal(e, depth=0){
     const p=escLivePrice(ing, depth);
     const merma=parseFloat(ing.merma)||0;
     const factor=merma>0&&merma<100?1/(1-merma/100):1;
-    return s+(parseFloat(ing.cantidad)||0)*p*factor;
+    return s+(parseFloat(ing.cantidad)||0)*p*factor*(1+escIngIva(ing)/100);
   },0);
 }
 

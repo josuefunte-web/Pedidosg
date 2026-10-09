@@ -1,6 +1,7 @@
 /* ═══════════════ ESCANDALLOS: INGREDIENTES, CÁLCULO DE COSTE Y GUARDADO ═══════════════ */
 function escQuitarIng(i){ _escIngs.splice(i,1); escRenderIngs(); escRecalc(); }
 function escSetIngQty(i,val){ if(!_escIngs[i])return; const v=parseFloat(val); _escIngs[i].cantidad=isNaN(v)?0:v; escRenderIngs(); escRecalc(); }
+function escSetIngIva(i,val){ if(!_escIngs[i])return; let v=parseFloat(val); if(isNaN(v))v=0; v=Math.max(0,Math.min(100,v)); _escIngs[i].iva=v; escRenderIngs(); escRecalc(); }
 function escSetIngMerma(i,val){ if(!_escIngs[i])return; let v=parseFloat(val); if(isNaN(v))v=0; v=Math.max(0,Math.min(99,v)); _escIngs[i].merma=v; escRenderIngs(); escRecalc(); }
 
 
@@ -34,11 +35,19 @@ function escLivePrice(ing, depth=0){
   return parseFloat(ing.precioUnitario)||0;
 }
 
+// IVA de la línea (%): por defecto 10. Las sub-elaboraciones ya arrastran el IVA
+// de sus propios ingredientes, así que no se les vuelve a sumar.
+function escIngIva(ing){
+  if(ing.type==='subesc'||ing.type==='fracsubesc') return 0;
+  const v=parseFloat(ing.iva);
+  return isNaN(v)?10:v;
+}
+
 function escCosteFactor(ing){
-  // Coste real = precio * cantidad / (1 - merma/100)
+  // Coste real = precio * cantidad / (1 - merma/100) * (1 + IVA/100)
   const merma=parseFloat(ing.merma)||0;
   const factor=merma>0&&merma<100?1/(1-merma/100):1;
-  return escLivePrice(ing)*(parseFloat(ing.cantidad)||0)*factor;
+  return escLivePrice(ing)*(parseFloat(ing.cantidad)||0)*factor*(1+escIngIva(ing)/100);
 }
 
 function escFraccionTexto(val){
@@ -112,9 +121,11 @@ function escRenderIngs(){
       }
     }
     const mermaCell=`<input type="number" value="${ing.merma||0}" min="0" max="99" step="1" onchange="escSetIngMerma(${i},this.value)" onclick="event.stopPropagation()" title="% merma" class="ei-merma"/>%`;
+    const ivaCell=(ing.type==='subesc'||ing.type==='fracsubesc')?''
+      :`<span class="pk-mut">IVA</span> <input type="number" value="${escIngIva(ing)}" min="0" max="100" step="1" onchange="escSetIngIva(${i},this.value)" onclick="event.stopPropagation()" title="% IVA" class="ei-merma ei-iva"/>%`;
     return `<div class="esc-ing-row" style="flex-wrap:wrap">
       <span class="in">${escHtml(ing.nombre)} ${tag}</span>
-      <span class="id">${qtyCell} <span class="pk-mut">merma</span> ${mermaCell}</span>
+      <span class="id">${qtyCell} <span class="pk-mut">merma</span> ${mermaCell} ${ivaCell}</span>
       <span class="ic">${escFmt(costeReal)}</span>
       <span style="font-size:11px;font-weight:700;min-width:38px;text-align:right;color:${pctColor}">${pct.toFixed(1)}%</span>
       ${altHint}
