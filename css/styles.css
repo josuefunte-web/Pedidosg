@@ -841,11 +841,14 @@ label.men-gopt{text-transform:none;letter-spacing:0;font-size:13px!important;col
 .men-gopt input[type=checkbox]{width:auto;padding:0;flex:none}
 .men-opt .btn,.men-bloque-hd .btn{flex:none}
 
-/* Escandallos: fila de ingrediente con IVA — en móvil se apila y permite saltos de línea */
+/* Escandallos: fila de ingrediente (cantidad, merma, IVA) — compacta y sin recortes */
+.esc-ing-row select{width:auto;flex:none;max-width:100%;min-height:0!important;padding:3px 4px!important}
+.esc-ing-row input.ei-qty,.esc-ing-row input.ei-merma{min-height:0!important;padding:4px 6px!important}
 input.ei-iva{width:46px}
 @media(max-width:640px){
-  .esc-ing-row .id{white-space:normal;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;flex-basis:100%;order:3}
-  .esc-ing-row .in{flex-basis:calc(100% - 90px)}
-  .esc-ing-row .ic{min-width:0}
-  input.ei-qty{width:64px}
+  .esc-ing-list{max-height:none;overflow:visible}
+  .esc-ing-row{flex-wrap:wrap;min-width:0}
+  .esc-ing-row .in{flex:1 1 100%;min-width:0;overflow-wrap:anywhere}
+  .esc-ing-row .id{white-space:normal;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;flex:1 1 100%;min-width:0}
+  .esc-ing-row .ic{min-width:0;margin-left:auto}
 }
