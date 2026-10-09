@@ -111,10 +111,10 @@ body.noventia-esc-editor-open #esc-modal-ov .esc-modal-ft{
   box-shadow:0 -5px 18px rgba(15,23,42,.06)!important;
 }
 body.noventia-esc-editor-open .adm-content{overflow-y:auto!important}
-body.noventia-esc-editor-open .sidebar{position:relative!important}
+@media(min-width:701px){body.noventia-esc-editor-open .sidebar{position:relative!important}}
 
 @media(max-width:900px){
-  body.noventia-esc-editor-open #esc-modal-ov .esc-modal-body{grid-template-columns:1fr!important}
+  body.noventia-esc-editor-open #esc-modal-ov .esc-modal-body{grid-template-columns:minmax(0,1fr)!important}
   body.noventia-esc-editor-open #esc-modal-ov .esc-left{border-right:0!important;border-bottom:1px solid var(--brd)!important}
 }
 @media(max-width:700px){
@@ -125,3 +125,7 @@ body.noventia-esc-editor-open .sidebar{position:relative!important}
   body.noventia-esc-editor-open #esc-modal-ov .esc-modal-hd,
   body.noventia-esc-editor-open #esc-modal-ov .esc-modal-ft{padding:13px 15px!important}
 }
+
+/* Editor de escandallos: las columnas no deben ensancharse por contenido largo (móvil) */
+body.noventia-esc-editor-open #esc-modal-ov .esc-left,
+body.noventia-esc-editor-open #esc-modal-ov .esc-right{min-width:0!important}
