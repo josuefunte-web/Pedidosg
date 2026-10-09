@@ -122,10 +122,10 @@ function escRenderIngs(){
     }
     const mermaCell=`<input type="number" value="${ing.merma||0}" min="0" max="99" step="1" onchange="escSetIngMerma(${i},this.value)" onclick="event.stopPropagation()" title="% merma" class="ei-merma"/>%`;
     const ivaCell=(ing.type==='subesc'||ing.type==='fracsubesc')?''
-      :`<span class="pk-mut">IVA</span> <input type="number" value="${escIngIva(ing)}" min="0" max="100" step="1" onchange="escSetIngIva(${i},this.value)" onclick="event.stopPropagation()" title="% IVA" class="ei-merma ei-iva"/>%`;
+      :`<span class="ei-g"><span class="pk-mut">IVA</span> <input type="number" value="${escIngIva(ing)}" min="0" max="100" step="1" onchange="escSetIngIva(${i},this.value)" onclick="event.stopPropagation()" title="% IVA" class="ei-merma ei-iva"/>%</span>`;
     return `<div class="esc-ing-row" style="flex-wrap:wrap">
       <span class="in">${escHtml(ing.nombre)} ${tag}</span>
-      <span class="id">${qtyCell} <span class="pk-mut">merma</span> ${mermaCell} ${ivaCell}</span>
+      <span class="id">${qtyCell} <span class="ei-g"><span class="pk-mut">merma</span> ${mermaCell}</span> ${ivaCell}</span>
       <span class="ic">${escFmt(costeReal)}</span>
       <span style="font-size:11px;font-weight:700;min-width:38px;text-align:right;color:${pctColor}">${pct.toFixed(1)}%</span>
       ${altHint}

@@ -852,3 +852,4 @@ input.ei-iva{width:46px}
   .esc-ing-row .id{white-space:normal;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;flex:1 1 100%;min-width:0}
   .esc-ing-row .ic{min-width:0;margin-left:auto}
 }
+.ei-g{white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
