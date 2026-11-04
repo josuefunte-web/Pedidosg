@@ -136,7 +136,7 @@ function menOpenModal(id=null){
   _menDraft=src?{
     nombre:src.nombre||'',restaurante:src.restaurante||'global',pvp:src.pvp||'',notas:src.notas||'',
     personas:parseInt(src.personas)||10,fcObj:parseFloat(src.fcObj)||30,
-    bloques:JSON.parse(JSON.stringify(src.bloques||[]))
+    bloques:JSON.parse(JSON.stringify(src.bloques||[])).map(b=>({...b,opciones:Array.isArray(b.opciones)?b.opciones:[]}))
   }:{nombre:'',restaurante:'global',pvp:'',notas:'',personas:10,fcObj:30,bloques:[
     // Estructura habitual de menú de grupo: primeros al centro, segundos y postres a escoger
     {id:uid(),tipo:'compartir',titulo:'Primeros',porCada:4,opciones:[]},
@@ -184,13 +184,15 @@ function menSetBloque(bi,k,v){
   if(k==='porCada') menRenderResumen();
 }
 function menSetPeso(bi,oi,v){
-  const o=_menDraft.bloques[bi]?.opciones[oi]; if(!o) return;
+  const o=_menDraft.bloques[bi]?.opciones?.[oi]; if(!o) return;
   const n=parseFloat(v); o.peso=isNaN(n)||n<=0?null:n;
   menRenderResumen();
 }
-function menDelOpcion(bi,oi){ _menDraft.bloques[bi].opciones.splice(oi,1); menRenderBloques(); }
+function menDelOpcion(bi,oi){ (_menDraft.bloques[bi].opciones||[]).splice(oi,1); menRenderBloques(); }
 function menAddOpcion(bi,escId){
-  const b=_menDraft.bloques[bi]; if(!b||b.opciones.some(o=>o.escId===escId)) return;
+  const b=_menDraft.bloques[bi]; if(!b) return;
+  if(!Array.isArray(b.opciones)) b.opciones=[];
+  if(b.opciones.some(o=>o.escId===escId)) return;
   b.opciones.push({escId,peso:null});
   menRenderBloques();
   document.getElementById('men-q-'+bi)?.focus();
@@ -271,7 +273,7 @@ function _menBuildData(){
     opciones:(b.opciones||[]).filter(o=>o.escId).map(o=>({escId:o.escId,peso:(parseFloat(o.peso)>0?parseFloat(o.peso):null)}))
   }));
   // Compatibilidad: la vista de los locales y otros lectores usan la lista plana
-  const flat=[...new Set(bloques.flatMap(b=>b.opciones.map(o=>o.escId)))];
+  const flat=[...new Set(bloques.flatMap(b=>(b.opciones||[]).map(o=>o.escId)))];
   return {
     nombre:(document.getElementById('men-nombre')?.value||'').trim(),
     restaurante:document.getElementById('men-local')?.value||'global',
@@ -316,7 +318,7 @@ function menMigrarTodos(){
     updates['menus/'+id]={
       nombre:m.nombre||'',restaurante:m.restaurante||'global',pvp:parseFloat(m.pvp)||0,notas:m.notas||'',
       personas:10,fcObj:30,schema:2,
-      bloques:n.bloques.map(b=>({id:b.id,tipo:'fijo',titulo:b.titulo,porCada:4,opciones:b.opciones.map(o=>({escId:o.escId,peso:null}))})),
+      bloques:n.bloques.map(b=>({id:b.id,tipo:'fijo',titulo:b.titulo,porCada:4,opciones:(b.opciones||[]).map(o=>({escId:o.escId,peso:null}))})),
       escandallos:m.escandallos||[],createdAt:m.createdAt||Date.now(),updatedAt:Date.now()
     };
   });
