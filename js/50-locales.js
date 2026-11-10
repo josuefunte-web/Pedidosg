@@ -207,13 +207,18 @@ async function deleteLocal(id){
       + '\n\nAsígnales otro local en "Solicitudes de acceso" (o recházalos) y vuelve a intentarlo.');
     return;
   }
+  const _remaining = a => (a.restaurants && a.restaurants.length ? a.restaurants : [a.restaurant]).filter(r => r && r !== name);
+  const nKeep = affected.filter(([, a]) => _remaining(a).length).length;
   if(!confirm('¿Borrar el local "'+name+'"?\n\nDejará de aparecer en la app'
-    + (affected.length ? ' y se quitará de '+affected.length+' usuario(s) que también tienen otros locales' : '')
+    + (nKeep ? ' y se quitará de '+nKeep+' usuario(s) que también tienen otros locales' : '')
     + '.\nLos pedidos, albaranes y demás datos antiguos se conservan.')) return;
 
   const up = {};
   affected.forEach(([uid, a]) => {
     const rs = (a.restaurants && a.restaurants.length ? a.restaurants : [a.restaurant]).filter(r => r && r !== name);
+    // Usuarios (rechazados) que se quedarían sin ningún local: no se tocan.
+    // Firebase no admite `undefined` y además no tienen acceso a la app.
+    if(!rs.length) return;
     up['authUsers/'+uid+'/restaurants'] = rs;
     if(a.restaurant === name) up['authUsers/'+uid+'/restaurant'] = rs[0];
   });
