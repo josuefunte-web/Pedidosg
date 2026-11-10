@@ -157,6 +157,12 @@ function _listenGlobalCfg(){
     if(val.admin3ApprovalLimit !== undefined) cfg.admin3ApprovalLimit = val.admin3ApprovalLimit;
     if(val.mistralProxyUrl !== undefined) cfg.mistralProxyUrl = val.mistralProxyUrl;
     if(val.localPhones !== undefined) cfg.localPhones = val.localPhones;
+    // Lista de locales compartida (añadir/renombrar/borrar desde Ajustes)
+    if(val.locales !== undefined && typeof applyRemoteLocales === 'function' && applyRemoteLocales(val.locales)){
+      if(S.session && S.session.restaurant) S.session.userId = userIdForRestaurant(S.session.restaurant);
+      if(S.view==='admin' && typeof renderAdminContent==='function') renderAdminContent();
+      else if(S.view==='order' || S.view==='login') render();
+    }
     localStorage.setItem('oc_cfg', JSON.stringify(cfg));
     if(val.appVersion !== undefined) _handleAppVersionChange(val.appVersion);
   });

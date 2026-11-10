@@ -11,6 +11,9 @@
     },
     "globalCfg": {
       ".read": "auth != null",
+      "locales": {
+        ".read": true
+      },
       ".write": "auth != null && root.child('authUsers').child(auth.uid).child('role').val() === 'admin1' && root.child('authUsers').child(auth.uid).child('blocked').val() !== true"
     },
     "orders": {
