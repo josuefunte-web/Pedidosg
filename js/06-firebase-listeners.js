@@ -359,7 +359,7 @@ function _listenFavorites(){
 function _listenAuthUsers(){
   fbDb.ref('authUsers').on('value', snap => {
     authUsers = snap.val() || {};
-    if(S.view==='admin' && S.adminTab==='solicitudes') renderAdminContent();
+    if(S.view==='admin' && (S.adminTab==='solicitudes' || S.adminTab==='settings')) renderAdminContent();
     _updatePendingApprovalsBadge();
     _syncCurrentSessionFromAuth();
   });
