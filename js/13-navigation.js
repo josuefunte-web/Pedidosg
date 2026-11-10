@@ -17,6 +17,8 @@ function logout(){
   localStorage.removeItem('oc_admin_session');
   S.session=null;S.view='login';S.loginTab='login';
   document.getElementById('hdr').style.display='none';
+  if(typeof stopDataListeners==='function') stopDataListeners();
+  if(typeof watchOwnAuthUser==='function') watchOwnAuthUser(null);
   if(fbAuth) fbAuth.signOut().catch(()=>{});
   render();
 }
