@@ -20,6 +20,9 @@ function _updatePendingBadge(){
 // Reintenta grabar todos los pedidos pendientes (se llama al reconectar y al cargar)
 function flushPendingOrders(){
   if(!fbDb) return;
+  // Solo con sesión aprobada: antes de iniciar sesión Firebase rechazaría la
+  // escritura y el pedido se descartaría de la cola por error.
+  if(!S.session || !S.session.uid || S.session.pendingStatus) return;
   const q=_getPendingOrders();
   if(!q.length) return;
   let denied=0;

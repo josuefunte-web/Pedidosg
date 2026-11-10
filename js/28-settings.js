@@ -98,5 +98,5 @@ function vSettings(){
       <strong>Firebase Console → Realtime Database</strong>, así queda registro
       del acceso.
     </div>
-  </div>`;
+  </div>${typeof localesEditor==='function'?localesEditor():''}`;
 }

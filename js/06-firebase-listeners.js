@@ -4,9 +4,29 @@
 // facilitar mantenimiento. Ningún cambio de comportamiento — el orquestador
 // initFirebaseListeners() los llama en el mismo orden que antes.
 
+// Solo la conexión se escucha desde el arranque. Los datos se empiezan a
+// escuchar en startDataListeners(), DESPUÉS de confirmar que el usuario ha
+// iniciado sesión y está aprobado: las reglas de Firebase solo dejan leer a
+// usuarios aprobados, y un listener rechazado por permisos queda cancelado
+// para siempre (antes esto hacía que, tras iniciar sesión, la app saliera
+// vacía hasta recargar la página).
+let _connListening = false;
 function initFirebaseListeners(){
-  if(!fbDb) return;
+  if(!fbDb || _connListening) return;
+  _connListening = true;
   _listenConnection();
+}
+
+// Rutas que escuchan los _listenXxx() de abajo (para poder pararlas todas)
+const _DATA_LISTENER_PATHS = ['orders','suppliers','orderComments','globalCfg','albaranes',
+  'revenue','budgets','extraExpenses','priceHistory','templates','inventory','inventoryMovements',
+  'pendingReview','authUsers','foodcost','wishlist','schedules','favorites'];
+let _dataListenersUid = null;
+
+function startDataListeners(uid){
+  if(!fbDb || !uid || _dataListenersUid === uid) return;
+  stopDataListeners();
+  _dataListenersUid = uid;
   _listenOrders();
   _listenSuppliers();
   _listenOrderComments();
@@ -25,6 +45,45 @@ function initFirebaseListeners(){
   _listenWishlist();
   _listenSchedules();
   _listenFavorites();
+}
+function stopDataListeners(){
+  if(!fbDb) return;
+  _DATA_LISTENER_PATHS.forEach(p => { try{ fbDb.ref(p).off(); }catch(e){} });
+  _dataListenersUid = null;
+  _lastOrderIds = null;
+}
+
+// Escucha la ficha del propio usuario (siempre se puede leer, también estando
+// pendiente). Gestiona: bloqueo → cerrar sesión; aprobado estando en la
+// pantalla de espera → recargar para entrar; deja de estar aprobado → espera.
+function watchOwnAuthUser(uid){
+  try{ if(window._meListener) window._meListener.off(); }catch(e){}
+  window._meListener = null;
+  if(!fbDb || !uid) return;
+  window._meListener = fbDb.ref('authUsers/'+uid);
+  window._meListener.on('value', snap => {
+    const me = snap.val();
+    if(!me) return;
+    if(me.blocked === true && S.session){
+      alert('Tu cuenta ha sido bloqueada por el administrador.');
+      stopDataListeners();
+      try{ fbAuth.signOut().catch(()=>{}); }catch(e){}
+      S.session=null; S.view='login'; render();
+      return;
+    }
+    if(me.status === 'approved' && S.view === 'pending-approval'){
+      toast('Tu acceso ha sido aprobado. ¡Bienvenido!','#16a34a',5000);
+      setTimeout(()=>location.reload(), 800);
+      return;
+    }
+    if(me.status !== 'approved' && S.session && !S.session.pendingStatus){
+      stopDataListeners();
+      S.session = {uid, email:me.email, pendingStatus:me.status};
+      document.getElementById('hdr').style.display='none';
+      S.view = 'pending-approval';
+      render();
+    }
+  }, () => {});
 }
 
 // Estado local del cliente para detectar pedidos nuevos vs cambios de estado
@@ -157,6 +216,12 @@ function _listenGlobalCfg(){
     if(val.admin3ApprovalLimit !== undefined) cfg.admin3ApprovalLimit = val.admin3ApprovalLimit;
     if(val.mistralProxyUrl !== undefined) cfg.mistralProxyUrl = val.mistralProxyUrl;
     if(val.localPhones !== undefined) cfg.localPhones = val.localPhones;
+    // Lista de locales compartida (añadir/renombrar/borrar desde Ajustes)
+    if(val.locales !== undefined && typeof applyRemoteLocales === 'function' && applyRemoteLocales(val.locales)){
+      if(S.session && S.session.restaurant) S.session.userId = userIdForRestaurant(S.session.restaurant);
+      if(S.view==='admin' && typeof renderAdminContent==='function') renderAdminContent();
+      else if(S.view==='order' || S.view==='login') render();
+    }
     localStorage.setItem('oc_cfg', JSON.stringify(cfg));
     if(val.appVersion !== undefined) _handleAppVersionChange(val.appVersion);
   });

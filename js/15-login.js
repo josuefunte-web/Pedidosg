@@ -40,6 +40,7 @@ function vLoginForm(){
 }
 
 function vRegisterForm(){
+  if(typeof refreshLocalesForRegister==='function') refreshLocalesForRegister();
   const restOpts=cfg.users.map(u=>`<option value="${u.restaurant}">${u.restaurant}</option>`).join('');
   return `<div class="card">
     <div class="banner blue" style="margin-bottom:14px"> Tu solicitud será revisada por <strong>${cfg.adminName}</strong>. Recibirás acceso en cuanto la apruebe.</div>

@@ -182,8 +182,6 @@ self.addEventListener('fetch',e=>{
     }
   })();
   initFirebaseListeners();
-  addMissingSuppliers();
-  updateCoreSuppliers();
 
   // ── Firebase Auth: única fuente de sesión ──
   // (ya no hay bootstrap admin desde localStorage — todo pasa por aquí)
@@ -231,20 +229,14 @@ self.addEventListener('fetch',e=>{
             render();
             try{ fbDb.ref('suppliers').once('value').catch(()=>{}); }catch(e){}
 
-            // ── Listener runtime de bloqueo ──
-            // Si el propio user es bloqueado mientras tiene sesión abierta,
-            // se le desloguea al instante.
-            try{ if(window._blockedListener) window._blockedListener.off(); }catch(e){}
-            try{
-              window._blockedListener = fbDb.ref('authUsers/'+user.uid+'/blocked');
-              window._blockedListener.on('value', snap2 => {
-                if(snap2.val() === true){
-                  alert('Tu cuenta ha sido bloqueada por el administrador.');
-                  try{ fbAuth.signOut().catch(()=>{}); }catch(e){}
-                  S.session=null; S.view='login'; render();
-                }
-              });
-            }catch(e){}
+            // ── Datos: se escuchan ahora que sabemos que está aprobado ──
+            startDataListeners(user.uid);
+            watchOwnAuthUser(user.uid);
+            try{ flushPendingOrders(); }catch(e){}
+            // Mantenimiento del catálogo: solo quien puede escribir proveedores
+            if(['admin1','admin2'].includes(_role)){
+              try{ addMissingSuppliers(); updateCoreSuppliers(); }catch(e){}
+            }
 
             // ── Backfill one-off de `total` en pedidos legacy ──
             // Las nuevas Firebase Rules exigen `total` en cada pedido.
@@ -258,11 +250,14 @@ self.addEventListener('fetch',e=>{
             document.getElementById('hdr').style.display='none';
             S.view='pending-approval';
             render();
+            watchOwnAuthUser(user.uid);
           } else {
             S.view='login'; render();
           }
         });
       } else {
+        stopDataListeners();
+        watchOwnAuthUser(null);
         if(!S.session){ S.view='login'; render(); }
       }
     });
