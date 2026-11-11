@@ -1,4 +1,7 @@
 /* ═══════════════ STATE ═══════════════ */
+// Fecha LOCAL (YYYY-MM-DD). new Date().toISOString() es UTC: en España, entre las 00:00 y
+// las 02:00 devolvía el día anterior (y el mes anterior el día 1).
+function localDateStr(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 let S={
   view:'login', adminTab:'dashboard',
   session:null,
@@ -7,9 +10,9 @@ let S={
   orderTab:'new',
   editUserId:null, editSupId:null, openSupId:null,
   editOrderId:null, editItems:[], chatOpen:null,
-  albView:'list', albItems:[], albRestaurant:'', albSupId:'', albDate:new Date().toISOString().split('T')[0], albPhoto:null,
-  fcPeriod:'month', fcDate:new Date().toISOString().split('T')[0],
-  foodcostMonth:new Date().toISOString().slice(0,7), foodcostLocalId:'u1',
+  albView:'list', albItems:[], albRestaurant:'', albSupId:'', albDate:localDateStr(), albPhoto:null,
+  fcPeriod:'month', fcDate:localDateStr(),
+  foodcostMonth:localDateStr().slice(0,7), foodcostLocalId:'u1',
   showSaveTemplate:false,
   albCropping:false,
   sidebarOpen:false,

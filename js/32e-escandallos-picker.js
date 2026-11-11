@@ -228,7 +228,9 @@ function _escPickCalc(){
   const price=s.kind==='free'?(parseFloat(document.getElementById('esc-pick-price')?.value)||0):s.price;
   const base=s.kind==='prod'?qty*f:qty;
   const factor=merma>0?1/(1-merma/100):1;
-  return {qty,f,merma,price,base,coste:base*price*factor};
+  // Mismo criterio que escCosteFactor: IVA 10% por defecto (las sub-elaboraciones no suman IVA)
+  const ivaLinea=s.kind==='sub'?0:10;
+  return {qty,f,merma,price,base,coste:base*price*factor*(1+ivaLinea/100)};
 }
 function escPickPreview(){
   const c=_escPickCalc(); const el=document.getElementById('esc-pick-prev'); if(!c||!el) return;

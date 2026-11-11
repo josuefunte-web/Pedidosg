@@ -2,7 +2,7 @@
 async function loginWithEmail(){
   // Lazy init: si Firebase cargó pero fbAuth no se asignó, intentar de nuevo
   if(!fbAuth && typeof firebase !== 'undefined'){
-    try{ fbApp=fbApp||firebase.initializeApp(FB_CONFIG); fbAuth=firebase.auth(); fbDb=fbDb||firebase.database(); }catch(e){}
+    try{ fbApp=fbApp||firebase.initializeApp(FB_CONFIG); fbAuth=firebase.auth(); fbDb=fbDb||_guardFbWrites(firebase.database()); }catch(e){}
   }
   if(!fbAuth){
     toast('Sin conexión. Comprueba tu internet y recarga la página.','#dc2626',7000);return;
@@ -27,7 +27,7 @@ async function loginWithEmail(){
 
 async function registerUser(){
   if(!fbAuth && typeof firebase !== 'undefined'){
-    try{ fbApp=fbApp||firebase.initializeApp(FB_CONFIG); fbAuth=firebase.auth(); fbDb=fbDb||firebase.database(); }catch(e){}
+    try{ fbApp=fbApp||firebase.initializeApp(FB_CONFIG); fbAuth=firebase.auth(); fbDb=fbDb||_guardFbWrites(firebase.database()); }catch(e){}
   }
   if(!fbAuth){toast('Sin conexión. Comprueba tu internet y recarga la página.','#dc2626',7000);return;}
   const email=(document.getElementById('reg-email')?.value||'').trim();

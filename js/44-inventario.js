@@ -172,14 +172,28 @@ function updateStockFromOrder(order, receivedItems){
     // Try to match by name
     const existing=Object.values(invNow).find(p=>p.name&&p.name.trim().toLowerCase()===((it.name||it.product||'').trim().toLowerCase()));
     if(existing){
-      const newQty=(parseFloat(existing.qty)||0)+qty;
-      fbDb.ref('inventory/'+k+'/'+existing.id+'/qty').set(newQty);
-      fbDb.ref('inventory/'+k+'/'+existing.id+'/updatedAt').set(new Date().toISOString());
-      // Si el item de inventario tenía una unidad distinta a la del precio,
-      // corregirla ahora — mantener siempre la unidad base garantiza que la
-      // valoración qty×precio sea consistente.
-      if(existing.unit!==baseUnit){
-        fbDb.ref('inventory/'+k+'/'+existing.id+'/unit').set(baseUnit);
+      if(existing.qtys && typeof existing.qtys==='object'){
+        // Item multi-unidad: `qtys` es la fuente de verdad (invItemQtys la lee
+        // con prioridad sobre `qty`). Sumar solo en `qty` dejaba el stock
+        // recibido invisible. Se suma en la unidad base y se mantienen `qty` y
+        // `unit` como en saveInvItem (primera unidad con cantidad).
+        const nq=invItemQtys(existing);
+        nq[baseUnit]=(parseFloat(nq[baseUnit])||0)+qty;
+        const primaryUnit=Object.keys(nq)[0]||baseUnit;
+        fbDb.ref('inventory/'+k+'/'+existing.id+'/qtys').set(nq);
+        fbDb.ref('inventory/'+k+'/'+existing.id+'/qty').set(nq[primaryUnit]||0);
+        fbDb.ref('inventory/'+k+'/'+existing.id+'/unit').set(primaryUnit);
+        fbDb.ref('inventory/'+k+'/'+existing.id+'/updatedAt').set(new Date().toISOString());
+      } else {
+        const newQty=(parseFloat(existing.qty)||0)+qty;
+        fbDb.ref('inventory/'+k+'/'+existing.id+'/qty').set(newQty);
+        fbDb.ref('inventory/'+k+'/'+existing.id+'/updatedAt').set(new Date().toISOString());
+        // Si el item de inventario tenía una unidad distinta a la del precio,
+        // corregirla ahora — mantener siempre la unidad base garantiza que la
+        // valoración qty×precio sea consistente.
+        if(existing.unit!==baseUnit){
+          fbDb.ref('inventory/'+k+'/'+existing.id+'/unit').set(baseUnit);
+        }
       }
       addInvMovement(rest,existing.id,existing.name,'entrada',qty,'pedido',order.id);
     } else {

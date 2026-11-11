@@ -32,25 +32,7 @@ function renderAdminContent(){
   // ese scroll interno a 0 y "salta" hasta el primer local.
   const _svScrollEl=document.getElementById('sv-scroll');
   const _svScroll=_svScrollEl?{left:_svScrollEl.scrollLeft,top:_svScrollEl.scrollTop}:null;
-  let content='';
-  if(S.adminTab==='dashboard') content=vDashboard();
-  else if(S.adminTab==='pending')       content=vPending();
-  else if(S.adminTab==='approved') content=vApproved();
-  else if(S.adminTab==='received') content=vReceived();
-  else if(S.adminTab==='budgets')  content=vBudgets();
-  else if(S.adminTab==='foodcost') content=vFoodCost();
-  else if(S.adminTab==='compare')  content=vCompare();
-  else if(S.adminTab==='compras')   content=vComprasProducto();
-  else if(S.adminTab==='productos')  content=vProductos();
-  else if(S.adminTab==='albaranes') content=vAlbaranes();
-  else if(S.adminTab==='solicitudes') content=vSolicitudes();
-  else if(S.adminTab==='suppliers') content=vSuppliers();
-  else if(S.adminTab==='sup-visibility') content=vSupVisibility();
-  else if(S.adminTab==='settings') content=vSettings();
-  else if(S.adminTab==='escandallos') content=vEscandallos();
-  else if(S.adminTab==='sup-history') content=vSupHistory();
-  else if(S.adminTab==='inventario') content=vInventario();
-  else if(S.adminTab==='horarios') content=vHorariosAdmin();
+  const content=_adminTabHtml();
   tc.innerHTML=content;
   if(S.adminTab==='escandallos') initEscandallos();
   if(S.adminTab==='sup-visibility'){

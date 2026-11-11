@@ -361,13 +361,36 @@ function editItemQty(idx,delta){
   if(te) te.textContent='Total: '+fmt(newTot);
 }
 function approveWithEdits(id){
+  if(!requireNotBlocked()) return;
+  const oOrig=orders.find(x=>x.id===id);
+  // Sin pedido no hay nada que aprobar (antes se escribía en /orders/undefined/…)
+  if(!oOrig){toast('Pedido no encontrado','#dc2626');return;}
   const items=S.editItems.filter(it=>it.qty>0);
   if(!items.length){toast('El pedido no puede estar vacío','#dc2626');return;}
   const noteEl=document.getElementById('approve-note-'+id);
   const approvalNote=noteEl?noteEl.value.trim():'';
-  const oOrig=orders.find(x=>x.id===id);
-  updateOrder(id,{status:'approved',items,modifiedByAdmin:true,...(approvalNote?{approvalNote}:{})});
-  if(!fbDb){ if(oOrig){oOrig.status='approved';oOrig.items=items;oOrig.modifiedByAdmin=true;if(approvalNote)oOrig.approvalNote=approvalNote;} }
+  // El importe real es el de las líneas EDITADAS. Antes `total` no se recalculaba:
+  // un admin con límite (admin3) podía añadir líneas y aprobar un pedido que
+  // superaba su límite, porque las reglas de Firebase solo ven el `total` guardado.
+  const newTotal=parseFloat(items.reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0).toFixed(2));
+  if(!canApproveOrderAmount(newTotal)){
+    const lim=currentApprovalLimit();
+    toast(`No puedes aprobar este pedido (${fmt(newTotal)}). Tu límite es ${lim===Infinity?'sin límite':fmt(lim)}.`,'#dc2626',5000);
+    return;
+  }
+  const patch={status:'approved',items,modifiedByAdmin:true,...(approvalNote?{approvalNote}:{})};
+  if(currentRole()==='admin3'){
+    // Las reglas de admin3 exigen que `total` no cambie al aprobar: solo se
+    // permite editar sin aumentar el importe ya registrado.
+    if(newTotal>(parseFloat(oOrig.total)||total(oOrig))+0.005){
+      toast('Con tu rol no puedes aumentar el importe de un pedido. Pide a un admin superior que lo apruebe.','#dc2626',6000);
+      return;
+    }
+  } else {
+    patch.total=newTotal;
+  }
+  updateOrder(id,patch);
+  if(!fbDb){ if(oOrig){oOrig.status='approved';oOrig.items=items;oOrig.modifiedByAdmin=true;if(patch.total!==undefined)oOrig.total=patch.total;if(approvalNote)oOrig.approvalNote=approvalNote;} }
   S.editOrderId=null;S.editItems=[];
   toast('Pedido modificado y aprobado','#16a34a');
   const sup=oOrig?suppliers[oOrig.supId]:null;

@@ -254,9 +254,10 @@ function escRender(){
     const coste = escCosteTotal(e);
     const pvp = parseFloat(e.precioVenta)||0;
     const fcObj = parseFloat(e.foodCostObjetivo)||30;
-    const fcReal = pvp>0?(coste/pvp*100):null;
-    const margen = pvp>0?(pvp-coste):null;
-    const margenPct = pvp>0&&margen!==null?(margen/pvp*100):null;
+    const pvpNeto = escPvpNeto(e);
+    const fcReal = pvpNeto>0?(coste/pvpNeto*100):null;
+    const margen = pvpNeto>0?(pvpNeto-coste):null;
+    const margenPct = pvpNeto>0&&margen!==null?(margen/pvpNeto*100):null;
     let cls='esc-ok';
     if(fcReal!==null){if(fcReal>fcObj+5)cls='esc-bad';else if(fcReal>fcObj)cls='esc-warn';}
     const rest=e.restaurante||'global';
@@ -310,6 +311,14 @@ function escRender(){
   }
 }
 
+// PVP sin IVA de un escandallo. El PVP se guarda con IVA incluido y el food cost
+// se calcula siempre sobre el precio sin IVA (como en el editor y el detalle).
+function escPvpNeto(e){
+  const pvp=parseFloat(e.precioVenta)||0;
+  if(pvp<=0) return 0;
+  const iva=e.iva!==undefined?(parseFloat(e.iva)||0):10;
+  return pvp/(1+iva/100);
+}
 function escCosteTotal(e, depth=0){
   return (e.ingredientes||[]).reduce((s,ing)=>{
     const p=escLivePrice(ing, depth);

@@ -7,6 +7,33 @@ function buildSbStats(pend,appr){
     <div class="sb-ms"><div class="sb-msv" style="font-size:13px;color:#4ade80">${fmt(appr.reduce((s,o)=>s+total(o),0))}</div><div class="sb-msl">Gasto</div></div>`;
 }
 
+// Contenido de la pestaña admin activa. Lo usan vAdmin() (pintado completo) y
+// renderAdminContent() (refresco parcial): antes cada uno tenía su propia copia
+// de esta cadena y había que mantenerlas a la vez.
+function _adminTabHtml(){
+  switch(S.adminTab){
+    case 'dashboard':      return vDashboard();
+    case 'pending':        return vPending();
+    case 'approved':       return vApproved();
+    case 'received':       return vReceived();
+    case 'budgets':        return vBudgets();
+    case 'foodcost':       return vFoodCost();
+    case 'compare':        return vCompare();
+    case 'compras':        return vComprasProducto();
+    case 'productos':      return vProductos();
+    case 'albaranes':      return vAlbaranes();
+    case 'solicitudes':    return vSolicitudes();
+    case 'suppliers':      return vSuppliers();
+    case 'sup-visibility': return vSupVisibility();
+    case 'settings':       return vSettings();
+    case 'escandallos':    return vEscandallos();
+    case 'sup-history':    return vSupHistory();
+    case 'inventario':     return vInventario();
+    case 'horarios':       return vHorariosAdmin();
+    default:               return '';
+  }
+}
+
 function vAdmin(){
   const pend=orders.filter(o=>o.status==='pending');
   const appr=orders.filter(o=>o.status==='approved');
@@ -58,25 +85,7 @@ function vAdmin(){
     </div>
   </div>`;
 
-  let content='';
-  if(S.adminTab==='dashboard') content=vDashboard();
-  else if(S.adminTab==='pending')        content=vPending();
-  else if(S.adminTab==='approved')  content=vApproved();
-  else if(S.adminTab==='received')  content=vReceived();
-  else if(S.adminTab==='budgets')   content=vBudgets();
-  else if(S.adminTab==='foodcost')  content=vFoodCost();
-  else if(S.adminTab==='compare')   content=vCompare();
-  else if(S.adminTab==='compras')   content=vComprasProducto();
-  else if(S.adminTab==='productos')  content=vProductos();
-  else if(S.adminTab==='albaranes') content=vAlbaranes();
-  else if(S.adminTab==='solicitudes') content=vSolicitudes();
-  else if(S.adminTab==='suppliers') content=vSuppliers();
-  else if(S.adminTab==='sup-visibility') content=vSupVisibility();
-  else if(S.adminTab==='settings')  content=vSettings();
-  else if(S.adminTab==='escandallos') content=vEscandallos();
-  else if(S.adminTab==='sup-history') content=vSupHistory();
-  else if(S.adminTab==='inventario') content=vInventario();
-  else if(S.adminTab==='horarios') content=vHorariosAdmin();
+  const content=_adminTabHtml();
 
   const liveTag=fbConnected?`<span class="live-badge"><span class="pulse"></span>EN VIVO</span>`:'';
 
@@ -116,10 +125,12 @@ function vDashboard(){
   const pend=orders.filter(o=>o.status==='pending');
   const appr=orders.filter(o=>o.status==='approved');
   const rec=orders.filter(o=>o.status==='received');
-  const today=new Date().toISOString().slice(0,10);
-  const todayOrders=valid.filter(o=>(o.createdAt||'').startsWith(today));
-  const month=new Date().toISOString().slice(0,7);
-  const monthSpend=valid.filter(o=>(o.createdAt||'').startsWith(month)).reduce((n,o)=>n+total(o),0);
+  // createdAt se guarda en UTC; "hoy" y "este mes" se comparan en hora local
+  const today=localDateStr();
+  const _localDay=o=>o.createdAt?localDateStr(new Date(o.createdAt)):'';
+  const todayOrders=valid.filter(o=>_localDay(o)===today);
+  const month=today.slice(0,7);
+  const monthSpend=valid.filter(o=>_localDay(o).startsWith(month)).reduce((n,o)=>n+total(o),0);
   const pendingTotal=pend.reduce((n,o)=>n+total(o),0);
   const recent=valid.slice().sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,8);
   const recentRows=recent.map(o=>{
@@ -142,7 +153,7 @@ function vDashboard(){
       <button onclick="setTabSb('pending')"><small>Pendientes</small><strong>${pend.length}</strong><span>${fmt(pendingTotal)}</span></button>
       <button onclick="setTabSb('approved')"><small>Aprobados</small><strong>${appr.length}</strong><span>Por enviar o recibir</span></button>
       <button onclick="setTabSb('received')"><small>Recibidos</small><strong>${rec.length}</strong><span>Histórico confirmado</span></button>
-      <article><small>Gasto del mes</small><strong>${fmt(monthSpend)}</strong><span>${todayOrders.length} pedidos hoy</span></article>
+      <article><small>Gasto del mes</small><strong>${fmt(monthSpend)}</strong><span>${todayOrders.length} pedido${todayOrders.length===1?'':'s'} hoy</span></article>
     </section>
     <section class="db-grid">
       <div class="db-panel"><header><h2>Actividad reciente</h2><button onclick="setTabSb('approved')">Ver pedidos</button></header>${recentRows||'<div class="db-empty">Todavía no hay actividad.</div>'}</div>

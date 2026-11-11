@@ -6,30 +6,6 @@
 // misma fórmula que usaba en la hoja de cálculo).
 // Datos en Firebase: foodcost/{monthKey 'YYYY-MM'}/{userId}/{desc1,desc2,objetivo,days:{dia:{fact,compras}}}
 
-// Importa una única vez el histórico Abril-Agosto 2026 que Josué ya tenía en su Excel
-// ("Control porcentajes.xlsx"). Los datos viven en js/data-foodcost-import.js, que solo
-// se descarga cuando se pulsa el botón (igual que se hacía antes con la tarifa CWC) para
-// no añadir peso a la carga normal de la app.
-function fcImportHistorico(){
-  if(!fbDb){ toast('Sin conexión Firebase','#dc2626'); return; }
-  if(!confirm('¿Importar Abril-Agosto 2026 desde tu Excel? Si esos meses ya tienen datos en la app, se sobrescribirán.')) return;
-  const run=()=>{
-    const data=(typeof FOODCOST_IMPORT_DATA!=='undefined')?FOODCOST_IMPORT_DATA:window.FOODCOST_IMPORT_DATA;
-    if(!data){ toast('No se pudo leer el archivo de importación','#dc2626'); return; }
-    const updates={};
-    Object.keys(data).forEach(mk=>{ updates['foodcost/'+mk]=data[mk]; });
-    fbDb.ref().update(updates)
-      .then(()=>{ toast('Histórico importado: Abril a Agosto 2026','#16a34a',5000); renderAdminContent(); })
-      .catch(e=>toast('Error al importar: '+e.message,'#dc2626',5000));
-  };
-  if(typeof FOODCOST_IMPORT_DATA!=='undefined'){ run(); return; }
-  const s=document.createElement('script');
-  s.src='js/data-foodcost-import.js?v=20260820d';
-  s.onload=run;
-  s.onerror=()=>toast('No se pudo cargar el archivo de importación','#dc2626');
-  document.head.appendChild(s);
-}
-
 function fcDaysInMonth(monthKey){
   const [y,m]=monthKey.split('-').map(Number);
   return new Date(y,m,0).getDate();
@@ -39,9 +15,12 @@ function fcMonthLabel(monthKey){
   return new Date(y,m-1,1).toLocaleDateString('es-ES',{month:'long',year:'numeric'});
 }
 function fcChangeMonth(delta){
+  // Aritmética de meses sin pasar por Date/toISOString: new Date(y,m,1) es la
+  // medianoche LOCAL y toISOString() la pasa a UTC, así que en España (UTC+1/+2)
+  // caía en el mes anterior y la navegación se saltaba meses o se quedaba atascada.
   const [y,m]=S.foodcostMonth.split('-').map(Number);
-  const d=new Date(y,m-1+delta,1);
-  S.foodcostMonth=d.toISOString().slice(0,7);
+  const t=y*12+(m-1)+delta;
+  S.foodcostMonth=Math.floor(t/12)+'-'+String(t%12+1).padStart(2,'0');
   renderAdminContent();
 }
 function fcSetLocal(id){ S.foodcostLocalId=id; renderAdminContent(); }
@@ -95,7 +74,6 @@ function vFoodCost(){
   const summary=`<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div class="card-t">Resumen del mes — todos los locales</div>
-      <button class="btn btn-ghost btn-sm" onclick="fcImportHistorico()">Importar histórico de mi Excel (Abril–Agosto)</button>
     </div>
     <div style="font-size:12px;color:var(--mut);margin-bottom:8px">Toca un local para ver y editar su detalle día a día.</div>
     <div style="overflow-x:auto"><table class="spend-table">

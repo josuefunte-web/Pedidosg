@@ -2,7 +2,7 @@
 window.addEventListener('DOMContentLoaded',()=>{
   try {
     fbApp = firebase.initializeApp(FB_CONFIG);
-    fbDb  = firebase.database();
+    fbDb  = _guardFbWrites(firebase.database());
     fbAuth= firebase.auth();
   } catch(e) {
     console.warn('Firebase init error:', e);
@@ -11,7 +11,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(!fbAuth){
     setTimeout(()=>{
       if(!fbAuth && typeof firebase !== 'undefined'){
-        try{ fbApp=firebase.initializeApp(FB_CONFIG); fbDb=firebase.database(); fbAuth=firebase.auth(); initFirebaseListeners(); }catch(e){}
+        try{ fbApp=firebase.initializeApp(FB_CONFIG); fbDb=_guardFbWrites(firebase.database()); fbAuth=firebase.auth(); initFirebaseListeners(); }catch(e){}
         // Re-renderizar para quitar el spinner de "Conectando"
         if(S.view==='login') render();
       }

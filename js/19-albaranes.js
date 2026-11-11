@@ -1,13 +1,9 @@
 /* ═══════════════ ALBARANES ═══════════════ */
-function vComprasProducto(){
-  const sups=supList();
-  const supSel=`<div class="fg" style="margin-bottom:0"><label>Proveedor</label><select onchange="S.comprasSup=this.value;renderAdminContent()"><option value="">Todos</option>${sups.map(s=>`<option value="${s.id}" ${S.comprasSup===s.id?'selected':''}>${s.emoji} ${s.name}</option>`).join('')}</select></div>`;
-  const desde=`<div class="fg" style="margin-bottom:0"><label>Desde</label><input type="date" value="${S.comprasDesde||''}" onchange="S.comprasDesde=this.value;renderAdminContent()"/></div>`;
-  const hasta=`<div class="fg" style="margin-bottom:0"><label>Hasta</label><input type="date" value="${S.comprasHasta||''}" onchange="S.comprasHasta=this.value;renderAdminContent()"/></div>`;
-  const limpiar=(S.comprasSup||S.comprasDesde||S.comprasHasta)?`<button class="btn btn-ghost btn-sm" style="align-self:flex-end" onclick="S.comprasSup='';S.comprasDesde='';S.comprasHasta='';renderAdminContent()">Limpiar filtros</button>`:'';
-  const exportar=`<button class="btn btn-ok btn-sm" style="align-self:flex-end;white-space:nowrap" onclick="exportComprasExcel()"> Exportar Excel</button>`;
-  const filtros=`<div class="card" style="margin-bottom:14px"><div class="three-col" style="align-items:end">${supSel}${desde}${hasta}${exportar}${limpiar}</div></div>`;
-  // Agregar por producto a partir de los PEDIDOS realizados (aprobados/recibidos)
+// Agrega las compras (pedidos aprobados/recibidos) por producto según los filtros
+// activos. La clave incluye proveedor y unidad: antes dos proveedores con un
+// producto del mismo nombre ("CODORNICES" en UD y en Kg) se fundían en una fila y
+// se sumaban cantidades de unidades distintas. Lo comparten la pantalla y el Excel.
+function _comprasAgregar(){
   const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
   const agg={};
   const pedidosSet=new Set();
@@ -21,14 +17,24 @@ function vComprasProducto(){
       if(!it.name) return;
       const qty=parseFloat(it.qty)||0;
       const importe=qty*(parseFloat(it.price)||0);
-      const key=(String(it.code||'').trim())||norm(it.name);
+      const key=(o.supId||'')+'|'+((String(it.code||'').trim())||norm(it.name))+'|'+norm(it.unit);
       if(!agg[key]) agg[key]={name:it.name,code:it.code||'',unit:it.unit||'',supId:o.supId,qty:0,importe:0,veces:0,lastDate:fecha,lastPrice:parseFloat(it.price)||0};
       const g=agg[key];
       g.qty+=qty; g.importe+=importe; g.veces++;
       if(fecha>=(g.lastDate||'')){ g.lastDate=fecha; g.lastPrice=parseFloat(it.price)||0; g.name=it.name; g.unit=it.unit||g.unit; }
     });
   });
-  const rows=Object.values(agg).sort((x,y)=>y.importe-x.importe);
+  return {rows:Object.values(agg).sort((x,y)=>y.importe-x.importe),pedidosSet};
+}
+function vComprasProducto(){
+  const sups=supList();
+  const supSel=`<div class="fg" style="margin-bottom:0"><label>Proveedor</label><select onchange="S.comprasSup=this.value;renderAdminContent()"><option value="">Todos</option>${sups.map(s=>`<option value="${s.id}" ${S.comprasSup===s.id?'selected':''}>${s.emoji} ${s.name}</option>`).join('')}</select></div>`;
+  const desde=`<div class="fg" style="margin-bottom:0"><label>Desde</label><input type="date" value="${S.comprasDesde||''}" onchange="S.comprasDesde=this.value;renderAdminContent()"/></div>`;
+  const hasta=`<div class="fg" style="margin-bottom:0"><label>Hasta</label><input type="date" value="${S.comprasHasta||''}" onchange="S.comprasHasta=this.value;renderAdminContent()"/></div>`;
+  const limpiar=(S.comprasSup||S.comprasDesde||S.comprasHasta)?`<button class="btn btn-ghost btn-sm" style="align-self:flex-end" onclick="S.comprasSup='';S.comprasDesde='';S.comprasHasta='';renderAdminContent()">Limpiar filtros</button>`:'';
+  const exportar=`<button class="btn btn-ok btn-sm" style="align-self:flex-end;white-space:nowrap" onclick="exportComprasExcel()"> Exportar Excel</button>`;
+  const filtros=`<div class="card" style="margin-bottom:14px"><div class="three-col" style="align-items:end">${supSel}${desde}${hasta}${exportar}${limpiar}</div></div>`;
+  const {rows,pedidosSet}=_comprasAgregar();
   const totImporte=rows.reduce((s,r)=>s+r.importe,0);
   const totPedidos=pedidosSet.size;
   if(!rows.length) return filtros+`<div class="empty"><div class="ei"></div><div class="et">Sin compras en el periodo seleccionado</div></div>`;
@@ -43,25 +49,7 @@ function vComprasProducto(){
 }
 
 function exportComprasExcel(){
-  const norm=s=>String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
-  const agg={};
-  (orders||[]).filter(o=>o.status==='approved'||o.status==='received').forEach(o=>{
-    if(S.comprasSup && o.supId!==S.comprasSup) return;
-    const fecha=(o.createdAt||'').slice(0,10);
-    if(S.comprasDesde && fecha<S.comprasDesde) return;
-    if(S.comprasHasta && fecha>S.comprasHasta) return;
-    (o.items||[]).forEach(it=>{
-      if(!it.name) return;
-      const qty=parseFloat(it.qty)||0;
-      const importe=qty*(parseFloat(it.price)||0);
-      const key=(String(it.code||'').trim())||norm(it.name);
-      if(!agg[key]) agg[key]={name:it.name,code:it.code||'',unit:it.unit||'',supId:o.supId,qty:0,importe:0,veces:0,lastDate:fecha,lastPrice:parseFloat(it.price)||0};
-      const g=agg[key];
-      g.qty+=qty; g.importe+=importe; g.veces++;
-      if(fecha>=(g.lastDate||'')){ g.lastDate=fecha; g.lastPrice=parseFloat(it.price)||0; g.name=it.name; g.unit=it.unit||g.unit; }
-    });
-  });
-  const list=Object.values(agg).sort((x,y)=>y.importe-x.importe);
+  const list=_comprasAgregar().rows;
   if(!list.length){ alert('No hay compras para exportar con los filtros actuales.'); return; }
   const rows=list.map(r=>({
     'Código': r.code||'',
@@ -234,15 +222,26 @@ async function importAlbaranesExcel(input){
   }catch(e){ setStatus('Error al leer el Excel: '+e.message,'#dc2626'); console.error(e); }
 }
 
-function goAlbaranAdmin(){ S.view='albaran-new';S.albItems=[];S.albRestaurant='';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=new Date().toISOString().split('T')[0];S.albTotalManual=null;render(); }
+function goAlbaranAdmin(){ S.view='albaran-new';S.albItems=[];S.albRestaurant='';S.albSupId=supList()[0]?.id||'';S.albPhoto=null;S.albFileType=null;S.albFileName=null;S.albDate=localDateStr();S.albTotalManual=null;render(); }
 
 function albCard(a){
   const sup=suppliers[a.supId]||{name:'?',emoji:'?'};
   const totCalc=(a.items||[]).reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
   const tot=a.totalManual!=null?a.totalManual:totCalc;
-  const matchOrder=orders.find(o=>o.restaurant===a.restaurant&&o.supId===a.supId&&o.status==='approved');
+  // Al crear el albarán el total se muestra con IVA; en la lista aparecía solo la base.
+  // Ahora se desglosa base, IVA y total con IVA (solo si las líneas guardan su IVA).
+  const hasIva=(a.items||[]).some(it=>it.iva!==undefined&&it.iva!==null&&it.iva!=='');
+  const ivaCalc=hasIva?(a.items||[]).reduce((s2,it)=>s2+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0)*((parseFloat(it.iva)||0)/100),0):0;
+  const totHtml=a.totalManual!=null
+    ?`Total: ${fmt(tot)} <span style="font-size:11px;color:var(--mut);font-weight:400">(manual)</span>`
+    :hasIva
+      ?`<span style="font-size:12px;color:var(--mut);font-weight:400">Base ${fmt(totCalc)} + IVA ${fmt(ivaCalc)}</span><br>Total con IVA: ${fmt(totCalc+ivaCalc)}`
+      :`Total: ${fmt(tot)}`;
   const matchingOrders=orders.filter(o=>(o.status==='approved'||o.status==='received')&&o.restaurant===a.restaurant&&o.supId===a.supId);
   const linkedOrder=a.orderId?orders.find(o=>o.id===a.orderId):null;
+  // La comparativa usa el pedido VINCULADO; solo si no hay vínculo cae al primer
+  // pedido aprobado del mismo local y proveedor (antes ignoraba el vínculo).
+  const matchOrder=linkedOrder||orders.find(o=>o.restaurant===a.restaurant&&o.supId===a.supId&&o.status==='approved');
   const linkSection=a.orderId
     ? `<div style="font-size:12px;color:#16a34a;margin-top:6px"> Vinculado a pedido del ${fmtD(linkedOrder?linkedOrder.createdAt:'')}</div>`
     : matchingOrders.length
@@ -267,7 +266,7 @@ function albCard(a){
       <div style="display:flex;gap:6px">${hasIncidents?`<span class="badge" style="background:#dc2626;color:#fff">Incid.</span>`:''}<button class="btn btn-no btn-xs" onclick="delAlbF('${a.id}')"></button></div>
     </div>
     ${a.photo?`<img src="${a.photo}" class="alb-photo"/>`:''}
-    <div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}${a.totalManual!=null?` <span style="font-size:11px;color:var(--mut);font-weight:400">(manual)</span>`:''}</div></div>
+    <div class="pl">${rows}<div class="ptot">${totHtml}</div></div>
     ${cmp}
     ${linkSection}
   </div>`;

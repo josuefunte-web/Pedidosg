@@ -72,6 +72,7 @@ function markSupplierOrdersSent(sid){
   orders.filter(o=>o.supId===sid&&o.status==='approved'&&!o.sentToSupplier).forEach(o=>markSentToSupplier(o.id));
 }
 function updateOrder(id, data){
+  if(!id){ console.warn('updateOrder sin id'); return; } // evita escribir en /orders/undefined
   if(fbDb) fbDb.ref('orders/'+id).update(data);
   else { const o=orders.find(x=>x.id===id); if(o) Object.assign(o,data); }
 }

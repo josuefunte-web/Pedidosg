@@ -36,7 +36,8 @@ function escExportExcel(){
   const pvp=parseFloat(document.getElementById('esc-pvp')?.value)||0;
   const fcObj=parseFloat(document.getElementById('esc-fcobj')?.value)||30;
   const coste=_escIngs.reduce((s,i)=>s+escCosteFactor(i),0);
-  const fcReal=pvp>0?(coste/pvp*100):null;
+  const _ivaExp=parseFloat(document.getElementById('esc-iva')?.value)||0;
+  const fcReal=pvp>0?(coste/(pvp/(1+_ivaExp/100))*100):null; // sobre PVP sin IVA, como el editor
 
   const rows=[['Ingrediente','Proveedor','Cantidad','Unidad','Merma %','IVA %','Precio/u. € (sin IVA)','Coste real € (con IVA)']];
   _escIngs.forEach(ing=>{

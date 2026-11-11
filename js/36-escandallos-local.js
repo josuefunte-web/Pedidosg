@@ -92,8 +92,9 @@ function vLocalEscandallos(){
     html+=visible.map(([id,e])=>{
       const coste=escCosteTotal(e);
       const pvp=parseFloat(e.precioVenta)||0;
-      const fcReal=pvp>0?(coste/pvp*100):null;
-      const margen=pvp>0?(pvp-coste):null;
+      const pvpNeto=escPvpNeto(e);
+      const fcReal=pvpNeto>0?(coste/pvpNeto*100):null;
+      const margen=pvpNeto>0?(pvpNeto-coste):null;
       const fcCls=fcReal===null?'':fcReal>35?'color:#dc2626':fcReal>30?'color:#d97706':'color:#16a34a';
       const expanded=S._escLocalExpanded[id]||false;
       const ings=e.ingredientes||[];
