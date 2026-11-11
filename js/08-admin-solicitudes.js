@@ -131,12 +131,6 @@ function toggleNeedsApprovalAuth(uid,val){
   fbDb.ref('authUsers/'+uid).update({needsApproval:val})
     .then(()=>toast(val?'Ahora requiere aprobación manual':'Ahora se aprueba automáticamente','#16a34a'));
 }
-function toggleAdminRole(uid,val){
-  const u=authUsers[uid]; if(!u)return;
-  if(val && !confirm('¿Dar acceso de administrador completo a '+u.email+'?'))return;
-  fbDb.ref('authUsers/'+uid).update({isAdmin:val})
-    .then(()=>toast(val?'Ya es administrador: '+u.email:'Rol admin retirado','#16a34a'));
-}
 // Cambiar el rol de un usuario. Comprueba que el rol actual del que llama
 // tiene permisos para asignar ese rol (admin1 puede todos, admin2 solo los
 // no admin: camarero/jefe_cocina/encargado).

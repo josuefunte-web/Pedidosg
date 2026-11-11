@@ -67,10 +67,6 @@ function markSentToSupplier(id){
   updateOrder(id,{sentToSupplier:true,sentAt:new Date().toISOString()});
   if(!fbDb){ if(o){o.sentToSupplier=true;o.sentAt=new Date().toISOString();} render(); }
 }
-// Marca como enviados todos los pedidos aprobados de un proveedor (envío consolidado)
-function markSupplierOrdersSent(sid){
-  orders.filter(o=>o.supId===sid&&o.status==='approved'&&!o.sentToSupplier).forEach(o=>markSentToSupplier(o.id));
-}
 function updateOrder(id, data){
   if(!id){ console.warn('updateOrder sin id'); return; } // evita escribir en /orders/undefined
   if(fbDb) fbDb.ref('orders/'+id).update(data);

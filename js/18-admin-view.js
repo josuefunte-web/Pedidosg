@@ -344,19 +344,3 @@ function vApproved(){
   return tabs+(a.length?a.map(o=>orderCard(o,false)).join(''):`<div class="empty"><div class="ei"></div><div class="et">Sin pedidos aprobados${S.approvedRestFilter?' en '+S.approvedRestFilter:''}</div></div>`);
 }
 
-function vConsolidated(){
-  const pend=orders.filter(o=>o.status==='pending');
-  if(!pend.length) return `<div class="empty"><div class="ei"></div><div class="et">No hay pedidos pendientes</div></div>`;
-  const bySup={};
-  pend.forEach(o=>{ if(!bySup[o.supId])bySup[o.supId]={}; (o.items||[]).forEach(it=>{ if(!bySup[o.supId][it.id])bySup[o.supId][it.id]={...it,qty:0,rests:[]}; bySup[o.supId][it.id].qty+=it.qty; bySup[o.supId][it.id].rests.push((o.restaurant||'').replace("",'')); }); });
-  return Object.entries(bySup).map(([sid,items])=>{
-    const sup=suppliers[sid]||{name:sid,emoji:'',phone:''};
-    const arr=Object.values(items);
-    const tot=arr.reduce((s,it)=>s+(parseFloat(it.qty)||0)*(parseFloat(it.price)||0),0);
-    const co={supId:sid,restaurant:`Consolidado`,items:arr,createdAt:new Date().toISOString()};
-    const rows=arr.map(it=>`<div class="pr"><span class="pn">${it.name} <small style="color:var(--mut)">(${[...new Set(it.rests)].length}r)</small></span><span class="pq">${it.qty} ${it.unit}</span><span class="pp">${fmt(it.qty*it.price)}</span></div>`).join('');
-    return `<div class="cc"><div class="cc-hd"><div class="cc-name">${sup.emoji} ${sup.name}</div>
-      <button class="btn btn-wa btn-sm" onclick="markSupplierOrdersSent('${sid}');showWA('${_a(sup.phone||'')}',msgSupplier(${JSON.stringify(co).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}), 'Pedido consolidado',null,${JSON.stringify(co).replace(/\\/g,'\\\\').replace(/'/g,"\\'")})">${WA_SVG} Enviar</button>
-    </div><div class="pl">${rows}<div class="ptot">Total: ${fmt(tot)}</div></div></div>`;
-  }).join('');
-}

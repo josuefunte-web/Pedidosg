@@ -822,22 +822,6 @@ function editConvFactor(sid,pid,idx,val){
   const f=parseFloat(val);if(isNaN(f)||f<=0){toast('Factor inválido','#dc2626');return;}
   prod.conversions[idx].factor=f;saveSups(sid);toast('Conversión guardada','#16a34a');
 }
-function invertProdConv(sid,pid,idx){
-  const prod=suppliers[sid]?.products.find(p=>p.id===pid);
-  if(!prod||!prod.conversions||!prod.conversions[idx])return;
-  const c=prod.conversions[idx];
-  const oldBase=prod.unit||'KG';
-  const newBase=c.fromUnit;
-  const newFactor=c.factor>0?parseFloat((1/c.factor).toFixed(6)):1;
-  // Swap: new base unit = oldFromUnit, fromUnit = oldBase
-  prod.unit=newBase;
-  c.fromUnit=oldBase;
-  c.factor=newFactor;
-  saveSups(sid);_refreshConvList(sid,prod.id);
-  const el=document.querySelector(`[onchange*="editProdUnit('${sid}','${pid}'"]`);
-  if(el) el.value=newBase;
-  toast('Conversión invertida','#16a34a');
-}
 function toggleProdAlergeno(sid,pid,aId,checked){
   if(!suppliers[sid])return;
   const prod=suppliers[sid].products.find(p=>p.id===pid);

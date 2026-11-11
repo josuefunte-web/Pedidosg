@@ -467,17 +467,6 @@ function dismissPendingReview(reviewId){
   renderAdminContent();
 }
 
-function ajusteRapido(rest, id, delta){
-  const k=restKey(rest);
-  const it=(inventory[k]||{})[id];
-  if(!it){ return; }
-  const newQty=Math.max(0,(parseFloat(it.qty)||0)+delta);
-  if(!fbDb) return;
-  fbDb.ref('inventory/'+k+'/'+id+'/qty').set(newQty);
-  fbDb.ref('inventory/'+k+'/'+id+'/updatedAt').set(new Date().toISOString());
-  addInvMovement(rest,id,it.name,delta>0?'entrada':'salida',Math.abs(delta),'manual');
-}
-
 // ── Vista admin ──────────────────────────────────────────
 function vInventario(){
   const allRests=Object.keys(cfg.users||{}).map(u=>{const ud=cfg.users[u];return ud.restaurants||[ud.restaurant||u];}).flat().filter((v,i,a)=>a.indexOf(v)===i).sort();

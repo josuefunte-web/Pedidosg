@@ -1,6 +1,5 @@
 /* ═══════════════ ESCANDALLOS: INGREDIENTES, CÁLCULO DE COSTE Y GUARDADO ═══════════════ */
 function escQuitarIng(i){ _escIngs.splice(i,1); escRenderIngs(); escRecalc(); }
-function escSetIngQty(i,val){ if(!_escIngs[i])return; const v=parseFloat(val); _escIngs[i].cantidad=isNaN(v)?0:v; escRenderIngs(); escRecalc(); }
 function escSetIngIva(i,val){ if(!_escIngs[i])return; let v=parseFloat(val); if(isNaN(v))v=0; v=Math.max(0,Math.min(100,v)); _escIngs[i].iva=v; escRenderIngs(); escRecalc(); }
 function escSetIngMerma(i,val){ if(!_escIngs[i])return; let v=parseFloat(val); if(isNaN(v))v=0; v=Math.max(0,Math.min(99,v)); _escIngs[i].merma=v; escRenderIngs(); escRecalc(); }
 
