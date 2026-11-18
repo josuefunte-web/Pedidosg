@@ -1,0 +1,150 @@
+[
+  {
+    "nombre": "Espuma caliente de carbonara (sifón 1 L)",
+    "tipo": "intermedia",
+    "categoria": "Calientes",
+    "restaurante": "global",
+    "rendimiento": 10,
+    "rendimientoUnidad": "rac.",
+    "precioVenta": 0,
+    "iva": 10,
+    "foodCostObjetivo": 30,
+    "notas": "Sifón de 1 L · ~750 ml de base · 10 raciones (~75 ml) · 2 cargas de N2O. Alérgenos: lácteos, huevo. Precios estimados (ingredientes libres): vincular a productos de proveedor para precio real.",
+    "tiempoElaboracion": 35,
+    "temperatura": "60–65 °C",
+    "alergenos": [
+      "lacteos",
+      "huevos"
+    ],
+    "ingredientes": [
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Guanciale (o panceta curada) en dados",
+        "cantidad": 0.12,
+        "unidad": "KG",
+        "precioUnitario": 22.0,
+        "merma": 0,
+        "iva": 10
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Nata 35% MG",
+        "cantidad": 0.4,
+        "unidad": "L",
+        "precioUnitario": 4.2,
+        "merma": 0,
+        "iva": 10
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Leche entera",
+        "cantidad": 0.2,
+        "unidad": "L",
+        "precioUnitario": 0.95,
+        "merma": 0,
+        "iva": 4
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Pimienta negra en grano",
+        "cantidad": 0.005,
+        "unidad": "KG",
+        "precioUnitario": 25.0,
+        "merma": 0,
+        "iva": 10
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Pecorino romano rallado",
+        "cantidad": 0.06,
+        "unidad": "KG",
+        "precioUnitario": 18.0,
+        "merma": 0,
+        "iva": 4
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Parmesano rallado",
+        "cantidad": 0.04,
+        "unidad": "KG",
+        "precioUnitario": 20.0,
+        "merma": 0,
+        "iva": 4
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Yema de huevo pasteurizada",
+        "cantidad": 0.1,
+        "unidad": "KG",
+        "precioUnitario": 7.5,
+        "merma": 0,
+        "iva": 10
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Sal",
+        "cantidad": 0.0015,
+        "unidad": "KG",
+        "precioUnitario": 0.5,
+        "merma": 0,
+        "iva": 10
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Carga de N2O (8 g)",
+        "cantidad": 2,
+        "unidad": "UN",
+        "precioUnitario": 0.3,
+        "merma": 0,
+        "iva": 21
+      }
+    ],
+    "elaboracion": {
+      "texto": "Espuma caliente de carbonara para sifón de 1 L. Base de nata y leche infusionada con la grasa del guanciale y pimienta, ligada con quesos y yemas a punto de crema inglesa.",
+      "pasos": [
+        "Dorar el guanciale (8 min): en un cazo a fuego medio-bajo hasta que suelte la grasa y quede crujiente. Reservar los crujientes para el emplatado y dejar la grasa en el cazo.",
+        "Infusionar (15 min): añadir la nata, la leche y la pimienta machacada sobre la grasa. Calentar sin que llegue a hervir y dejar infusionar a fuego mínimo.",
+        "Colar y añadir queso: colar por estameña o colador fino. Fuera del fuego, añadir el pecorino y el parmesano y triturar con la túrmix hasta que quede liso.",
+        "Ligar con las yemas: templar la base a unos 60 °C, añadir las yemas batiendo y cocinar a fuego suave, removiendo sin parar, hasta 78–80 °C (punto de crema inglesa, sin hervir). Ajustar de sal.",
+        "Colar y cargar: colar de nuevo por colador fino para que no se atasque la boquilla. Llenar el sifón con 750 ml como máximo, cerrar y cargar 2 cargas de N2O, agitando bien tras cada una.",
+        "Mantener caliente: sifón al baño maría a 60–65 °C hasta el servicio. Agitar antes de servir y disparar con la boquilla hacia abajo."
+      ]
+    },
+    "temporada": [],
+    "recetaSecciones": [
+      {
+        "titulo": "Notas de textura y seguridad",
+        "ingredientes": [],
+        "pasos": [
+          "Textura: si queda líquida, añadir 1 yema más o subir el queso; si queda densa, cortar con leche.",
+          "Seguridad: usar yema pasteurizada y no mantener la espuma al baño maría más de 2–3 h."
+        ]
+      },
+      {
+        "titulo": "Emplatado",
+        "ingredientes": [],
+        "pasos": [
+          "Pasta o huevo a baja temperatura, espuma por encima, crujientes de guanciale y pimienta recién molida."
+        ]
+      }
+    ]
+  }
+]
