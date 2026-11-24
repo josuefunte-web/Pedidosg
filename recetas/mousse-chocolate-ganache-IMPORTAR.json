@@ -6,10 +6,10 @@
     "restaurante": "global",
     "rendimiento": 10,
     "rendimientoUnidad": "rac.",
-    "precioVenta": 0,
+    "precioVenta": 3.5,
     "iva": 10,
     "foodCostObjetivo": 30,
-    "notas": "Mousse rápida y sin huevo, aligerando una ganache 1:1 con nata semimontada. Si tu ganache es 2:1 (más chocolate), sube la nata a unos 400 ml. Para servicio o si va en tarta, hidrata 1 hoja de gelatina (2 g), fúndela en la ganache tibia y la mousse aguantará mejor a temperatura ambiente. Para emplatar: crumble de cacao, sal en escamas y un toque de AOVE o frambuesa para cortar el dulzor.",
+    "notas": "Mousse rápida y sin huevo, aligerando una ganache 1:1 con nata semimontada. Si tu ganache es 2:1 (más chocolate), sube la nata a unos 400 ml. Para servicio o si va en tarta, hidrata 1 hoja de gelatina (2 g), fúndela en la ganache tibia y la mousse aguantará mejor a temperatura ambiente. Para emplatar: crumble de cacao, sal en escamas y un toque de AOVE o frambuesa para cortar el dulzor.\n\nPrecios ESTIMADOS (revisar): ganache 7,25 €/kg (cobertura ~10 €/kg + nata 4,5 €/L a partes iguales), nata 4,50 €/L, sal 1 € por 1000 pizcas.",
     "ingredientes": [
       {
         "proveedorId": null,
@@ -18,8 +18,9 @@
         "nombre": "Ganache de chocolate (1:1)",
         "cantidad": 625,
         "unidad": "g",
-        "precioUnitario": 0,
-        "merma": 0
+        "precioUnitario": 0.00725,
+        "merma": 0,
+        "iva": 10
       },
       {
         "proveedorId": null,
@@ -28,8 +29,9 @@
         "nombre": "Nata 35% MG muy fría",
         "cantidad": 750,
         "unidad": "ml",
-        "precioUnitario": 0,
-        "merma": 0
+        "precioUnitario": 0.0045,
+        "merma": 0,
+        "iva": 10
       },
       {
         "proveedorId": null,
@@ -38,8 +40,9 @@
         "nombre": "Sal fina",
         "cantidad": 2.5,
         "unidad": "pizca",
-        "precioUnitario": 0,
-        "merma": 0
+        "precioUnitario": 0.001,
+        "merma": 0,
+        "iva": 10
       }
     ],
     "elaboracion": {
