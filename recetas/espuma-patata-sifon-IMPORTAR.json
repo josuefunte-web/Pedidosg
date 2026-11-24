@@ -1,0 +1,119 @@
+[
+  {
+    "nombre": "Espuma de patata (sifón 0,5 l)",
+    "tipo": "intermedia",
+    "categoria": "Guarniciones",
+    "restaurante": "global",
+    "rendimiento": 1,
+    "rendimientoUnidad": "sifón 0,5 l",
+    "precioVenta": 0,
+    "iva": 10,
+    "foodCostObjetivo": 30,
+    "notas": "Receta base para un sifón de 0,5 l, con 2 cargas de N₂O. Patata mejor harinosa. Si usas mantequilla en vez de aceite: 40 g. Precios ESTIMADOS (revisar): patata 1,20 €/kg (IVA 4 %), nata 4,50 €/L, aceite suave 6 €/L, agua de cocción sin coste. Es una elaboración intermedia: sin PVP.",
+    "ingredientes": [
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Patata pelada (harinosa, Kennebec o Monalisa)",
+        "cantidad": 250,
+        "unidad": "g",
+        "precioUnitario": 0.0012,
+        "iva": 4,
+        "merma": 0
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Agua de cocción (o caldo de ave o verduras)",
+        "cantidad": 200,
+        "unidad": "ml",
+        "precioUnitario": 0,
+        "iva": 10,
+        "merma": 0
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Nata 35% MG",
+        "cantidad": 125,
+        "unidad": "ml",
+        "precioUnitario": 0.0045,
+        "iva": 10,
+        "merma": 0
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Aceite de oliva suave (o 40 g de mantequilla)",
+        "cantidad": 40,
+        "unidad": "ml",
+        "precioUnitario": 0.006,
+        "iva": 10,
+        "merma": 0
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Sal",
+        "cantidad": 1,
+        "unidad": "pizca",
+        "precioUnitario": 0.001,
+        "iva": 10,
+        "merma": 0
+      }
+    ],
+    "elaboracion": {
+      "texto": "",
+      "pasos": []
+    },
+    "recetaSecciones": [
+      {
+        "titulo": "Espuma de patata",
+        "ingredientes": [
+          {
+            "nombre": "Patata pelada (harinosa, Kennebec o Monalisa)",
+            "cantidad": 250,
+            "unidad": "g",
+            "nota": ""
+          },
+          {
+            "nombre": "Agua de cocción (o caldo de ave o verduras)",
+            "cantidad": 200,
+            "unidad": "ml",
+            "nota": ""
+          },
+          {
+            "nombre": "Nata 35% MG",
+            "cantidad": 125,
+            "unidad": "ml",
+            "nota": ""
+          },
+          {
+            "nombre": "Aceite de oliva suave (o 40 g de mantequilla)",
+            "cantidad": 40,
+            "unidad": "ml",
+            "nota": ""
+          },
+          {
+            "nombre": "Sal",
+            "cantidad": 1,
+            "unidad": "pizca",
+            "nota": ""
+          }
+        ],
+        "pasos": [
+          "Cuece la patata en dados en agua con sal (o en el caldo) hasta que esté bien tierna. Guarda el líquido.",
+          "Tritura en caliente con la nata, la grasa y el líquido de cocción hasta que quede muy fino. Rectifica de sal y deja algo más de sal de lo normal, porque al airearse el sabor se nota menos.",
+          "Pásalo por un colador fino o chino. Es imprescindible: cualquier grumo atasca la boquilla.",
+          "Llena el sifón sin pasar del máximo, ciérralo y pon 2 cargas de N₂O, agitando bien tras cada una.",
+          "Mantenlo al baño maría a 60–70 °C hasta el pase. Por encima de 70 °C la espuma puede cortarse."
+        ]
+      }
+    ]
+  }
+]
