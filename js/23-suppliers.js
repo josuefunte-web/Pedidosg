@@ -61,6 +61,19 @@ function vSuppliers(){
     ? sups.filter(function(sp){ return (sp.name||'').toLowerCase().indexOf(q)>-1; })
     : sups;
 
+  // ── Selección múltiple (para borrar varios proveedores de golpe) ─
+  if(!S.supSel) S.supSel = {};
+  Object.keys(S.supSel).forEach(function(id){ if(!suppliers[id]) delete S.supSel[id]; });
+  const selCount = Object.keys(S.supSel).length;
+  const allShownSel = shownSups.length>0 && shownSups.every(function(sp){ return S.supSel[sp.id]; });
+  const bulkBar = selCount
+    ? '<div class="sup-panel" style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:10px">' +
+        '<strong>' + selCount + ' proveedor' + (selCount===1?'':'es') + ' seleccionado' + (selCount===1?'':'s') + '</strong>' +
+        '<button class="btn btn-no btn-sm" onclick="delSupsBulk()">Borrar seleccionados</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="supSelAll(false,true)">Deseleccionar</button>' +
+      '</div>'
+    : '';
+
   // ── Cabecera + acción primaria + acciones secundarias ──────────
   const canBulk = (typeof can==='function' && can('canImportBulk'));
   const head =
@@ -123,6 +136,7 @@ function vSuppliers(){
 
       return (
         '<tr class="sup-row" data-sup-id="' + _a(sup.id) + '" onclick="supToggle(this.dataset.supId)">' +
+          '<td class="sup-td" style="width:34px" onclick="event.stopPropagation()"><input type="checkbox" data-sup-id="' + _a(sup.id) + '"' + (S.supSel[sup.id]?' checked':'') + ' onchange="supSelToggle(this.dataset.supId,this.checked)" title="Seleccionar"/></td>' +
           '<td class="sup-td sup-td-name"><div class="sup-name">' + _e(sup.name || '') + '</div><div class="sup-sub">' + orderCount + ' pedido' + (orderCount===1?'':'s') + '</div></td>' +
           '<td class="sup-td sup-td-num">' + sup.products.length + '</td>' +
           '<td class="sup-td sup-td-contact sup-hide-md">' + contact + '</td>' +
@@ -141,6 +155,7 @@ function vSuppliers(){
         '<div class="sup-table-w">' +
           '<table class="sup-table">' +
             '<thead><tr>' +
+              '<th class="sup-th" style="width:34px"><input type="checkbox" ' + (allShownSel?'checked':'') + ' onchange="supSelAll(this.checked)" title="Seleccionar todos los visibles"/></th>' +
               '<th class="sup-th">Proveedor</th>' +
               '<th class="sup-th sup-th-num">Productos</th>' +
               '<th class="sup-th sup-hide-md">Contacto</th>' +
@@ -154,8 +169,45 @@ function vSuppliers(){
       '</div>';
   }
 
-  return head + pendingBanner + kpis + tools + newForm + listHtml;
+  return head + pendingBanner + kpis + tools + newForm + bulkBar + listHtml;
 }
+
+// ── Selección múltiple y borrado masivo de proveedores ──────────
+window.supSelToggle = function(id, on){
+  if(!S.supSel) S.supSel = {};
+  if(on) S.supSel[id] = true; else delete S.supSel[id];
+  renderAdminContent();
+};
+// all=true/false marca/desmarca los visibles (respeta el buscador);
+// clearAll=true vacía toda la selección.
+window.supSelAll = function(on, clearAll){
+  if(!S.supSel) S.supSel = {};
+  if(clearAll){ S.supSel = {}; }
+  else {
+    const q = (S.supSearch||'').trim().toLowerCase();
+    supList().filter(function(sp){ return !q || (sp.name||'').toLowerCase().indexOf(q)>-1; })
+      .forEach(function(sp){ if(on) S.supSel[sp.id]=true; else delete S.supSel[sp.id]; });
+  }
+  renderAdminContent();
+};
+window.delSupsBulk = function(){
+  const ids = Object.keys(S.supSel||{}).filter(function(id){ return suppliers[id]; });
+  if(!ids.length) return;
+  const names = ids.slice(0,15).map(function(id){ return '· '+(suppliers[id].name||id); }).join('\n') +
+    (ids.length>15 ? '\n… y '+(ids.length-15)+' más' : '');
+  if(!confirm('¿Eliminar '+ids.length+' proveedor'+(ids.length===1?'':'es')+'?\n\n'+names+'\n\nEsta acción no se puede deshacer.')) return;
+  const upd = {};
+  ids.forEach(function(id){
+    delete suppliers[id];
+    upd[id] = null;
+    if(S.openSupId===id) S.openSupId = null;
+  });
+  S.supSel = {};
+  if(fbDb) fbDb.ref('suppliers').update(upd);
+  localStorage.setItem('oc_suppliers', JSON.stringify(suppliers));
+  render();
+  toast(ids.length+' proveedor'+(ids.length===1?'':'es')+' eliminado'+(ids.length===1?'':'s'),'#d97706');
+};
 
 // Buscador y toggle expuestos globalmente (usa dataset para evitar XSS
 // al interpolar el id dentro de un handler onclick).
