@@ -1,0 +1,47 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Recipe",
+  "name": "Mousse de chocolate a partir de ganache",
+  "description": "Mousse rápida y sin huevo, aligerando una ganache 1:1 con nata semimontada.",
+  "inLanguage": "es",
+  "recipeCategory": "Postre",
+  "recipeCuisine": "Repostería",
+  "recipeYield": "10 raciones",
+  "prepTime": "PT20M",
+  "cookTime": "PT0M",
+  "totalTime": "PT3H20M",
+  "keywords": "mousse de chocolate, ganache, sin huevo, nata, postre",
+  "recipeIngredient": [
+    "625 g de ganache de chocolate (1:1)",
+    "750 ml de nata 35% MG muy fría",
+    "2 ½ pinzadas de sal fina"
+  ],
+  "recipeInstructions": [
+    {
+      "@type": "HowToStep",
+      "name": "Templar la ganache",
+      "text": "Calienta 625 g de ganache de chocolate (1:1) con 2 ½ pinzadas de sal fina al microondas en golpes de 10 segundos, o al baño maría, hasta que esté fluida y a unos 35-40 °C (tibia al tacto, no caliente). Si está por encima, la nata se derrite. Si está por debajo, el chocolate cristaliza y salen grumos."
+    },
+    {
+      "@type": "HowToStep",
+      "name": "Semimontar la nata",
+      "text": "Monta 750 ml de nata 35% MG muy fría solo hasta punto de yogur: tiene que formar picos blandos que caen. Si la montas del todo, la mousse queda granulada y pesada."
+    },
+    {
+      "@type": "HowToStep",
+      "name": "Aligerar la base",
+      "text": "Añade un tercio de la nata a la ganache y mézclalo con varillas sin miedo. Así igualas texturas y temperaturas."
+    },
+    {
+      "@type": "HowToStep",
+      "name": "Incorporar el resto",
+      "text": "Añade el resto de la nata en dos veces, con lengua y movimientos envolventes de abajo arriba, hasta que no queden vetas blancas. No te pases mezclando."
+    },
+    {
+      "@type": "HowToStep",
+      "name": "Reposar en frío",
+      "text": "Reparte en vasitos o con manga y deja en la nevera al menos 3 horas para que coja cuerpo."
+    }
+  ],
+  "recipeNotes": "Si tu ganache es 2:1 (más chocolate), sube la nata a unos 400 ml. Para servicio o si va en tarta, hidrata 1 hoja de gelatina (2 g), fúndela en la ganache tibia y la mousse aguantará mejor a temperatura ambiente. Para emplatar: crumble de cacao, sal en escamas y un toque de aceite de oliva virgen extra o frambuesa para cortar el dulzor."
+}
