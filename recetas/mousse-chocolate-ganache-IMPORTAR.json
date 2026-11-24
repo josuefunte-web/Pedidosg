@@ -1,0 +1,82 @@
+[
+  {
+    "nombre": "Mousse de chocolate a partir de ganache",
+    "tipo": "final",
+    "categoria": "Postres",
+    "restaurante": "global",
+    "rendimiento": 10,
+    "rendimientoUnidad": "rac.",
+    "precioVenta": 0,
+    "iva": 10,
+    "foodCostObjetivo": 30,
+    "notas": "Mousse rápida y sin huevo, aligerando una ganache 1:1 con nata semimontada. Si tu ganache es 2:1 (más chocolate), sube la nata a unos 400 ml. Para servicio o si va en tarta, hidrata 1 hoja de gelatina (2 g), fúndela en la ganache tibia y la mousse aguantará mejor a temperatura ambiente. Para emplatar: crumble de cacao, sal en escamas y un toque de AOVE o frambuesa para cortar el dulzor.",
+    "ingredientes": [
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Ganache de chocolate (1:1)",
+        "cantidad": 625,
+        "unidad": "g",
+        "precioUnitario": 0,
+        "merma": 0
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Nata 35% MG muy fría",
+        "cantidad": 750,
+        "unidad": "ml",
+        "precioUnitario": 0,
+        "merma": 0
+      },
+      {
+        "proveedorId": null,
+        "proveedorNombre": "Libre",
+        "productoId": null,
+        "nombre": "Sal fina",
+        "cantidad": 2.5,
+        "unidad": "pizca",
+        "precioUnitario": 0,
+        "merma": 0
+      }
+    ],
+    "elaboracion": {
+      "texto": "",
+      "pasos": []
+    },
+    "recetaSecciones": [
+      {
+        "titulo": "Mousse",
+        "ingredientes": [
+          {
+            "nombre": "Ganache de chocolate (1:1)",
+            "cantidad": 625,
+            "unidad": "g",
+            "nota": ""
+          },
+          {
+            "nombre": "Nata 35% MG muy fría",
+            "cantidad": 750,
+            "unidad": "ml",
+            "nota": ""
+          },
+          {
+            "nombre": "Sal fina",
+            "cantidad": 2.5,
+            "unidad": "pizca",
+            "nota": ""
+          }
+        ],
+        "pasos": [
+          "Templar la ganache: calienta la ganache con la sal al microondas en golpes de 10 segundos, o al baño maría, hasta que esté fluida y a unos 35-40 °C (tibia al tacto, no caliente). Si está por encima, la nata se derrite. Si está por debajo, el chocolate cristaliza y salen grumos.",
+          "Semimontar la nata: monta la nata muy fría solo hasta punto de yogur (picos blandos que caen). Si la montas del todo, la mousse queda granulada y pesada.",
+          "Aligerar la base: añade un tercio de la nata a la ganache y mézclalo con varillas sin miedo, para igualar texturas y temperaturas.",
+          "Incorporar el resto: añade el resto de la nata en dos veces, con lengua y movimientos envolventes de abajo arriba, hasta que no queden vetas blancas. No te pases mezclando.",
+          "Reposar en frío: reparte en vasitos o con manga y deja en la nevera al menos 3 horas para que coja cuerpo."
+        ]
+      }
+    ]
+  }
+]
